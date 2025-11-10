@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 mod cli;
 mod errors;
+mod fuzzy;
 mod vcs;
 
 use errors::Result;
@@ -34,6 +35,18 @@ enum Commands {
         #[arg(short, long)]
         force: bool,
     },
+    /// Switch to a worktree (outputs path for shell wrapper)
+    Switch {
+        /// Name of the worktree to switch to
+        name: String,
+    },
+    /// Show detailed information about a worktree
+    Info {
+        /// Name of the worktree (defaults to current)
+        name: Option<String>,
+    },
+    /// Output shell integration code for ~/.bashrc or ~/.zshrc
+    InitShell,
 }
 
 fn main() -> Result<()> {
@@ -43,6 +56,9 @@ fn main() -> Result<()> {
         Commands::Add { name, branch } => cli::add::run(name, branch)?,
         Commands::List => cli::list::run()?,
         Commands::Remove { name, force } => cli::remove::run(name, force)?,
+        Commands::Switch { name } => cli::switch::run(name)?,
+        Commands::Info { name } => cli::info::run(name)?,
+        Commands::InitShell => cli::init_shell::run()?,
     }
 
     Ok(())

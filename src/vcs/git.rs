@@ -3,6 +3,21 @@ use crate::vcs::Worktree;
 use git2::Repository;
 use std::path::{Path, PathBuf};
 
+/// Git status information for a worktree
+#[derive(Debug, Clone)]
+pub struct WorktreeStatus {
+    pub modified: usize,
+    pub added: usize,
+    pub deleted: usize,
+    pub untracked: usize,
+}
+
+impl WorktreeStatus {
+    pub fn is_clean(&self) -> bool {
+        self.modified == 0 && self.added == 0 && self.deleted == 0 && self.untracked == 0
+    }
+}
+
 pub struct GitBackend {
     repo: Repository,
 }
@@ -186,6 +201,103 @@ impl GitBackend {
 
         // If output is not empty, there are uncommitted changes
         Ok(!output.stdout.is_empty())
+    }
+
+    /// Get a worktree by name (public API for switch command)
+    pub fn get_worktree_by_name(&self, name: &str) -> Result<Worktree> {
+        self.get_worktree_info(name)
+    }
+
+    /// Get the current worktree based on the current directory
+    pub fn get_current_worktree(&self, current_dir: &Path) -> Result<Worktree> {
+        // Get all worktrees and find the one containing current_dir
+        let worktrees = self.list_worktrees()?;
+
+        for wt in worktrees {
+            if current_dir.starts_with(&wt.path) {
+                return Ok(wt);
+            }
+        }
+
+        Err(HnError::NotInRepository)
+    }
+
+    /// Get git status for a worktree
+    pub fn get_worktree_status(&self, worktree_path: &Path) -> Result<WorktreeStatus> {
+        use std::process::Command;
+
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(worktree_path)
+            .arg("status")
+            .arg("--porcelain")
+            .output()?;
+
+        if !output.status.success() {
+            return Err(HnError::Git(git2::Error::from_str(
+                "Failed to get git status"
+            )));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut status = WorktreeStatus {
+            modified: 0,
+            added: 0,
+            deleted: 0,
+            untracked: 0,
+        };
+
+        for line in stdout.lines() {
+            if line.len() < 2 {
+                continue;
+            }
+
+            let index_status = line.chars().nth(0).unwrap();
+            let worktree_status = line.chars().nth(1).unwrap();
+
+            // Check index status (staged changes)
+            match index_status {
+                'M' => status.modified += 1,
+                'A' => status.added += 1,
+                'D' => status.deleted += 1,
+                _ => {}
+            }
+
+            // Check worktree status (unstaged changes)
+            match worktree_status {
+                'M' => {
+                    if index_status == ' ' {
+                        status.modified += 1;
+                    }
+                }
+                'D' => {
+                    if index_status == ' ' {
+                        status.deleted += 1;
+                    }
+                }
+                _ => {}
+            }
+
+            // Check for untracked files
+            if index_status == '?' && worktree_status == '?' {
+                status.untracked += 1;
+            }
+        }
+
+        Ok(status)
+    }
+
+    /// Get the commit message for a worktree
+    pub fn get_commit_message(&self, worktree_path: &Path) -> Result<String> {
+        let wt_repo = Repository::open(worktree_path)?;
+        let head = wt_repo.head()?;
+
+        if let Some(commit_oid) = head.target() {
+            let commit = wt_repo.find_commit(commit_oid)?;
+            Ok(commit.message().unwrap_or("").to_string())
+        } else {
+            Ok("(no commit message)".to_string())
+        }
     }
 
     /// Get information about a specific worktree
