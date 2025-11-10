@@ -38,6 +38,13 @@ impl TestRepo {
             .output()
             .expect("Failed to configure git");
 
+        // Disable GPG signing for tests
+        Command::new("git")
+            .args(["config", "commit.gpgsign", "false"])
+            .current_dir(&repo_path)
+            .output()
+            .expect("Failed to configure git");
+
         // Create initial commit
         std::fs::write(repo_path.join("README.md"), "# Test Repo\n")
             .expect("Failed to write README");
@@ -53,6 +60,13 @@ impl TestRepo {
             .current_dir(&repo_path)
             .output()
             .expect("Failed to create initial commit");
+
+        // Ensure we're on main branch (git init might create master or main depending on config)
+        Command::new("git")
+            .args(["branch", "-M", "main"])
+            .current_dir(&repo_path)
+            .output()
+            .expect("Failed to rename branch to main");
 
         TestRepo {
             temp_dir,

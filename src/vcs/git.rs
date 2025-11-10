@@ -77,6 +77,9 @@ impl GitBackend {
             "unknown".to_string()
         };
 
+        // Detect current worktree and set parent
+        let parent = self.detect_and_set_parent(name, &worktree_path)?;
+
         // Return the worktree info directly
         // Note: We construct this directly because libgit2's find_worktree doesn't see
         // worktrees created by external git commands without reloading
@@ -85,6 +88,7 @@ impl GitBackend {
             path: worktree_path,
             branch: branch_name.to_string(),
             commit,
+            parent,
         })
     }
 
@@ -187,11 +191,13 @@ impl GitBackend {
                         .and_then(|n| n.to_str())
                         .unwrap_or("unknown")
                         .to_string();
+                    let parent = self.get_parent(&path).ok();
                     worktrees.push(Worktree {
                         name,
                         path,
                         branch,
                         commit,
+                        parent,
                     });
                 }
                 // Start new worktree
@@ -224,11 +230,13 @@ impl GitBackend {
                 .and_then(|n| n.to_str())
                 .unwrap_or("unknown")
                 .to_string();
+            let parent = self.get_parent(&path).ok();
             worktrees.push(Worktree {
                 name,
                 path,
                 branch,
                 commit,
+                parent,
             });
         }
 
@@ -409,5 +417,74 @@ impl GitBackend {
             .into_iter()
             .find(|wt| wt.name == name)
             .ok_or_else(|| HnError::WorktreeNotFound(name.to_string()))
+    }
+
+    /// Detect current worktree and set parent relationship
+    fn detect_and_set_parent(&self, _name: &str, worktree_path: &Path) -> Result<Option<String>> {
+        // Try to detect if we're currently in a worktree
+        let current_dir = std::env::current_dir()?;
+
+        // Check if current directory is in a worktree (not the main repo)
+        if let Ok(current_worktree) = self.get_current_worktree(&current_dir) {
+            // Check if this is the main repo (not a worktree)
+            // In the main repo, .git is a directory. In worktrees, .git is a file.
+            let git_path = current_worktree.path.join(".git");
+            let is_main_repo = git_path.is_dir();
+
+            // Only set parent if we're in an actual worktree, not the main repo
+            if !is_main_repo {
+                let parent_name = current_worktree.name.clone();
+                self.set_parent(worktree_path, &parent_name)?;
+                return Ok(Some(parent_name));
+            }
+        }
+
+        // Not in a worktree, or in main repo - no parent
+        Ok(None)
+    }
+
+    /// Set the parent worktree using git config
+    fn set_parent(&self, worktree_path: &Path, parent_name: &str) -> Result<()> {
+        use std::process::Command;
+
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(worktree_path)
+            .arg("config")
+            .arg("worktree.parent")
+            .arg(parent_name)
+            .output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(HnError::Git(git2::Error::from_str(&format!(
+                "Failed to set parent config: {}",
+                stderr
+            ))));
+        }
+
+        Ok(())
+    }
+
+    /// Get the parent worktree from git config
+    fn get_parent(&self, worktree_path: &Path) -> Result<String> {
+        use std::process::Command;
+
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(worktree_path)
+            .arg("config")
+            .arg("--get")
+            .arg("worktree.parent")
+            .output()?;
+
+        if output.status.success() {
+            let parent = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !parent.is_empty() {
+                return Ok(parent);
+            }
+        }
+
+        Err(HnError::Git(git2::Error::from_str("No parent config")))
     }
 }

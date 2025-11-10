@@ -9,4 +9,5 @@ pub struct Worktree {
     pub path: PathBuf,
     pub branch: String,
     pub commit: String,
+    pub parent: Option<String>,
 }
