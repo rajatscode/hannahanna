@@ -1,7 +1,7 @@
 use crate::errors::{HnError, Result};
 use crate::vcs::Worktree;
 use git2::Repository;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Git status information for a worktree
 #[derive(Debug, Clone)]
@@ -53,28 +53,9 @@ impl GitBackend {
         // Determine branch name (use provided branch or create new with same name as worktree)
         let branch_name = branch.unwrap_or(name);
 
-        // Check if we need to create a new branch
-        let branch_ref = format!("refs/heads/{}", branch_name);
-        let branch_exists = self.repo.find_reference(&branch_ref).is_ok();
-
-        // If branch doesn't exist, we'll create it from HEAD
-        let commit_id = if !branch_exists {
-            // Get the current HEAD commit
-            let head = self.repo.head()?;
-            head.target().ok_or_else(|| {
-                HnError::Git(git2::Error::from_str("HEAD does not point to a commit"))
-            })?
-        } else {
-            // Branch exists, get its commit
-            let branch_ref = self.repo.find_reference(&branch_ref)?;
-            branch_ref.target().ok_or_else(|| {
-                HnError::Git(git2::Error::from_str("Branch does not point to a commit"))
-            })?
-        };
-
         // Create the worktree using libgit2
         // Note: libgit2's worktree API is limited, so we'll use git command for now
-        self.create_worktree_via_command(name, &worktree_path, branch_name)?;
+        self.create_worktree_via_command(&worktree_path, branch_name)?;
 
         // Return the worktree info
         self.get_worktree_info(name)
@@ -83,7 +64,6 @@ impl GitBackend {
     /// Create worktree using git command (libgit2's worktree API is limited)
     fn create_worktree_via_command(
         &self,
-        name: &str,
         path: &Path,
         branch: &str,
     ) -> Result<()> {

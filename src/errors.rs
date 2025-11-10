@@ -20,6 +20,15 @@ pub enum HnError {
     #[error("Ambiguous worktree name '{0}'. Did you mean one of: {}", .1.join(", "))]
     AmbiguousWorktreeName(String, Vec<String>),
 
+    #[error("Config error: {0}")]
+    ConfigError(String),
+
+    #[error("Hook error: {0}")]
+    HookError(String),
+
+    #[error("Symlink error: {0}")]
+    SymlinkError(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }

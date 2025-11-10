@@ -1,0 +1,13 @@
+shared_resources:
+  - source: node_modules
+    target: node_modules
+    compatibility: package-lock.json
+
+hooks:
+  post_create: |
+    echo "✓ Worktree created successfully!"
+    echo "  Name: $WT_NAME"
+    echo "  Path: $WT_PATH"
+    echo "  Branch: $WT_BRANCH"
+  pre_remove: |
+    echo "Cleaning up worktree $WT_NAME..."

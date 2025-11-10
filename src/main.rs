@@ -1,8 +1,12 @@
 use clap::{Parser, Subcommand};
 
 mod cli;
+mod config;
+mod env;
 mod errors;
 mod fuzzy;
+mod hooks;
+mod state;
 mod vcs;
 
 use errors::Result;
@@ -47,6 +51,8 @@ enum Commands {
     },
     /// Output shell integration code for ~/.bashrc or ~/.zshrc
     InitShell,
+    /// Clean up orphaned state directories
+    Prune,
 }
 
 fn main() -> Result<()> {
@@ -59,6 +65,7 @@ fn main() -> Result<()> {
         Commands::Switch { name } => cli::switch::run(name)?,
         Commands::Info { name } => cli::info::run(name)?,
         Commands::InitShell => cli::init_shell::run()?,
+        Commands::Prune => cli::prune::run()?,
     }
 
     Ok(())
