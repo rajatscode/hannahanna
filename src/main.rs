@@ -26,6 +26,14 @@ enum Commands {
     },
     /// List all worktrees
     List,
+    /// Remove a worktree
+    Remove {
+        /// Name of the worktree to remove
+        name: String,
+        /// Force removal even if there are uncommitted changes
+        #[arg(short, long)]
+        force: bool,
+    },
 }
 
 fn main() -> Result<()> {
@@ -34,6 +42,7 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Add { name, branch } => cli::add::run(name, branch)?,
         Commands::List => cli::list::run()?,
+        Commands::Remove { name, force } => cli::remove::run(name, force)?,
     }
 
     Ok(())
