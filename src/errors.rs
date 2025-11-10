@@ -11,6 +11,12 @@ pub enum HnError {
     #[error("Worktree '{0}' not found")]
     WorktreeNotFound(String),
 
+    #[error("Invalid worktree name: {0}")]
+    InvalidWorktreeName(String),
+
+    #[error("Worktree '{0}' already exists")]
+    WorktreeAlreadyExists(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }

@@ -17,6 +17,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Create a new worktree
+    Add {
+        /// Name of the worktree to create
+        name: String,
+        /// Branch to checkout (defaults to creating new branch with same name)
+        branch: Option<String>,
+    },
     /// List all worktrees
     List,
 }
@@ -25,6 +32,7 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Add { name, branch } => cli::add::run(name, branch)?,
         Commands::List => cli::list::run()?,
     }
 
