@@ -188,6 +188,11 @@ impl GitBackend {
         Ok(!output.stdout.is_empty())
     }
 
+    /// Get a worktree by name (public API for switch command)
+    pub fn get_worktree_by_name(&self, name: &str) -> Result<Worktree> {
+        self.get_worktree_info(name)
+    }
+
     /// Get information about a specific worktree
     fn get_worktree_info(&self, name: &str) -> Result<Worktree> {
         let worktree = self.repo.find_worktree(name)?;
