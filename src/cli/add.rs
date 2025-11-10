@@ -5,7 +5,12 @@ use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
 use crate::vcs::git::GitBackend;
 
-pub fn run(name: String, branch: Option<String>, from: Option<String>, no_branch: bool) -> Result<()> {
+pub fn run(
+    name: String,
+    branch: Option<String>,
+    from: Option<String>,
+    no_branch: bool,
+) -> Result<()> {
     // Validate name (basic validation for now)
     if name.is_empty() {
         return Err(crate::errors::HnError::InvalidWorktreeName(

@@ -69,7 +69,12 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Add { name, branch, from, no_branch } => cli::add::run(name, branch, from, no_branch)?,
+        Commands::Add {
+            name,
+            branch,
+            from,
+            no_branch,
+        } => cli::add::run(name, branch, from, no_branch)?,
         Commands::List { tree } => cli::list::run(tree)?,
         Commands::Remove { name, force } => cli::remove::run(name, force)?,
         Commands::Switch { name } => cli::switch::run(name)?,

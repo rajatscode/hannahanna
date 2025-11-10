@@ -31,7 +31,13 @@ impl GitBackend {
     }
 
     /// Create a new git worktree
-    pub fn create_worktree(&self, name: &str, branch: Option<&str>, from: Option<&str>, no_branch: bool) -> Result<Worktree> {
+    pub fn create_worktree(
+        &self,
+        name: &str,
+        branch: Option<&str>,
+        from: Option<&str>,
+        no_branch: bool,
+    ) -> Result<Worktree> {
         // Get the repository's worktree directory (parent of .git)
         let repo_path = self.repo.path().parent().ok_or_else(|| {
             HnError::Git(git2::Error::from_str("Could not determine repository path"))
@@ -83,7 +89,13 @@ impl GitBackend {
     }
 
     /// Create worktree using git command (libgit2's worktree API is limited)
-    fn create_worktree_via_command(&self, path: &Path, branch: &str, from: Option<&str>, no_branch: bool) -> Result<()> {
+    fn create_worktree_via_command(
+        &self,
+        path: &Path,
+        branch: &str,
+        from: Option<&str>,
+        no_branch: bool,
+    ) -> Result<()> {
         use std::process::Command;
 
         // Get the repository's working directory
@@ -92,9 +104,7 @@ impl GitBackend {
         })?;
 
         let mut cmd = Command::new("git");
-        cmd.current_dir(repo_workdir)
-            .arg("worktree")
-            .arg("add");
+        cmd.current_dir(repo_workdir).arg("worktree").arg("add");
 
         if no_branch {
             // Checkout existing branch without creating new one
@@ -172,7 +182,8 @@ impl GitBackend {
             if line.starts_with("worktree ") {
                 // Save previous worktree if any
                 if let Some((path, branch, commit)) = current_worktree.take() {
-                    let name = path.file_name()
+                    let name = path
+                        .file_name()
                         .and_then(|n| n.to_str())
                         .unwrap_or("unknown")
                         .to_string();
@@ -208,7 +219,8 @@ impl GitBackend {
 
         // Don't forget the last worktree
         if let Some((path, branch, commit)) = current_worktree.take() {
-            let name = path.file_name()
+            let name = path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("unknown")
                 .to_string();
@@ -247,9 +259,7 @@ impl GitBackend {
         })?;
 
         let mut cmd = Command::new("git");
-        cmd.current_dir(repo_workdir)
-            .arg("worktree")
-            .arg("remove");
+        cmd.current_dir(repo_workdir).arg("worktree").arg("remove");
 
         if force {
             cmd.arg("--force");
