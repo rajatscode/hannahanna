@@ -36,8 +36,9 @@ impl Config {
         }
 
         let content = fs::read_to_string(&config_path)?;
-        let config: Config = serde_yaml::from_str(&content)
-            .map_err(|e| crate::errors::HnError::ConfigError(format!("Failed to parse config: {}", e)))?;
+        let config: Config = serde_yaml::from_str(&content).map_err(|e| {
+            crate::errors::HnError::ConfigError(format!("Failed to parse config: {}", e))
+        })?;
 
         Ok(config)
     }
@@ -105,7 +106,10 @@ hooks:
         let config = Config::load(temp_dir.path()).unwrap();
         assert_eq!(config.shared_resources.len(), 2);
         assert_eq!(config.shared_resources[0].source, "node_modules");
-        assert_eq!(config.shared_resources[0].compatibility, Some("package-lock.json".to_string()));
+        assert_eq!(
+            config.shared_resources[0].compatibility,
+            Some("package-lock.json".to_string())
+        );
         assert_eq!(config.hooks.post_create, Some("npm install".to_string()));
     }
 }

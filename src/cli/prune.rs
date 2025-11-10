@@ -25,7 +25,8 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
-    println!("Found {} orphaned state director{}:",
+    println!(
+        "Found {} orphaned state director{}:",
         orphaned.len(),
         if orphaned.len() == 1 { "y" } else { "ies" }
     );
@@ -36,7 +37,8 @@ pub fn run() -> Result<()> {
     // Clean orphaned directories
     let cleaned = state_manager.clean_orphaned(&active_names)?;
 
-    println!("\nCleaned {} orphaned state director{}.",
+    println!(
+        "\nCleaned {} orphaned state director{}.",
         cleaned.len(),
         if cleaned.len() == 1 { "y" } else { "ies" }
     );

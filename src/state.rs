@@ -102,7 +102,7 @@ mod tests {
     #[test]
     fn test_create_state_manager() {
         let temp = TempDir::new().unwrap();
-        let manager = StateManager::new(temp.path()).unwrap();
+        let _manager = StateManager::new(temp.path()).unwrap();
 
         // Check that .wt-state directory was created
         assert!(temp.path().join(".wt-state").exists());
@@ -111,7 +111,8 @@ mod tests {
         assert!(temp.path().join(".wt-state/.gitignore").exists());
 
         // Check .gitignore contents
-        let gitignore_content = fs::read_to_string(temp.path().join(".wt-state/.gitignore")).unwrap();
+        let gitignore_content =
+            fs::read_to_string(temp.path().join(".wt-state/.gitignore")).unwrap();
         assert_eq!(gitignore_content.trim(), "*");
     }
 

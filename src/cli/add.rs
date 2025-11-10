@@ -33,11 +33,7 @@ pub fn run(name: String, branch: Option<String>) -> Result<()> {
 
     // Setup symlinks for shared resources
     if !config.shared_resources.is_empty() {
-        let actions = SymlinkManager::setup(
-            &config.shared_resources,
-            &repo_root,
-            &worktree.path,
-        )?;
+        let actions = SymlinkManager::setup(&config.shared_resources, &repo_root, &worktree.path)?;
 
         for action in actions {
             match action {
