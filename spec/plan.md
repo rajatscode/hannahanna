@@ -1,1266 +1,1158 @@
-# hannahanna (hn) - Implementation Plan
+# hannahanna (hn) - MVP Implementation Plan
+
+**Philosophy:** Ship fast, iterate based on real usage. Focus on core worktree management, defer complexity.
+
+**See also:** `vision.md` for the comprehensive long-term roadmap.
+
+---
+
+## MVP Scope: What We're Building
+
+### Core Value Proposition
+**Enable developers to work on multiple branches simultaneously with isolated environments.**
+
+### What's In MVP (v0.1)
+- ✅ Git worktree management (create, list, delete, switch, info)
+- ✅ Parent/child tracking for nested workflows
+- ✅ Fuzzy name matching
+- ✅ Shared resource management (node_modules, vendor, etc.)
+- ✅ Compatibility checking (lockfile comparison)
+- ✅ Basic hooks (post_create, pre_remove)
+- ✅ Simple config (one YAML file)
+- ✅ Concurrency-safe state management
+
+### What's Deferred to v0.2+
+- ⏸️ Docker integration (v0.2 - add as opt-in flag)
+- ⏸️ Port allocation system (v0.2 - needed for Docker)
+- ⏸️ Multi-VCS support (v0.3+ - only if demanded)
+- ⏸️ Sparse checkout (v0.3+ - monorepo edge case)
+- ⏸️ Config hierarchy (v0.3+ - one file is enough)
+- ⏸️ Advanced hooks with conditions (v0.3+)
+- ⏸️ Team coordination features (v0.4+)
+
+### What We're Never Building
+- ❌ `hn integrate` - just use `git merge`
+- ❌ `hn sync` - just use `git pull` or `git rebase`
+- ❌ `hn each` - use shell loops
+- ❌ Separate Docker/state/port subcommands - keep it simple
+- ❌ Windows native support - Linux/macOS/WSL2 only
+
+---
+
+## Commands (6 Total)
+
+```bash
+hn create <name> [options]   # Create worktree
+hn list [--tree]             # List worktrees
+hn delete <name> [--force]   # Delete worktree
+hn switch <name>             # Switch to worktree (via shell wrapper)
+hn info [name]               # Show worktree details
+hn prune                     # Clean orphaned state
+```
+
+**That's it.** Simple, focused, easy to remember.
+
+---
 
 ## Project Structure
 
 ```
 hannahanna/
 ├── src/
-│   ├── main.rs                 # CLI entry point
-│   ├── cli/                    # Command parsing & dispatch
+│   ├── main.rs                 # CLI entry point (~200 lines)
+│   ├── cli/                    # Command handlers (~400 lines)
 │   │   ├── mod.rs
-│   │   ├── add.rs
+│   │   ├── create.rs
 │   │   ├── list.rs
-│   │   ├── remove.rs
+│   │   ├── delete.rs
 │   │   ├── switch.rs
 │   │   ├── info.rs
-│   │   ├── each.rs
-│   │   ├── integrate.rs
-│   │   ├── return.rs
-│   │   ├── sync.rs
-│   │   ├── config.rs
-│   │   ├── docker.rs
-│   │   ├── state.rs
-│   │   └── ports.rs
-│   ├── core/                   # Core domain logic
+│   │   └── prune.rs
+│   ├── worktree/               # Core domain logic (~800 lines)
 │   │   ├── mod.rs
-│   │   ├── worktree.rs        # Worktree model
-│   │   ├── registry.rs        # Worktree registry
-│   │   ├── parent_child.rs    # Parent/child tracking
-│   │   └── fuzzy.rs           # Fuzzy matching
-│   ├── vcs/                    # VCS abstraction
+│   │   ├── manager.rs          # Main API
+│   │   ├── model.rs            # Worktree struct
+│   │   ├── registry.rs         # Tracking worktrees
+│   │   └── fuzzy.rs            # Fuzzy matching
+│   ├── vcs/                    # Git operations (~400 lines)
 │   │   ├── mod.rs
-│   │   ├── traits.rs          # VCS trait
-│   │   ├── git.rs             # Git implementation
-│   │   ├── hg.rs              # Mercurial (future)
-│   │   └── jj.rs              # Jujutsu (future)
-│   ├── config/                 # Configuration
+│   │   └── git.rs              # Git implementation via git2
+│   ├── env/                    # Environment setup (~400 lines)
 │   │   ├── mod.rs
-│   │   ├── parser.rs          # YAML parsing
-│   │   ├── merge.rs           # Config hierarchy merge
-│   │   ├── validation.rs      # Config validation
-│   │   └── template.rs        # Template variable rendering
-│   ├── docker/                 # Docker integration
-│   │   ├── mod.rs
-│   │   ├── compose.rs         # Compose file generation
-│   │   ├── container.rs       # Container lifecycle
-│   │   ├── ports.rs           # Port allocation
-│   │   └── health.rs          # Health checks
-│   ├── hooks/                  # Hook execution
-│   │   ├── mod.rs
-│   │   ├── executor.rs        # Shell command execution
-│   │   └── context.rs         # Hook context variables
-│   ├── state/                  # State management
-│   │   ├── mod.rs
-│   │   ├── directory.rs       # State directory management
-│   │   └── cleanup.rs         # Orphaned state cleanup
-│   ├── env/                    # Environment setup
-│   │   ├── mod.rs
-│   │   ├── symlinks.rs        # Symlink management
-│   │   ├── copies.rs          # File copying
-│   │   └── compatibility.rs   # Dependency compatibility
-│   ├── errors.rs               # Error types
-│   └── utils.rs                # Utilities
+│   │   ├── symlinks.rs         # Symlink management
+│   │   └── compatibility.rs    # Lockfile comparison
+│   ├── config.rs               # Config loading (~200 lines)
+│   ├── state.rs                # State management (~200 lines)
+│   ├── hooks.rs                # Hook execution (~200 lines)
+│   ├── errors.rs               # Error types (~100 lines)
+│   └── utils.rs                # Utilities (~100 lines)
 ├── tests/
 │   ├── integration/
-│   │   ├── test_lifecycle.rs
-│   │   ├── test_docker.rs
-│   │   ├── test_scenarios.rs
-│   │   └── test_vcs.rs
+│   │   ├── lifecycle_test.rs
+│   │   ├── concurrency_test.rs
+│   │   └── scenarios_test.rs
 │   └── fixtures/
-│       └── test-repos/
-├── benches/
-│   └── benchmarks.rs
 ├── spec/
-│   ├── spec.md                 # Feature specification
-│   └── plan.md                 # This file
-├── docs/
-│   ├── getting-started.md
-│   ├── configuration.md
-│   └── docker.md
+│   ├── spec.md                 # Feature spec (reference)
+│   ├── plan.md                 # This file (MVP plan)
+│   └── vision.md               # Long-term comprehensive plan
 └── Cargo.toml
+
+Total: ~3,000 lines (vs ~10,000 for full vision)
 ```
 
 ---
 
-## Phase 1: Core Foundation (MVP)
+## Dependencies (Minimal)
 
-**Goal:** Working worktree manager with basic operations, no Docker yet.
-
-### Dependencies
 ```toml
-clap = { version = "4.5", features = ["derive"] }     # CLI framework
-git2 = "0.18"                                         # Git operations
-serde = { version = "1.0", features = ["derive"] }   # Serialization
-serde_yaml = "0.9"                                    # YAML config
-anyhow = "1.0"                                        # Error handling
-thiserror = "1.0"                                     # Custom errors
-colored = "2.1"                                       # Terminal colors
-dialoguer = "0.11"                                    # Interactive prompts
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+git2 = "0.18"                                        # Git operations via libgit2
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"                                   # Config parsing
+anyhow = "1.0"                                       # Error handling
+thiserror = "1.0"                                    # Custom errors
+colored = "2.1"                                      # Terminal colors
+home = "0.5"                                         # Home directory detection
+
+[dev-dependencies]
+tempfile = "3.8"                                     # Temp dirs for testing
+assert_cmd = "2.0"                                   # CLI testing
+predicates = "3.0"                                   # Test assertions
 ```
 
-### 1.1 Project Setup
+No Docker client, no async runtime, no complex dependencies. Keep it simple.
 
-- [x] Initialize Cargo project with workspace structure
-- [ ] Set up basic CLI with clap
-  - Define main commands: `add`, `list`, `remove`, `switch`, `info`
-  - Add `--help` and `--version` flags
-- [ ] Define error types with thiserror
-  - `VcsError`, `ConfigError`, `WorktreeError`, `ValidationError`
-- [ ] Set up logging (consider `tracing` crate)
+---
 
-### 1.2 VCS Abstraction Layer
+## MVP Implementation Phases
 
-**Goal:** Abstract VCS operations so we can support Git initially, then Hg/Jj later.
+### Phase 0: Foundation (Week 1)
 
-**Files:** `src/vcs/traits.rs`, `src/vcs/git.rs`, `src/vcs/mod.rs`
+**Goal:** Working Rust project with CLI framework and basic structure.
 
-#### Define VCS Trait
+**Tasks:**
+1. Initialize Cargo project
+2. Set up clap CLI with 6 commands
+3. Define error types with thiserror
+4. Set up integration test framework
+5. Create basic project structure
+
+**Deliverable:** `hn --help` works, shows all commands.
+
+---
+
+### Phase 1: Git Integration (Week 1-2)
+
+**Goal:** Create and list git worktrees.
+
+#### 1.1 Git Operations
+
+**File:** `src/vcs/git.rs`
+
 ```rust
-pub trait VcsBackend {
-    fn detect(path: &Path) -> Result<bool>;
-    fn create_workspace(&self, name: &str, branch: Option<&str>, base_branch: Option<&str>) -> Result<WorkspacePath>;
-    fn list_workspaces(&self) -> Result<Vec<WorkspaceInfo>>;
-    fn remove_workspace(&self, name: &str) -> Result<()>;
-    fn get_workspace_info(&self, name: &str) -> Result<WorkspaceInfo>;
-    fn get_current_branch(&self) -> Result<String>;
-    fn has_uncommitted_changes(&self) -> Result<bool>;
-    fn integrate(&self, source: &str, target: Option<&str>, strategy: MergeStrategy) -> Result<()>;
+pub struct GitBackend {
+    repo: Repository,  // git2::Repository
+    repo_root: PathBuf,
 }
 
-pub struct WorkspaceInfo {
-    pub name: String,
-    pub path: PathBuf,
-    pub branch: String,
-    pub commit_hash: String,
-    pub vcs_type: VcsType,
+impl GitBackend {
+    pub fn new() -> Result<Self>;
+
+    // Core operations
+    pub fn create_worktree(&self, name: &str, opts: &CreateOpts) -> Result<Worktree>;
+    pub fn list_worktrees(&self) -> Result<Vec<Worktree>>;
+    pub fn remove_worktree(&self, name: &str) -> Result<()>;
+
+    // Metadata (stored in git config)
+    pub fn get_parent(&self, name: &str) -> Result<Option<String>>;
+    pub fn set_parent(&self, name: &str, parent: &str) -> Result<()>;
+
+    // Utilities
+    pub fn current_branch(&self) -> Result<String>;
+    pub fn has_uncommitted_changes(&self) -> Result<bool>;
+}
+
+pub struct CreateOpts {
+    pub base_branch: Option<String>,  // --from
+    pub new_branch: bool,              // Create new branch (default: true)
 }
 ```
 
-#### Implement Git Backend
-- Use `git2` crate (libgit2 bindings)
-- Implement all trait methods
-- Handle git worktree operations:
-  - `git worktree add`
-  - `git worktree list`
-  - `git worktree remove`
-- Store metadata in git config:
-  ```
-  worktree.<name>.parent = <parent-worktree>
-  worktree.<name>.created-at = <timestamp>
-  ```
+**Git Config Storage:**
+```
+worktree.<name>.parent = <parent-worktree-name>
+worktree.<name>.created = 2025-11-10T12:34:56Z
+```
 
 **Tests:**
-- Unit test each trait method
-- Integration test: create, list, remove worktree
-- Test parent tracking via git config
+- Create worktree from current branch
+- Create worktree from specific branch (--from)
+- List worktrees
+- Remove worktree
+- Parent tracking persists
 
-### 1.3 Core Worktree Model
+#### 1.2 Worktree Model
 
-**Files:** `src/core/worktree.rs`, `src/core/registry.rs`
+**File:** `src/worktree/model.rs`
 
-#### Worktree Structure
 ```rust
 pub struct Worktree {
     pub name: String,
     pub path: PathBuf,
     pub branch: String,
+    pub commit: String,      // Short hash
     pub parent: Option<String>,
+    pub created: DateTime<Utc>,
+}
+
+pub struct WorktreeInfo {
+    pub worktree: Worktree,
     pub children: Vec<String>,
-    pub vcs_type: VcsType,
-    pub state_dir: PathBuf,
+    pub is_current: bool,
+    pub disk_usage: Option<u64>,
 }
 ```
 
-#### Registry
-- Maintains in-memory view of all worktrees
-- Loads from VCS on startup
-- Tracks parent/child relationships
-- Methods:
-  - `load()` - load all worktrees from VCS
-  - `get(name)` - get by name with fuzzy matching
-  - `list()` - list all
-  - `add(worktree)` - register new
-  - `remove(name)` - unregister
-  - `find_children(name)` - get children
-  - `build_tree()` - build parent/child tree
+#### 1.3 Registry
 
-**Tests:**
-- Test fuzzy matching (exact > substring > error on ambiguous)
-- Test parent/child tracking
-- Test tree building
+**File:** `src/worktree/registry.rs`
 
-### 1.4 Configuration System
+```rust
+pub struct Registry {
+    git: GitBackend,
+    worktrees: Vec<Worktree>,
+}
 
-**Files:** `src/config/parser.rs`, `src/config/merge.rs`, `src/config/validation.rs`
+impl Registry {
+    pub fn load(git: &GitBackend) -> Result<Self>;
+    pub fn get(&self, name: &str) -> Result<&Worktree>;  // With fuzzy matching
+    pub fn find_children(&self, name: &str) -> Vec<String>;
+    pub fn build_tree(&self) -> WorktreeTree;
+}
+```
 
-#### Config Structure
+**Fuzzy Matching:**
+```rust
+pub fn fuzzy_match(query: &str, candidates: &[String]) -> Result<String> {
+    // 1. Exact match (case-sensitive)
+    // 2. Exact match (case-insensitive)
+    // 3. Substring match (case-insensitive)
+    // 4. Error with suggestions if ambiguous
+    // 5. Error with Levenshtein suggestions if no match
+}
+```
+
+#### 1.4 Commands: create, list
+
+**File:** `src/cli/create.rs`
+
+```rust
+pub fn run(name: String, opts: CreateOpts) -> Result<()> {
+    // 1. Validate name
+    // 2. Load config
+    // 3. Create git worktree
+    // 4. Set parent (if created from within worktree)
+    // 5. Print success
+}
+```
+
+**File:** `src/cli/list.rs`
+
+```rust
+pub fn run(opts: ListOpts) -> Result<()> {
+    // 1. Load registry
+    // 2. Format output (table or tree)
+    // 3. Print
+}
+```
+
+**Deliverable:**
+```bash
+hn create feature-x
+hn list
+# feature-x    feature/x    a1b2c3d
+```
+
+---
+
+### Phase 2: Environment Setup (Week 2-3)
+
+**Goal:** Shared resource management with compatibility checking.
+
+#### 2.1 Config System
+
+**File:** `src/config.rs`
+
 ```rust
 #[derive(Deserialize, Serialize)]
 pub struct Config {
-    pub vcs: VcsConfig,
-    pub sparse: SparseConfig,
+    #[serde(default)]
     pub shared: SharedConfig,
+
+    #[serde(default)]
     pub hooks: HooksConfig,
-    pub docker: DockerConfig,
-    pub build: BuildConfig,
-    pub state: StateConfig,
-    pub aliases: HashMap<String, String>,
+}
+
+#[derive(Deserialize, Serialize, Default)]
+pub struct SharedConfig {
+    pub symlinks: Vec<String>,
+    pub compatibility_check: HashMap<String, String>,  // dir -> lockfile
+    pub fallback_to_isolated: bool,
+}
+
+#[derive(Deserialize, Serialize, Default)]
+pub struct HooksConfig {
+    pub post_create: Option<String>,
+    pub pre_remove: Option<String>,
+}
+
+impl Config {
+    pub fn load() -> Result<Self> {
+        // Load from .wt/config.yaml (if exists)
+        // Otherwise return Default
+    }
 }
 ```
 
-#### Config Hierarchy
-- Load configs from (highest to lowest priority):
-  1. `.wt/config.local.yaml` (gitignored)
-  2. `.wt/config.yaml` (committed)
-  3. `~/.config/wt/config.yaml` (user)
-  4. `/etc/wt/config.yaml` (system)
-- Deep merge configs (not replace)
-- Arrays append, primitives override
+**Example config:**
+```yaml
+shared:
+  symlinks:
+    - node_modules
+    - vendor
 
-#### Template Rendering
-```rust
-pub struct TemplateContext {
-    pub worktree_name: String,
-    pub worktree_path: PathBuf,
-    pub branch: String,
-    pub repo_name: String,
-    pub worktree_index: usize,
-    // Port variables added in Phase 2
-}
+  compatibility_check:
+    node_modules: "package-lock.json"
+    vendor: "composer.lock"
 
-pub fn render_template(template: &str, context: &TemplateContext) -> String;
+  fallback_to_isolated: true
+
+hooks:
+  post_create: |
+    echo "Installing dependencies..."
+    npm install
 ```
 
 **Tests:**
-- Test config parsing (valid & invalid YAML)
-- Test hierarchy merging
-- Test template rendering
-- Test validation (required fields, type checking)
+- Parse valid config
+- Handle missing config (use defaults)
+- Validate config structure
 
-### 1.5 Environment Setup
+#### 2.2 Compatibility Checking
 
-**Files:** `src/env/symlinks.rs`, `src/env/copies.rs`, `src/env/compatibility.rs`
+**File:** `src/env/compatibility.rs`
 
-#### Symlink Management
-```rust
-pub fn create_symlinks(worktree: &Worktree, config: &SharedConfig) -> Result<()>;
-pub fn validate_symlink(target: &Path) -> Result<()>; // Security: prevent traversal
-```
-
-#### Compatibility Checking
 ```rust
 pub struct CompatibilityChecker {
-    checks: HashMap<String, String>, // dir -> lockfile
+    checks: HashMap<String, String>,  // dir -> lockfile
 }
 
 impl CompatibilityChecker {
-    pub fn is_compatible(&self, dir: &str, main_repo: &Path, worktree: &Path) -> Result<bool>;
+    pub fn is_compatible(&self, dir: &str, main_repo: &Path, worktree: &Path) -> Result<bool> {
+        // 1. Get lockfile path from config
+        // 2. Check if exists in both main and worktree
+        // 3. Compare file hashes (fast: first 1KB, then full if needed)
+        // 4. Return true if identical, false if different
+    }
 }
-```
-
-**Logic:**
-1. Check if lockfile exists in both main and worktree
-2. Compare hashes
-3. If identical → symlink
-4. If different → isolated (create separate dir)
-
-#### File Copying
-```rust
-pub fn copy_files(worktree: &Worktree, config: &SharedConfig) -> Result<()>;
-// Handle "template -> dest" syntax
 ```
 
 **Tests:**
-- Test symlink creation
-- Test symlink security (no traversal)
-- Test compatibility checking (identical vs different lockfiles)
-- Test file copying with templating
+- Identical lockfiles → compatible
+- Different lockfiles → incompatible
+- Missing lockfiles → incompatible
+- Non-existent directory → compatible (nothing to check)
 
-### 1.6 Hooks System
+#### 2.3 Symlink Management
 
-**Files:** `src/hooks/executor.rs`, `src/hooks/context.rs`
+**File:** `src/env/symlinks.rs`
 
-#### Hook Executor
 ```rust
-pub enum HookType {
-    PreCreate,
-    PostCreate,
-    PreRemove,
-    PostRemove,
-    PostSwitch,
-    PreIntegrate,
-    PostIntegrate,
+pub struct SymlinkManager {
+    config: SharedConfig,
+    checker: CompatibilityChecker,
 }
 
-pub struct HookContext {
-    pub env_vars: HashMap<String, String>,
-    pub worktree: Worktree,
+impl SymlinkManager {
+    pub fn setup(&self, worktree: &Worktree, main_repo: &Path) -> Result<Vec<SymlinkAction>> {
+        // For each symlink in config:
+        //   1. Check compatibility (if check configured)
+        //   2. If compatible: create symlink
+        //   3. If incompatible: skip, return warning
+        //   4. Return list of actions taken
+    }
+
+    fn validate_symlink_target(&self, target: &Path, repo_root: &Path) -> Result<()> {
+        // Security: ensure target is within repo_root
+        // Canonicalize both paths
+        // Check target.starts_with(repo_root)
+        // Error if traversal detected
+    }
 }
 
-pub fn execute_hook(hook_type: HookType, script: &str, context: &HookContext) -> Result<()>;
+pub enum SymlinkAction {
+    Created { source: PathBuf, target: PathBuf },
+    Skipped { dir: String, reason: String },
+}
 ```
-
-#### Environment Variables
-- `$WT_NAME`
-- `$WT_PATH`
-- `$WT_BRANCH`
-- `$WT_PARENT`
-- `$WT_STATE_DIR`
 
 **Tests:**
-- Test hook execution (success & failure)
-- Test environment variable injection
-- Test hook failure rollback
+- Create symlink when compatible
+- Skip symlink when incompatible
+- Reject symlink traversal (../../../../etc/passwd)
+- Reject symlinks outside repo root
 
-### 1.7 Commands Implementation
+#### 2.4 State Management
 
-#### `hn add <name> [branch]`
-**Algorithm:**
-1. Validate name (no special chars, no duplicates)
-2. Detect VCS type
-3. Get base branch (--from or current)
-4. Track parent (current worktree or main branch)
-5. Run `pre_create` hooks
-6. Create VCS workspace
-7. Setup environment:
-   - Create state directory
-   - Setup symlinks (with compatibility check)
-   - Copy template files
-8. Run `post_create` hooks
-9. Register in registry
-10. Print success message with path
+**File:** `src/state.rs`
 
-**Flags:**
-- `--from=<branch>` - base branch
-- `--no-branch` - checkout existing
-- `--no-setup` - skip env setup
-- `--vcs=<git|hg|jj>` - explicit VCS
+```rust
+pub struct StateManager {
+    state_root: PathBuf,  // .wt-state/
+}
 
-**Error Handling:**
-- Rollback on failure (remove partial worktree)
-- Or keep with `--on-failure=keep`
+impl StateManager {
+    pub fn new() -> Result<Self>;
 
-#### `hn list [options]`
-**Output (table format):**
-```
-NAME             BRANCH           COMMIT   STATUS
-feature-auth     feature/auth     a1b2c3d
-* feature-x      feature/x        d4e5f6g
-refactor-db      refactor/db      g7h8i9j
+    pub fn create_state_dir(&self, worktree_name: &str) -> Result<PathBuf>;
+    pub fn remove_state_dir(&self, worktree_name: &str) -> Result<()>;
+    pub fn list_orphaned(&self, active_worktrees: &[String]) -> Vec<String>;
+    pub fn clean_orphaned(&self, active_worktrees: &[String]) -> Result<Vec<String>>;
+}
 ```
 
-**Flags:**
-- `--all` - include main workspace
-- `--verbose` - full paths, metadata
-- `--tree` - parent/child tree view
-- `--format=<json|yaml|table>` - output format
-
-**Tree View:**
+**State Directory Structure:**
 ```
-main
-├── feature-auth
-│   └── fix-oauth-bug
-└── refactor-db
+.wt-state/
+├── feature-x/
+│   └── metadata.json  # Future: store worktree metadata
+├── feature-y/
+└── .gitignore         # Auto-generated: *
 ```
 
-#### `hn remove <name>`
-**Algorithm:**
-1. Fuzzy match worktree name
-2. Check for uncommitted changes (warn unless --force)
-3. Check for children (warn, require --cascade or refuse)
-4. Run `pre_remove` hooks
-5. Remove VCS workspace
-6. Clean state directory (unless --keep-state)
-7. Unregister from registry
-8. Optionally delete branch (--delete-branch)
+**Tests:**
+- Create state directory
+- Remove state directory
+- Detect orphaned directories
+- Clean orphaned directories
 
-**Flags:**
-- `--force` - ignore uncommitted changes
-- `--delete-branch` - delete branch
-- `--keep-state` - preserve state
-- `--cascade` - remove children
+#### 2.5 Update create Command
 
-#### `hn switch <name>`
-**Note:** This outputs a path for shell wrapper to `cd` to.
+**File:** `src/cli/create.rs`
 
-**Algorithm:**
-1. Fuzzy match worktree name
-2. Run `post_switch` hooks
-3. Output worktree path to stdout
-4. Print info to stderr (branch, commit, etc.)
+```rust
+pub fn run(name: String, opts: CreateOpts) -> Result<()> {
+    // 1. Validate name
+    // 2. Load config
+    // 3. Create git worktree
+    // 4. Set parent (if created from within worktree)
+    // 5. Create state directory           // NEW
+    // 6. Setup symlinks                   // NEW
+    // 7. Run post_create hook (if set)   // NEW
+    // 8. Print success + warnings
+}
+```
 
-**Shell Wrapper (install script):**
+**Deliverable:**
 ```bash
+hn create feature-x
+# Creating worktree 'feature-x'...
+# ✓ Git worktree created at ../feature-x
+# ✓ Shared node_modules (compatible)
+# ⚠ Skipped vendor (incompatible lockfile)
+# ✓ Running post_create hook...
+# Done!
+```
+
+---
+
+### Phase 3: Delete, Switch, Info (Week 3)
+
+#### 3.1 Delete Command
+
+**File:** `src/cli/delete.rs`
+
+```rust
+pub fn run(name: String, opts: DeleteOpts) -> Result<()> {
+    // 1. Fuzzy match name
+    // 2. Check uncommitted changes (warn unless --force)
+    // 3. Check for children (error, suggest deleting them first)
+    // 4. Run pre_remove hook (if set)
+    // 5. Stop any processes in worktree? (nice-to-have)
+    // 6. Remove git worktree
+    // 7. Remove state directory
+    // 8. Print success
+}
+
+pub struct DeleteOpts {
+    pub force: bool,  // Ignore uncommitted changes
+}
+```
+
+**Tests:**
+- Delete worktree successfully
+- Refuse to delete with uncommitted changes (unless --force)
+- Refuse to delete with children
+- Clean up state directory
+
+#### 3.2 Switch Command
+
+**File:** `src/cli/switch.rs`
+
+```rust
+pub fn run(name: String) -> Result<()> {
+    // 1. Fuzzy match name
+    // 2. Output path to stdout (for shell wrapper)
+    // 3. Print info to stderr
+}
+```
+
+**Shell Wrapper:**
+```bash
+# Install with: hn init-shell >> ~/.bashrc
+
 hn() {
     if [ "$1" = "switch" ]; then
-        local output=$(command hn switch "$2")
-        local path=$(echo "$output" | head -n1)
-        cd "$path"
+        local path=$(command hn switch "$2" 2>/dev/null)
+        if [ $? -eq 0 ]; then
+            cd "$path"
+            command hn switch "$2" >/dev/null  # Print info
+        else
+            command hn switch "$2"  # Print error
+        fi
     else
         command hn "$@"
     fi
 }
 ```
 
-#### `hn info [name]`
-**Display:**
-- Name, path, branch, commit hash
-- Parent worktree
-- Child worktrees
-- VCS type
-- Shared resources (symlinks)
-- Git status summary (clean, modified, untracked)
-- Disk usage
-
-#### `hn each <command>`
-**Algorithm:**
-1. Get all worktrees
-2. For each worktree:
-   - Print separator: `==> feature-x`
-   - cd to worktree
-   - Execute command
-   - Print output (colorized)
-   - Continue on error (default) or stop (--stop-on-error)
-
-**Flags:**
-- `--parallel` - parallel execution (use rayon)
-- `--stop-on-error` - abort on first failure
-- `--filter=<pattern>` - regex filter on names
-
-### 1.8 Integration Commands (Basic)
-
-#### `hn integrate <source> [--into=<target>]`
-**Algorithm:**
-1. Fuzzy match source & target
-2. Check uncommitted changes
-3. Switch to target worktree
-4. Merge source branch into target
-5. Handle conflicts (interactive)
-6. Run `pre_integrate` and `post_integrate` hooks
-
-**Flags:**
-- `--into=<target>` - target worktree
-- `--no-ff` - force merge commit
-- `--squash` - squash commits
-- `--strategy=<strategy>` - merge strategy
-
-#### `hn return [--merge]`
-**Algorithm:**
-1. Get current worktree's parent
-2. If no parent, error
-3. If `--merge`:
-   - Merge current into parent
-   - Handle conflicts
-4. Switch to parent worktree
-5. If `--delete`, remove current worktree
-
-**Flags:**
-- `--merge` - merge current into parent
-- `--delete` - remove current after merge
-- `--no-ff` - force merge commit
-
-### 1.9 State Management
-
-**Files:** `src/state/directory.rs`, `src/state/cleanup.rs`
-
-#### State Directory
-- Location: `.wt-state/<worktree-name>/`
-- Created on worktree creation
-- Removed on worktree removal
-- Gitignored (add to `.gitignore` automatically)
-
-#### Commands
-```bash
-hn state list           # List all state directories
-hn state clean          # Remove orphaned state
-hn state size [name]    # Disk usage
-```
-
 **Tests:**
-- Test state directory creation/removal
-- Test orphaned state detection
-- Test disk usage calculation
+- Output correct path
+- Error on non-existent worktree
+- Fuzzy matching works
 
-### 1.10 Fuzzy Matching
+#### 3.3 Info Command
 
-**Files:** `src/core/fuzzy.rs`
+**File:** `src/cli/info.rs`
 
-**Algorithm:**
-1. Try exact match first
-2. Try substring match (case-insensitive)
-3. If multiple matches, error with suggestions
-4. If no matches, error with suggestions (Levenshtein distance)
-
-**Tests:**
-- Test exact match preferred
-- Test substring match
-- Test ambiguous error
-- Test no match with suggestions
-
-### 1.11 Testing & Documentation
-
-#### Unit Tests
-- VCS trait implementations
-- Fuzzy matching
-- Config parsing & merging
-- Template rendering
-- Hook execution
-- Symlink management
-- Compatibility checking
-
-#### Integration Tests
-- Full worktree lifecycle (add, switch, remove)
-- Parent/child tracking
-- Hook execution in real repos
-- Config hierarchy
-
-#### Documentation
-- `README.md` - Getting started
-- `docs/getting-started.md` - Installation, basic usage
-- `docs/configuration.md` - Config file format
-- `docs/hooks.md` - Hook system
-
----
-
-## Phase 2: Docker Integration
-
-**Goal:** Per-worktree Docker containers with automatic port management.
-
-### Dependencies
-```toml
-bollard = "0.16"                # Docker API client
-# Or use Docker CLI via std::process::Command
-```
-
-### 2.1 Port Management
-
-**Files:** `src/docker/ports.rs`
-
-#### Port Registry
-**Location:** `.wt/state/port-registry.yaml`
-
-```yaml
-allocations:
-  feature-x:
-    app: 3000
-    postgres: 5432
-    redis: 6379
-  feature-y:
-    app: 3001
-    postgres: 5433
-    redis: 6380
-
-next_available:
-  app: 3002
-  postgres: 5434
-  redis: 6381
-```
-
-#### Port Allocator
 ```rust
-pub struct PortAllocator {
-    registry: PortRegistry,
-    config: PortConfig,
-}
-
-impl PortAllocator {
-    pub fn allocate(&mut self, worktree: &str, services: &[String]) -> Result<HashMap<String, u16>>;
-    pub fn release(&mut self, worktree: &str) -> Result<()>;
-    pub fn is_available(&self, port: u16) -> bool;
-    pub fn find_next_available(&self, service: &str) -> u16;
+pub fn run(name: Option<String>) -> Result<()> {
+    // If name is None, use current worktree
+    // 1. Get worktree info
+    // 2. Get parent/children
+    // 3. Get shared resources (symlinks)
+    // 4. Get git status
+    // 5. Get disk usage
+    // 6. Format and print
 }
 ```
 
-**Algorithm:**
-1. Load registry from disk
-2. For each service:
-   - Try base port + offset
-   - If taken, increment until available
-   - Check OS port availability (bind test)
-3. Save allocation to registry
-4. Return port map
-
-#### Commands
-```bash
-hn ports list              # Show all allocations
-hn ports show <name>       # Ports for worktree
-hn ports release <name>    # Release ports
-hn ports reassign <name>   # Get new ports
-```
-
-**Tests:**
-- Test port allocation (sequential worktrees)
-- Test port exhaustion (range limit)
-- Test port conflict detection
-- Test registry persistence
-
-### 2.2 Docker Compose Generation
-
-**Files:** `src/docker/compose.rs`
-
-#### Compose Override Generator
-```rust
-pub struct ComposeGenerator {
-    config: DockerConfig,
-}
-
-impl ComposeGenerator {
-    pub fn generate_override(&self, worktree: &Worktree, ports: &HashMap<String, u16>) -> Result<String>;
-}
-```
-
-**Generated File:** `<worktree>/.wt-state/docker-compose.override.yml`
-
-**Template:**
-```yaml
-# Auto-generated by hn - do not edit
-# Worktree: {{worktree_name}}
-
-services:
-  app:
-    ports:
-      - "{{port.app}}:3000"
-    environment:
-      PORT: "{{port.app}}"
-      DATABASE_URL: "postgres://localhost:{{port.postgres}}/myapp_{{worktree_name}}"
-    volumes:
-      - .:/app
-      - {{main_repo}}/node_modules:/app/node_modules:ro
-
-volumes:
-  postgres-data:
-    external: true
-    name: myapp-postgres-data
-```
-
-**Shared vs Isolated Resources:**
-- Shared volumes: External, named with repo prefix
-- Isolated volumes: Per-worktree, named with worktree suffix
-- Shared networks: External
-
-**Tests:**
-- Test compose generation with templates
-- Test shared vs isolated volumes
-- Test port injection
-- Test environment variable rendering
-
-### 2.3 Container Lifecycle
-
-**Files:** `src/docker/container.rs`
-
-#### Container Manager
-```rust
-pub struct ContainerManager {
-    docker: Docker, // bollard client
-}
-
-impl ContainerManager {
-    pub fn start(&self, worktree: &Worktree) -> Result<()>;
-    pub fn stop(&self, worktree: &Worktree) -> Result<()>;
-    pub fn restart(&self, worktree: &Worktree) -> Result<()>;
-    pub fn status(&self, worktree: &Worktree) -> Result<Vec<ContainerStatus>>;
-    pub fn logs(&self, worktree: &Worktree, service: Option<&str>) -> Result<String>;
-    pub fn exec(&self, worktree: &Worktree, command: &[String]) -> Result<String>;
-    pub fn prune_orphaned(&self) -> Result<()>;
-}
-```
-
-**Docker Compose Integration:**
-- Use Docker Compose CLI: `docker compose -f docker-compose.yml -f .wt-state/docker-compose.override.yml up -d`
-- Or use bollard API directly (more control, but complex)
-
-**Project Naming:**
-- Template: `{{repo_name}}-{{worktree_name}}`
-- Ensures unique container names
-
-**Auto-start on Create:**
-- If `docker.auto_start: true`, start containers after `hn add`
-
-**Auto-stop Others:**
-- If `docker.auto_stop_others: true`, stop other worktrees' containers on switch
-
-**Tests:**
-- Test container start/stop/restart
-- Test status retrieval
-- Test logs retrieval
-- Test orphaned container cleanup
-
-### 2.4 Health Checks
-
-**Files:** `src/docker/health.rs`
-
-#### Health Checker
-```rust
-pub struct HealthChecker {
-    config: HealthCheckConfig,
-}
-
-impl HealthChecker {
-    pub fn wait_for_healthy(&self, worktree: &Worktree) -> Result<()>;
-    pub fn check_service(&self, worktree: &Worktree, service: &str) -> Result<HealthStatus>;
-}
-```
-
-**Algorithm:**
-1. Start containers
-2. Poll container health status
-3. Timeout if not healthy within `healthcheck.timeout`
-4. Print progress spinner
-
-**Tests:**
-- Test health check success
-- Test health check timeout
-- Test unhealthy container detection
-
-### 2.5 Docker Commands
-
-#### `hn docker ps`
 **Output:**
 ```
-WORKTREE         SERVICE      STATUS      PORTS
-feature-auth     app          Up          0.0.0.0:3000->3000/tcp
-feature-auth     postgres     Up          0.0.0.0:5432->5432/tcp
-feature-billing  app          Up          0.0.0.0:3001->3000/tcp
-feature-billing  postgres     Up          0.0.0.0:5433->5432/tcp
-```
+Worktree: feature-x
+Path: /home/user/repo-worktrees/feature-x
+Branch: feature/x
+Commit: a1b2c3d Fix authentication bug
 
-#### `hn docker start <name>`
-Start containers for worktree.
+Parent: main
+Children: fix-oauth-bug
 
-#### `hn docker stop <name>`
-Stop containers for worktree.
-
-#### `hn docker logs <name> [service]`
-Show logs. If service specified, show only that service.
-
-#### `hn docker exec <name> <cmd>`
-Execute command in container.
-
-#### `hn docker prune`
-Remove orphaned containers (worktrees that no longer exist).
-
-### 2.6 Update Core Commands
-
-#### `hn add` - Add Docker Setup
-1. Allocate ports
-2. Generate compose override
-3. Start containers (if auto_start)
-4. Wait for health checks
-5. Add port info to template context
-
-#### `hn remove` - Add Docker Cleanup
-1. Stop containers
-2. Remove compose override
-3. Release ports
-4. Optionally remove volumes
-
-#### `hn switch` - Add Docker Management
-1. Optionally start containers (--start-docker)
-2. Optionally stop others (--stop-others)
-
-#### `hn list` - Add Docker Status
-```
-NAME             BRANCH           COMMIT   PORTS          STATUS
-feature-auth     feature/auth     a1b2c3d  :3000,:5432    RUNNING
-* feature-x      feature/x        d4e5f6g  :3001,:5433    STOPPED
-refactor-db      refactor/db      g7h8i9j  -              -
-```
-
-#### `hn info` - Add Docker Info
-```
-Worktree: feature-auth
-Path: /path/to/repo-worktrees/feature-auth
-Branch: feature/auth
-Commit: a1b2c3d
-
-Docker: RUNNING
-  app:      localhost:3000
-  postgres: localhost:5432
-  redis:    localhost:6379
+Git Status:
+  Modified: 2 files
+  Untracked: 1 file
 
 Shared Resources:
-  node_modules -> ../node_modules (symlink)
+  node_modules → ../node_modules (symlink)
+
+Disk Usage: 1.2 GB
 ```
 
-### 2.7 Testing
-
-#### Integration Tests
-- Test full Docker lifecycle (create, start, stop, remove)
-- Test port allocation & reuse
-- Test compose override generation
-- Test shared vs isolated volumes
-- Test health checks
-
-#### Scenario Tests
-- Scenario 1: Multiple worktrees with different ports
-- Scenario 4: Isolated database testing
+**Tests:**
+- Show info for current worktree
+- Show info for named worktree
+- Display parent/children
+- Display symlinks
 
 ---
 
-## Phase 3: Advanced Features
+### Phase 4: Hooks & Polish (Week 4)
 
-**Goal:** Parent/child workflows, sync, compatibility checking, sparse checkout.
+#### 4.1 Hook Execution
 
-### 3.1 Parent/Child Workflows
+**File:** `src/hooks.rs`
 
-#### Enhanced Parent Tracking
-- Store in VCS config:
-  ```
-  worktree.<name>.parent = <parent-name>
-  ```
-- Maintain bidirectional links (parent knows children)
-
-#### Tree View (`hn list --tree`)
 ```rust
-pub struct WorktreeTree {
-    pub root: String,
-    pub children: Vec<WorktreeTree>,
+pub struct HookExecutor {
+    config: HooksConfig,
 }
 
-pub fn build_tree(registry: &Registry) -> WorktreeTree;
-```
+impl HookExecutor {
+    pub fn run_hook(&self, hook_type: HookType, worktree: &Worktree) -> Result<()> {
+        let script = match hook_type {
+            HookType::PostCreate => &self.config.post_create,
+            HookType::PreRemove => &self.config.pre_remove,
+        };
 
-**Rendering:**
-```
-main
-├── feature-auth (localhost:3000) [RUNNING]
-│   └── fix-oauth-bug (localhost:3001) [STOPPED]
-└── refactor-db (localhost:3002) [RUNNING]
-    ├── optimize-queries (localhost:3003) [STOPPED]
-    └── add-indexes (localhost:3004) [RUNNING]
-```
+        if let Some(script) = script {
+            // 1. Set environment variables
+            let env = self.build_env(worktree);
 
-#### Cascade Remove
-`hn remove feature-auth --cascade`
-- Remove feature-auth and all children
-- Prompt for confirmation
+            // 2. Execute shell command
+            let output = Command::new("sh")
+                .arg("-c")
+                .arg(script)
+                .current_dir(&worktree.path)
+                .envs(env)
+                .output()?;
+
+            // 3. Check exit code
+            if !output.status.success() {
+                return Err(HookError::Failed {
+                    hook: hook_type,
+                    output: String::from_utf8_lossy(&output.stderr).to_string(),
+                }.into());
+            }
+        }
+
+        Ok(())
+    }
+
+    fn build_env(&self, worktree: &Worktree) -> HashMap<String, String> {
+        // WT_NAME, WT_PATH, WT_BRANCH, WT_PARENT, WT_STATE_DIR
+    }
+}
+
+pub enum HookType {
+    PostCreate,
+    PreRemove,
+}
+```
 
 **Tests:**
-- Test parent tracking across create/remove
-- Test tree building
-- Test cascade remove
+- Execute hook successfully
+- Fail on non-zero exit code
+- Pass environment variables
+- Handle missing hook (no-op)
 
-### 3.2 Sync Command
+#### 4.2 Prune Command
 
-#### `hn sync [source-branch] [--strategy=<merge|rebase>]`
-**Algorithm:**
-1. Get source branch (default: main)
-2. Check uncommitted changes
-3. Optionally stash (--autostash)
-4. Merge or rebase source into current
-5. Handle conflicts (interactive)
-6. Unstash if stashed
+**File:** `src/cli/prune.rs`
 
-**Flags:**
-- `--strategy=<merge|rebase>` - sync strategy
-- `--autostash` - stash before, pop after
-- `--no-commit` - don't auto-commit
-
-**Tests:**
-- Test merge strategy
-- Test rebase strategy
-- Test conflict handling
-- Test autostash
-
-### 3.3 Dependency Compatibility
-
-**Files:** `src/env/compatibility.rs`
-
-#### Enhanced Compatibility Checking
 ```rust
-pub struct DependencyManager {
-    checks: HashMap<String, Vec<String>>, // dir -> [lockfiles]
-}
-
-impl DependencyManager {
-    pub fn check_compatibility(&self, dir: &str, main: &Path, worktree: &Path) -> Result<CompatibilityStatus>;
-}
-
-pub enum CompatibilityStatus {
-    Compatible,      // Lockfiles identical
-    Incompatible,    // Lockfiles differ
-    NoLockfile,      // No lockfile found
+pub fn run(opts: PruneOpts) -> Result<()> {
+    // 1. Load registry (get active worktrees)
+    // 2. Find orphaned state directories
+    // 3. Print what will be deleted
+    // 4. Confirm (unless --force)
+    // 5. Delete orphaned directories
+    // 6. Print summary
 }
 ```
 
-#### Behavior on `hn add`
-1. Check lockfile in main repo
-2. If exists, hash it
-3. Create worktree
-4. Check lockfile in worktree
-5. If hashes match → symlink
-6. If differ → warning + isolated
-
-**Warning Message:**
-```
-Warning: Dependencies differ from main repo
-  node_modules: package-lock.json changed
-  Using isolated node_modules for this worktree
-```
-
-#### Manual Override
+**Output:**
 ```bash
-hn add feature-x --isolated=node_modules  # Force isolated
-hn add feature-x --shared=node_modules    # Force shared
+hn prune
+# Found 3 orphaned state directories:
+#   .wt-state/old-feature-1/  (1.2 GB)
+#   .wt-state/old-feature-2/  (800 MB)
+#   .wt-state/test-branch/    (200 MB)
+#
+# Total: 2.2 GB will be freed
+#
+# Continue? [y/N] y
+# ✓ Cleaned 3 directories
 ```
 
-**Tests:**
-- Test compatible lockfiles → symlink
-- Test incompatible lockfiles → isolated
-- Test missing lockfiles
-- Test manual override flags
+#### 4.3 Tree View
 
-### 3.4 Sparse Checkout
+**File:** `src/cli/list.rs` (update)
 
-**Files:** `src/vcs/sparse.rs`
-
-#### Sparse Config
-```yaml
-sparse:
-  enabled: true
-  paths:
-    - services/api/
-    - libs/shared/
-    - tools/scripts/
-```
-
-#### Git Sparse Checkout
 ```rust
-pub fn setup_sparse_checkout(repo: &Path, paths: &[String]) -> Result<()> {
-    // git sparse-checkout init
-    // git sparse-checkout set <paths>
+pub fn render_tree(registry: &Registry) -> String {
+    // 1. Build tree structure
+    let tree = registry.build_tree();
+
+    // 2. Render with box-drawing characters
+    format_tree(&tree, 0)
+}
+
+fn format_tree(node: &WorktreeTree, depth: usize) -> String {
+    // Use │, ├, └ characters for tree rendering
 }
 ```
 
-#### Override Per Worktree
+**Output:**
 ```bash
-hn add feature-api --sparse=services/api/,libs/utils/
+hn list --tree
+# main
+# ├── feature-auth
+# │   └── fix-oauth-bug
+# └── refactor-db
+#     ├── optimize-queries
+#     └── add-indexes
 ```
 
-**Tests:**
-- Test sparse checkout (only specified paths)
-- Test different sparse paths per worktree
-- Test override flag
+---
 
-### 3.5 Config Commands
+### Phase 5: Concurrency Safety (Week 4-5)
 
-#### `hn config init [--template=<name>]`
-Create `.wt/config.yaml` with template.
+**Goal:** Prevent race conditions and corruption at scale.
 
-**Templates:**
-- `default` - Minimal config
-- `docker` - With Docker setup
-- `monorepo` - With sparse checkout
-- `full` - All options documented
+#### 5.1 File Locking
 
-#### `hn config validate`
-Validate config syntax and semantics.
+**File:** `src/state.rs` (update)
 
-#### `hn config show`
-Display current config (merged from hierarchy).
+```rust
+use std::fs::File;
+use std::os::unix::fs::FileLockExt;  // Unix only for MVP
 
-#### `hn config edit`
-Open config in `$EDITOR`.
+pub struct StateLock {
+    file: File,
+}
 
-**Tests:**
-- Test config init with templates
-- Test validation (valid & invalid)
-- Test show (hierarchy merge)
+impl StateLock {
+    pub fn acquire(lock_file: &Path, timeout: Duration) -> Result<Self> {
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(lock_file)?;
 
-### 3.6 Aliases
+        // Try to acquire exclusive lock with timeout
+        let start = Instant::now();
+        loop {
+            match file.try_lock_exclusive() {
+                Ok(()) => return Ok(Self { file }),
+                Err(e) if e.kind() == ErrorKind::WouldBlock => {
+                    if start.elapsed() > timeout {
+                        return Err(LockError::Timeout.into());
+                    }
+                    thread::sleep(Duration::from_millis(100));
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+    }
+}
 
-**Config:**
-```yaml
-aliases:
-  sw: switch
-  rm: remove
-  mk: add
-  dk: docker
-  ls: list
+impl Drop for StateLock {
+    fn drop(&mut self) {
+        let _ = self.file.unlock();
+    }
+}
 ```
 
 **Usage:**
-```bash
-hn sw feature-x    # → hn switch feature-x
-hn dk ps           # → hn docker ps
-```
-
-**Implementation:**
-- Resolve alias at CLI parsing stage
-- Recursive alias resolution (with cycle detection)
-
-**Tests:**
-- Test alias resolution
-- Test recursive aliases
-- Test cycle detection
-
----
-
-## Phase 4: Multi-VCS & Polish
-
-**Goal:** Support Mercurial and Jujutsu, performance optimization, comprehensive testing.
-
-### 4.1 Mercurial Support
-
-**Files:** `src/vcs/hg.rs`
-
-#### Mercurial Backend
-- Use `hg share` for workspace creation
-- Registry in `.hg/wt-registry.json` (no native metadata storage)
-- Commands:
-  - Create: `hg share <source> <dest>`
-  - List: Parse registry
-  - Remove: `rm -rf` + registry update
-
-**Limitations:**
-- No native parent tracking (use registry)
-- No sparse checkout support
-- Manual metadata storage
-
-**Tests:**
-- Test Hg backend implementation
-- Test share creation/removal
-- Test registry management
-
-### 4.2 Jujutsu Support
-
-**Files:** `src/vcs/jj.rs`
-
-#### Jujutsu Backend
-- Use `jj workspace add`
-- Native workspace support
-- Metadata in `jj config`
-
-**Tests:**
-- Test Jj backend implementation
-- Test native workspace operations
-
-### 4.3 Performance Optimization
-
-#### Caching
-- Cache worktree list (invalidate on changes)
-- Cache port registry (in-memory)
-- Cache config (invalidate on file changes)
-
-#### Lazy Loading
-- Load worktree info on-demand
-- Avoid git operations when unnecessary
-
-#### Benchmarks
 ```rust
-use criterion::*;
+pub fn create_worktree(name: &str) -> Result<()> {
+    // Acquire lock before modifying shared state
+    let _lock = StateLock::acquire(".wt-state/.lock", Duration::from_secs(5))?;
 
-fn bench_list_100_worktrees(c: &mut Criterion) { ... }
-fn bench_fuzzy_match_1000(c: &mut Criterion) { ... }
-fn bench_port_allocation(c: &mut Criterion) { ... }
-```
-
-**Targets:**
-- List 100 worktrees: < 50ms
-- Fuzzy search 1000 worktrees: < 10ms
-- Port allocation: < 1ms
-
-### 4.4 Comprehensive Testing
-
-#### Stress Tests
-```rust
-#[test]
-fn stress_500_worktrees() { ... }
-
-#[test]
-fn stress_port_exhaustion() { ... }
-```
-
-#### Cross-Platform Tests
-- Linux CI
-- macOS CI
-- Windows WSL CI
-
-#### Security Tests
-```rust
-#[test]
-fn test_no_command_injection() { ... }
-
-#[test]
-fn test_symlink_traversal() { ... }
-```
-
-#### End-to-End Scenario Tests
-- Scenario 1: Multiple features in parallel
-- Scenario 2: Hotfix during feature work
-- Scenario 3: Nested worktrees
-- Scenario 4: Isolated database testing
-- Scenario 5: Code review
-- Scenario 6: Monorepo with sparse checkout
-
-### 4.5 Documentation
-
-#### User Docs
-- `docs/getting-started.md` - Installation, first worktree
-- `docs/configuration.md` - Config file reference
-- `docs/docker.md` - Docker integration guide
-- `docs/hooks.md` - Hook system
-- `docs/workflows.md` - Common workflows
-- `docs/troubleshooting.md` - Common issues
-
-#### API Docs
-- Rustdoc for all public APIs
-- Architecture overview
-- VCS trait documentation
-
-#### Examples
-- `examples/basic/` - Basic usage
-- `examples/docker/` - Docker setup
-- `examples/monorepo/` - Sparse checkout
-- `examples/hooks/` - Custom hooks
-
-### 4.6 Distribution
-
-#### Cargo
-```toml
-[package]
-name = "hannahanna"
-version = "0.1.0"
-authors = ["..."]
-edition = "2021"
-description = "Git worktree manager with Docker integration"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/..."
-```
-
-**Publish:**
-```bash
-cargo publish
-```
-
-**Install:**
-```bash
-cargo install hannahanna
-```
-
-#### Pre-built Binaries
-- GitHub Actions CI
-- Build for: Linux (x86_64, aarch64), macOS (x86_64, aarch64), Windows (WSL)
-- Attach to GitHub releases
-
-#### Package Managers
-- **Homebrew:**
-  ```ruby
-  class Hannahanna < Formula
-    desc "Git worktree manager with Docker integration"
-    homepage "https://github.com/..."
-    url "https://github.com/.../archive/v0.1.0.tar.gz"
-    # ...
-  end
-  ```
-- **apt/deb:** Create `.deb` package
-- **AUR:** Arch Linux user repository
-
-#### Shell Integration
-**Install script:**
-```bash
-# Install shell wrapper for `hn switch`
-hn shell install
-```
-
-**Generates:**
-```bash
-# ~/.config/hn/hn.bash
-hn() {
-    if [ "$1" = "switch" ]; then
-        local output=$(command hn switch "$2")
-        local path=$(echo "$output" | head -n1)
-        cd "$path"
-    else
-        command hn "$@"
-    fi
+    // Critical section: create worktree, update state
+    // Lock automatically released when _lock drops
 }
 ```
 
-**User adds to `~/.bashrc`:**
-```bash
-source ~/.config/hn/hn.bash
+**Tests:**
+- Acquire lock successfully
+- Block concurrent access
+- Timeout if lock held too long
+- Release lock on drop
+
+#### 5.2 Atomic Operations
+
+**File:** `src/state.rs` (update)
+
+```rust
+impl StateManager {
+    pub fn create_state_dir(&self, worktree_name: &str) -> Result<PathBuf> {
+        let state_dir = self.state_root.join(worktree_name);
+
+        // Atomic: create temp dir, then rename
+        let temp_dir = self.state_root.join(format!(".tmp-{}", worktree_name));
+        fs::create_dir_all(&temp_dir)?;
+
+        // Write metadata
+        let metadata = WorktreeMetadata {
+            name: worktree_name.to_string(),
+            created: Utc::now(),
+        };
+        let metadata_path = temp_dir.join("metadata.json");
+        fs::write(metadata_path, serde_json::to_string_pretty(&metadata)?)?;
+
+        // Atomic rename
+        fs::rename(&temp_dir, &state_dir)?;
+
+        Ok(state_dir)
+    }
+}
+```
+
+**Tests:**
+- Create state atomically
+- Handle partial creation (cleanup temp dir on error)
+- No orphaned temp directories
+
+#### 5.3 Concurrency Tests
+
+**File:** `tests/integration/concurrency_test.rs`
+
+```rust
+#[test]
+fn test_concurrent_create() {
+    let handles: Vec<_> = (0..10)
+        .map(|i| {
+            thread::spawn(move || {
+                create_worktree(&format!("feature-{}", i))
+            })
+        })
+        .collect();
+
+    let results: Vec<_> = handles.into_iter()
+        .map(|h| h.join().unwrap())
+        .collect();
+
+    // All should succeed
+    assert_eq!(results.iter().filter(|r| r.is_ok()).count(), 10);
+
+    // All should have state directories
+    assert_eq!(list_worktrees().unwrap().len(), 10);
+}
+
+#[test]
+fn test_lock_timeout() {
+    // Thread 1: Hold lock for 10 seconds
+    let handle = thread::spawn(|| {
+        let _lock = StateLock::acquire(".wt-state/.lock", Duration::from_secs(10)).unwrap();
+        thread::sleep(Duration::from_secs(10));
+    });
+
+    // Thread 2: Try to acquire with 1 second timeout
+    thread::sleep(Duration::from_millis(100));  // Let thread 1 acquire first
+    let result = StateLock::acquire(".wt-state/.lock", Duration::from_secs(1));
+
+    // Should timeout
+    assert!(matches!(result, Err(LockError::Timeout)));
+
+    handle.join().unwrap();
+}
 ```
 
 ---
 
-## Development Workflow
+### Phase 6: Testing & Documentation (Week 5-6)
 
-### Test-Driven Development
-1. Write failing test
-2. Implement feature
-3. Pass test
-4. Refactor
-5. Repeat
+#### 6.1 Integration Tests
 
-### Continuous Integration
-- Run tests on every commit
-- Lint with `clippy`
-- Format with `rustfmt`
-- Check test coverage (aim for 80%+)
+**File:** `tests/integration/lifecycle_test.rs`
 
-### Version Control
-- Use conventional commits
-- Feature branches
-- PR reviews
+```rust
+#[test]
+fn test_full_lifecycle() {
+    let temp = TempRepo::new();
+
+    // Create worktree
+    let result = create_worktree("feature-x", None);
+    assert!(result.is_ok());
+
+    // List worktrees
+    let worktrees = list_worktrees().unwrap();
+    assert_eq!(worktrees.len(), 1);
+    assert_eq!(worktrees[0].name, "feature-x");
+
+    // Get info
+    let info = get_worktree_info("feature-x").unwrap();
+    assert_eq!(info.worktree.name, "feature-x");
+
+    // Delete worktree
+    let result = delete_worktree("feature-x", false);
+    assert!(result.is_ok());
+
+    // Verify deleted
+    let worktrees = list_worktrees().unwrap();
+    assert_eq!(worktrees.len(), 0);
+}
+
+#[test]
+fn test_parent_child_tracking() {
+    // Create parent
+    create_worktree("feature-x", None).unwrap();
+
+    // Switch to parent
+    // (simulate being in feature-x worktree)
+    std::env::set_var("GIT_DIR", "feature-x/.git");
+
+    // Create child
+    create_worktree("fix-bug", None).unwrap();
+
+    // Verify parent tracking
+    let child = get_worktree_info("fix-bug").unwrap();
+    assert_eq!(child.worktree.parent, Some("feature-x".to_string()));
+
+    // Verify parent knows about child
+    let parent = get_worktree_info("feature-x").unwrap();
+    assert_eq!(parent.children, vec!["fix-bug"]);
+}
+```
+
+**File:** `tests/integration/scenarios_test.rs`
+
+```rust
+// Implement each scenario from spec.md as integration test
+
+#[test]
+fn scenario_multiple_features() {
+    // Create 3 worktrees
+    create_worktree("feature-auth", None).unwrap();
+    create_worktree("feature-billing", None).unwrap();
+    create_worktree("feature-dashboard", None).unwrap();
+
+    // Verify all exist
+    let worktrees = list_worktrees().unwrap();
+    assert_eq!(worktrees.len(), 3);
+}
+
+#[test]
+fn scenario_hotfix_during_feature() {
+    // Deep in refactor
+    create_worktree("refactor-db", Some("main")).unwrap();
+
+    // Urgent bug! Create from main, not refactor-db
+    create_worktree("hotfix-critical", Some("main")).unwrap();
+
+    // Verify hotfix parent is main, not refactor-db
+    let hotfix = get_worktree_info("hotfix-critical").unwrap();
+    assert_eq!(hotfix.worktree.parent, None);  // Created from main
+}
+
+#[test]
+fn scenario_nested_worktrees() {
+    // Create parent
+    create_worktree("feature-redesign", Some("main")).unwrap();
+
+    // Create child (simulate being in feature-redesign)
+    std::env::set_var("GIT_DIR", "feature-redesign/.git");
+    create_worktree("fix-button-bug", None).unwrap();
+
+    // Verify tree structure
+    let tree = build_worktree_tree().unwrap();
+    assert_eq!(tree.children.len(), 1);
+    assert_eq!(tree.children[0].worktree.name, "feature-redesign");
+    assert_eq!(tree.children[0].children.len(), 1);
+    assert_eq!(tree.children[0].children[0].worktree.name, "fix-button-bug");
+}
+```
+
+#### 6.2 Documentation
+
+**Create:**
+- `README.md` - Getting started, installation, basic usage
+- `docs/commands.md` - Command reference
+- `docs/config.md` - Configuration file format
+- `docs/workflows.md` - Common workflows and examples
+
+**README.md outline:**
+```markdown
+# hannahanna (hn)
+
+Work on multiple git branches simultaneously with isolated environments.
+
+## Installation
+
+cargo install hannahanna
+
+## Quick Start
+
+# Create worktrees
+hn create feature-x
+hn create feature-y
+
+# List worktrees
+hn list
+
+# Switch between worktrees
+hn switch feature-x
+
+# Delete worktree
+hn delete feature-x
+
+## Configuration
+
+Create `.wt/config.yaml`:
+
+```yaml
+shared:
+  symlinks:
+    - node_modules
+  compatibility_check:
+    node_modules: "package-lock.json"
+
+hooks:
+  post_create: "npm install"
+```
+
+## See Also
+
+- [Commands](docs/commands.md)
+- [Configuration](docs/config.md)
+- [Workflows](docs/workflows.md)
+```
 
 ---
 
 ## Success Criteria
 
-### Phase 1 Complete When:
-- [ ] All core commands work (add, list, remove, switch, info, each)
-- [ ] Git worktrees created/managed correctly
-- [ ] Config system loads and merges hierarchy
-- [ ] Hooks execute successfully
-- [ ] Symlinks created with compatibility checking
-- [ ] Parent/child tracking works
-- [ ] Fuzzy matching works
-- [ ] 80%+ test coverage
-- [ ] Documentation exists
+### MVP is complete when:
 
-### Phase 2 Complete When:
-- [ ] Docker containers start/stop per worktree
-- [ ] Ports auto-allocated and managed
-- [ ] Compose overrides generated correctly
-- [ ] Shared/isolated volumes work
-- [ ] Health checks work
-- [ ] All Docker commands implemented
-- [ ] Integration tests pass
-- [ ] Scenario 1 & 4 work end-to-end
+**Functionality:**
+- ✅ All 6 commands work correctly
+- ✅ Git worktrees created and managed
+- ✅ Parent/child tracking persists
+- ✅ Symlinks created with compatibility checking
+- ✅ Hooks execute successfully
+- ✅ Concurrency-safe (file locking works)
 
-### Phase 3 Complete When:
-- [ ] Parent/child workflows complete
-- [ ] Tree view renders correctly
-- [ ] Sync command works (merge & rebase)
-- [ ] Dependency compatibility checking works
-- [ ] Sparse checkout works
-- [ ] Config commands work
-- [ ] Aliases work
-- [ ] All scenarios work end-to-end
+**Quality:**
+- ✅ 80%+ test coverage
+- ✅ All integration tests pass
+- ✅ No panics (graceful error handling)
+- ✅ Clear error messages with suggestions
 
-### Phase 4 Complete When:
-- [ ] Hg and Jj backends implemented
-- [ ] Performance benchmarks met
-- [ ] Stress tests pass
-- [ ] Security tests pass
-- [ ] Documentation complete
-- [ ] Pre-built binaries available
-- [ ] Published to crates.io
-- [ ] Shell integration installed
+**Performance:**
+- ✅ List 100 worktrees in < 100ms
+- ✅ Create worktree (no hooks) in < 500ms
+- ✅ Fuzzy search in < 10ms
+
+**Documentation:**
+- ✅ README with getting started
+- ✅ Command reference
+- ✅ Config documentation
+- ✅ Example workflows
+
+**Distribution:**
+- ✅ Published to crates.io
+- ✅ Binary builds for Linux/macOS
+- ✅ Shell wrapper installation works
 
 ---
 
-## Next Steps
+## Post-MVP: What's Next (v0.2)
 
-1. **Start with Phase 1:** Core foundation
-2. **Create Cargo project:** Initialize with dependencies
-3. **Setup CLI framework:** Define commands with clap
-4. **Implement VCS abstraction:** Define trait, implement Git backend
-5. **Build core model:** Worktree, Registry, fuzzy matching
-6. **Add config system:** Parse, merge, validate
-7. **Implement commands:** Start with `add`, then `list`, `remove`, `switch`
-8. **Write tests:** Unit and integration tests for each feature
-9. **Document:** Write docs as you go
+Once MVP is shipped and validated by real users:
 
-**Ready to start?** Let's begin with Phase 1!
+### v0.2: Docker Integration
+- Add `--docker` flag to `hn create`
+- Port allocation system
+- Docker compose override generation
+- Container lifecycle commands
+
+See `vision.md` for full roadmap.
+
+---
+
+## Development Workflow
+
+### Daily Workflow
+1. Pick a task from phase
+2. Write test first (TDD)
+3. Implement feature
+4. Run tests: `cargo test`
+5. Run clippy: `cargo clippy`
+6. Commit with clear message
+
+### Before Merging
+- All tests pass
+- No clippy warnings
+- Code formatted: `cargo fmt`
+- Documentation updated
+
+### Testing Strategy
+- Unit tests: Individual functions
+- Integration tests: End-to-end workflows
+- Concurrency tests: Stress test with threads
+- Manual testing: Real repos, real workflows
+
+---
+
+## Key Principles
+
+### Keep It Simple
+- Don't add features until proven necessary
+- Default to isolated resources (safer)
+- Use git CLI when libgit2 is complex
+- One config file is enough
+
+### Ship Fast, Iterate
+- MVP in 6 weeks, not 6 months
+- Get feedback from real users
+- Add complexity only when needed
+- Defer edge cases
+
+### Safety First
+- Validate all inputs
+- Lock shared state
+- Atomic operations
+- Graceful errors
+- No data loss
+
+### Test Everything
+- Unit tests for logic
+- Integration tests for workflows
+- Concurrency tests for race conditions
+- Don't ship without tests
+
+---
+
+## Questions & Decisions
+
+### Open Questions
+1. Should we use libgit2 or shell out to git CLI?
+   - **Decision:** libgit2 for core operations (faster, safer)
+   - Shell out for complex operations if needed
+
+2. How do we handle worktree deletion with uncommitted changes?
+   - **Decision:** Warn and refuse (unless --force)
+   - Print uncommitted file list
+
+3. Should hooks run in background or foreground?
+   - **Decision:** Foreground (simpler, user sees output)
+   - Can add background option in v0.2
+
+4. How do we detect "current worktree"?
+   - **Decision:** Check if cwd is inside a worktree path
+   - Fall back to git rev-parse --show-toplevel
+
+### Resolved Decisions
+- ✅ Git-only for MVP (defer Hg/Jj)
+- ✅ No Docker in MVP (add in v0.2)
+- ✅ One config file (defer hierarchy)
+- ✅ Linux/macOS only (no Windows native)
+- ✅ File locking for concurrency
+- ✅ Isolated-by-default for dependencies
+
+---
+
+## Timeline Estimate
+
+**Optimistic:** 4 weeks
+**Realistic:** 6 weeks
+**Pessimistic:** 8 weeks
+
+**Critical path:**
+- Week 1-2: Git integration + worktree model
+- Week 2-3: Environment setup + config
+- Week 3-4: Delete/switch/info + hooks
+- Week 4-5: Concurrency safety
+- Week 5-6: Testing + documentation + polish
+
+**Parallel work:**
+- Documentation can be written alongside implementation
+- Tests should be written before/during implementation
+- Shell wrapper can be developed anytime
+
+---
+
+**Ready to build!** 🚀
+
+Start with Phase 0: Set up the Cargo project and CLI framework.

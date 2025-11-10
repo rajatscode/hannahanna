@@ -4,6 +4,10 @@
 **Command:** `hn`
 **Name Origin:** Hannahanna - Hittite mother goddess
 
+> **Note:** This document describes the complete feature set and vision for hannahanna.
+> - For the **MVP implementation plan** (what we're building first), see [`plan.md`](plan.md)
+> - For the **long-term comprehensive roadmap** (full vision), see [`vision.md`](vision.md)
+
 ## Goal
 
 Enable parallel work on the same codebase across different branches with complete, isolated development environments.
