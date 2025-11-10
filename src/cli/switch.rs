@@ -1,4 +1,5 @@
 use crate::errors::Result;
+use crate::fuzzy;
 use crate::vcs::git::GitBackend;
 
 /// Switch to a worktree by name
@@ -34,8 +35,15 @@ pub fn run(name: String) -> Result<()> {
     // Open git repository
     let git = GitBackend::open_from_current_dir()?;
 
-    // Find the worktree by name (exact match for MVP)
-    let worktree = git.get_worktree_by_name(&name)?;
+    // Get all worktrees for fuzzy matching
+    let worktrees = git.list_worktrees()?;
+    let worktree_names: Vec<String> = worktrees.iter().map(|wt| wt.name.clone()).collect();
+
+    // Find the best match using fuzzy matching
+    let matched_name = fuzzy::find_best_match(&name, &worktree_names)?;
+
+    // Get the worktree by the matched name
+    let worktree = git.get_worktree_by_name(&matched_name)?;
 
     // Verify the worktree path exists
     if !worktree.path.exists() {
@@ -50,7 +58,10 @@ pub fn run(name: String) -> Result<()> {
     println!("{}", worktree.path.display());
 
     // Print helpful info to stderr (won't interfere with path capture)
-    eprintln!("Switching to worktree '{}'", name);
+    if matched_name != name {
+        eprintln!("Matched '{}' to '{}'", name, matched_name);
+    }
+    eprintln!("Switching to worktree '{}'", matched_name);
     eprintln!("  Branch: {}", worktree.branch);
     eprintln!("  Commit: {}", &worktree.commit[..7.min(worktree.commit.len())]);
 

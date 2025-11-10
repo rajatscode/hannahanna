@@ -17,6 +17,9 @@ pub enum HnError {
     #[error("Worktree '{0}' already exists")]
     WorktreeAlreadyExists(String),
 
+    #[error("Ambiguous worktree name '{0}'. Did you mean one of: {}", .1.join(", "))]
+    AmbiguousWorktreeName(String, Vec<String>),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }
