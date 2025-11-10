@@ -120,6 +120,7 @@ mod tests {
             path: wt_path,
             branch: "main".to_string(),
             commit: "abc123".to_string(),
+            parent: None,
         }
     }
 

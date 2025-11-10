@@ -28,9 +28,9 @@ pub fn run(
     let config = Config::load(&repo_root)?;
 
     // Create the worktree
-    println!("Creating worktree '{}'...", name);
+    eprintln!("Creating worktree '{}'...", name);
     let worktree = git.create_worktree(&name, branch.as_deref(), from.as_deref(), no_branch)?;
-    println!("✓ Git worktree created at {}", worktree.path.display());
+    eprintln!("✓ Git worktree created at {}", worktree.path.display());
 
     // Create state directory
     let state_manager = StateManager::new(&repo_root)?;
@@ -43,13 +43,13 @@ pub fn run(
         for action in actions {
             match action {
                 SymlinkAction::Created { source, target: _ } => {
-                    println!(
+                    eprintln!(
                         "✓ Shared {} (symlinked)",
                         source.file_name().unwrap().to_string_lossy()
                     );
                 }
                 SymlinkAction::Skipped { resource, reason } => {
-                    println!("⚠ Skipped {} ({})", resource, reason);
+                    eprintln!("⚠ Skipped {} ({})", resource, reason);
                 }
             }
         }
@@ -57,14 +57,14 @@ pub fn run(
 
     // Run post_create hook if configured
     if config.hooks.post_create.is_some() {
-        println!("Running post_create hook...");
+        eprintln!("Running post_create hook...");
         let hook_executor = HookExecutor::new(config.hooks);
         hook_executor.run_hook(HookType::PostCreate, &worktree, &state_dir)?;
-        println!("✓ Hook completed successfully");
+        eprintln!("✓ Hook completed successfully");
     }
 
-    println!("\nDone! Switch to the worktree with:");
-    println!("  hn switch {}", name);
+    eprintln!("\nDone! Switch to the worktree with:");
+    eprintln!("  hn switch {}", name);
 
     Ok(())
 }
