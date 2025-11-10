@@ -117,9 +117,7 @@ impl TestRepo {
     /// Create a config file
     #[allow(dead_code)]
     pub fn create_config(&self, content: &str) {
-        let config_dir = self.repo_path.join(".wt");
-        std::fs::create_dir_all(&config_dir).expect("Failed to create .wt directory");
-        std::fs::write(config_dir.join("config.yaml"), content)
+        std::fs::write(self.repo_path.join(".hannahanna.yml"), content)
             .expect("Failed to write config file");
     }
 

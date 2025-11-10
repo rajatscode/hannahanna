@@ -4,11 +4,7 @@ mod common;
 use common::TestRepo;
 use std::fs;
 
-// TODO: Implement symlink creation from config
-// The symlinks feature needs to be implemented in src/cli/add.rs
-// to read the config and create symlinks for shared resources
 #[test]
-#[ignore = "Feature not implemented: symlink creation from config"]
 fn test_symlink_creation() {
     let repo = TestRepo::new();
 
@@ -23,9 +19,9 @@ fn test_symlink_creation() {
     // Create config with symlinks
     repo.create_config(
         r#"
-shared:
-  symlinks:
-    - node_modules
+shared_resources:
+  - source: node_modules
+    target: node_modules
 "#,
     );
 
@@ -65,12 +61,10 @@ fn test_compatibility_checking_with_identical_lockfiles() {
     // Create config with compatibility check
     repo.create_config(
         r#"
-shared:
-  symlinks:
-    - node_modules
-  compatibility_check:
-    node_modules: "package-lock.json"
-  fallback_to_isolated: true
+shared_resources:
+  - source: node_modules
+    target: node_modules
+    compatibility: package-lock.json
 "#,
     );
 
@@ -109,12 +103,10 @@ fn test_compatibility_checking_with_different_lockfiles() {
     // Create config
     repo.create_config(
         r#"
-shared:
-  symlinks:
-    - node_modules
-  compatibility_check:
-    node_modules: "package-lock.json"
-  fallback_to_isolated: true
+shared_resources:
+  - source: node_modules
+    target: node_modules
+    compatibility: package-lock.json
 "#,
     );
 
@@ -144,11 +136,13 @@ fn test_multiple_symlinks() {
 
     repo.create_config(
         r#"
-shared:
-  symlinks:
-    - node_modules
-    - vendor
-    - .build-cache
+shared_resources:
+  - source: node_modules
+    target: node_modules
+  - source: vendor
+    target: vendor
+  - source: .build-cache
+    target: .build-cache
 "#,
     );
 

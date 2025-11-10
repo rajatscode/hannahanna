@@ -4,9 +4,7 @@ mod common;
 use common::TestRepo;
 use std::fs;
 
-// TODO: Fix git integration for hooks to work properly
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_post_create_hook() {
     let repo = TestRepo::new();
 
@@ -34,9 +32,7 @@ hooks:
     assert!(content.contains("Hook executed"));
 }
 
-// TODO: Fix git integration for hooks to work properly
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_pre_remove_hook() {
     let repo = TestRepo::new();
 
@@ -66,9 +62,7 @@ hooks:
     );
 }
 
-// TODO: Fix git integration for hooks to work properly
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_hook_environment_variables() {
     let repo = TestRepo::new();
 
@@ -96,9 +90,7 @@ hooks:
     assert!(content.contains("WT_BRANCH="));
 }
 
-// TODO: Fix git integration for hooks to work properly
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_hook_failure_prevents_worktree_creation() {
     let repo = TestRepo::new();
 
@@ -119,9 +111,7 @@ hooks:
     // (Depending on implementation, it might be cleaned up)
 }
 
-// TODO: Fix git integration for hooks to work properly
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_hook_with_multiline_script() {
     let repo = TestRepo::new();
 
@@ -159,9 +149,7 @@ fn test_no_hooks_without_config() {
     assert!(repo.worktree_exists("feature-x"));
 }
 
-// TODO: Fix git integration for hooks to work properly
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_post_switch_hook() {
     let repo = TestRepo::new();
 
@@ -184,9 +172,7 @@ hooks:
     // Note: post_switch hook might not be implemented yet, this is a forward-looking test
 }
 
-// TODO: Fix git integration for hooks to work properly
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_hook_with_install_command() {
     let repo = TestRepo::new();
 

@@ -5,8 +5,6 @@ use common::TestRepo;
 
 /// Scenario 1: Multiple Features in Parallel
 /// Developer working on 3 features simultaneously
-// TODO: Fix git integration for this test to work
-#[ignore = "Feature not fully implemented: git integration required"]
 #[test]
 fn scenario_multiple_features_in_parallel() {
     let repo = TestRepo::new();
@@ -42,8 +40,6 @@ fn scenario_multiple_features_in_parallel() {
 
 /// Scenario 2: Hotfix During Feature Work
 /// Developer working on a feature when urgent bug needs fixing
-// TODO: Fix git integration for this test to work
-#[ignore = "Feature not fully implemented: git integration required"]
 #[test]
 fn scenario_hotfix_during_feature_work() {
     let repo = TestRepo::new();
@@ -125,11 +121,10 @@ fn scenario_shared_dependencies() {
     // Config to share node_modules
     repo.create_config(
         r#"
-shared:
-  symlinks:
-    - node_modules
-  compatibility_check:
-    node_modules: "package-lock.json"
+shared_resources:
+  - source: node_modules
+    target: node_modules
+    compatibility: package-lock.json
 "#,
     );
 
@@ -151,8 +146,6 @@ shared:
 
 /// Scenario 5: Sequential Workflow with Cleanup
 /// Developer completes features one by one
-// TODO: Fix git integration for this test to work
-#[ignore = "Feature not fully implemented: git integration required"]
 #[test]
 fn scenario_sequential_workflow() {
     let repo = TestRepo::new();
@@ -184,8 +177,6 @@ fn scenario_sequential_workflow() {
 
 /// Scenario 6: Experimenting with Breaking Changes
 /// Developer creates worktree to test risky changes
-// TODO: Fix git integration for this test to work
-#[ignore = "Feature not fully implemented: git integration required"]
 #[test]
 fn scenario_experimental_changes() {
     let repo = TestRepo::new();
@@ -209,8 +200,6 @@ fn scenario_experimental_changes() {
 
 /// Scenario 7: Information Gathering
 /// Developer checks status of multiple worktrees
-// TODO: Fix git integration for this test to work
-#[ignore = "Feature not fully implemented: git integration required"]
 #[test]
 fn scenario_information_gathering() {
     let repo = TestRepo::new();
@@ -266,8 +255,6 @@ fn scenario_cleanup_orphaned_state() {
 
 /// Scenario 9: Long-Running Feature with Multiple Fixes
 /// Developer creates worktree for main feature, then sub-worktrees for fixes
-// TODO: Fix git integration for this test to work
-#[ignore = "Feature not fully implemented: git integration required"]
 #[test]
 fn scenario_nested_workflow() {
     let repo = TestRepo::new();
@@ -295,8 +282,6 @@ fn scenario_nested_workflow() {
 
 /// Scenario 10: Rapid Prototyping
 /// Developer creates and destroys worktrees quickly
-// TODO: Fix git integration for this test to work
-#[ignore = "Feature not fully implemented: git integration required"]
 #[test]
 fn scenario_rapid_prototyping() {
     let repo = TestRepo::new();
