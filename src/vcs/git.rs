@@ -125,6 +125,69 @@ impl GitBackend {
         Ok(worktrees)
     }
 
+    /// Remove a git worktree
+    pub fn remove_worktree(&self, name: &str, force: bool) -> Result<()> {
+        use std::process::Command;
+
+        // Check if worktree exists
+        if self.repo.find_worktree(name).is_err() {
+            return Err(HnError::WorktreeNotFound(name.to_string()));
+        }
+
+        // Get worktree path for checking uncommitted changes
+        let worktree_info = self.get_worktree_info(name)?;
+
+        // If not force, check for uncommitted changes
+        if !force {
+            let has_changes = self.has_uncommitted_changes(&worktree_info.path)?;
+            if has_changes {
+                return Err(HnError::Git(git2::Error::from_str(
+                    &format!("Worktree '{}' has uncommitted changes. Use --force to remove anyway.", name)
+                )));
+            }
+        }
+
+        // Remove the worktree using git command
+        let mut cmd = Command::new("git");
+        cmd.arg("worktree").arg("remove");
+
+        if force {
+            cmd.arg("--force");
+        }
+
+        cmd.arg(name);
+
+        let output = cmd.output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(HnError::Git(git2::Error::from_str(&stderr)));
+        }
+
+        Ok(())
+    }
+
+    /// Check if a worktree has uncommitted changes
+    fn has_uncommitted_changes(&self, worktree_path: &Path) -> Result<bool> {
+        use std::process::Command;
+
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(worktree_path)
+            .arg("status")
+            .arg("--porcelain")
+            .output()?;
+
+        if !output.status.success() {
+            return Err(HnError::Git(git2::Error::from_str(
+                "Failed to check git status"
+            )));
+        }
+
+        // If output is not empty, there are uncommitted changes
+        Ok(!output.stdout.is_empty())
+    }
+
     /// Get information about a specific worktree
     fn get_worktree_info(&self, name: &str) -> Result<Worktree> {
         let worktree = self.repo.find_worktree(name)?;
