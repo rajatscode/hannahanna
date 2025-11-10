@@ -25,10 +25,7 @@ pub fn find_best_match(query: &str, candidates: &[String]) -> Result<String> {
     }
 
     // Try prefix match
-    let prefix_matches: Vec<&String> = candidates
-        .iter()
-        .filter(|c| c.starts_with(query))
-        .collect();
+    let prefix_matches: Vec<&String> = candidates.iter().filter(|c| c.starts_with(query)).collect();
 
     if prefix_matches.len() == 1 {
         return Ok(prefix_matches[0].clone());
@@ -131,18 +128,27 @@ mod tests {
     #[test]
     fn test_exact_match() {
         let candidates = vec!["feature-x".to_string(), "feature-y".to_string()];
-        assert_eq!(find_best_match("feature-x", &candidates).unwrap(), "feature-x");
+        assert_eq!(
+            find_best_match("feature-x", &candidates).unwrap(),
+            "feature-x"
+        );
     }
 
     #[test]
     fn test_prefix_match() {
         let candidates = vec!["feature-auth".to_string(), "feature-billing".to_string()];
-        assert_eq!(find_best_match("feature-a", &candidates).unwrap(), "feature-auth");
+        assert_eq!(
+            find_best_match("feature-a", &candidates).unwrap(),
+            "feature-auth"
+        );
     }
 
     #[test]
     fn test_fuzzy_match() {
-        let candidates = vec!["feature-authentication".to_string(), "fix-login-bug".to_string()];
+        let candidates = vec![
+            "feature-authentication".to_string(),
+            "fix-login-bug".to_string(),
+        ];
         let result = find_best_match("fauth", &candidates).unwrap();
         // Should match "feature-authentication" because it has consecutive "aut" in "authentication"
         assert_eq!(result, "feature-authentication");

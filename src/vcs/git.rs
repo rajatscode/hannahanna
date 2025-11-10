@@ -25,8 +25,8 @@ pub struct GitBackend {
 impl GitBackend {
     /// Open a git repository from the current directory
     pub fn open_from_current_dir() -> Result<Self> {
-        let repo = Repository::discover(std::env::current_dir()?)
-            .map_err(|_| HnError::NotInRepository)?;
+        let repo =
+            Repository::discover(std::env::current_dir()?).map_err(|_| HnError::NotInRepository)?;
         Ok(Self { repo })
     }
 
@@ -41,7 +41,9 @@ impl GitBackend {
         let worktree_path = repo_path
             .parent()
             .ok_or_else(|| {
-                HnError::Git(git2::Error::from_str("Could not determine worktree parent directory"))
+                HnError::Git(git2::Error::from_str(
+                    "Could not determine worktree parent directory",
+                ))
             })?
             .join(name);
 
@@ -81,11 +83,7 @@ impl GitBackend {
     }
 
     /// Create worktree using git command (libgit2's worktree API is limited)
-    fn create_worktree_via_command(
-        &self,
-        path: &Path,
-        branch: &str,
-    ) -> Result<()> {
+    fn create_worktree_via_command(&self, path: &Path, branch: &str) -> Result<()> {
         use std::process::Command;
 
         // Get the repository's working directory
@@ -140,11 +138,9 @@ impl GitBackend {
         // Get the list of worktree names from git
         let worktree_names = self.repo.worktrees()?;
 
-        for name_bytes in worktree_names.iter() {
-            if let Some(name) = name_bytes {
-                if let Ok(wt) = self.get_worktree_info(name) {
-                    worktrees.push(wt);
-                }
+        for name in worktree_names.iter().flatten() {
+            if let Ok(wt) = self.get_worktree_info(name) {
+                worktrees.push(wt);
             }
         }
 
@@ -167,9 +163,10 @@ impl GitBackend {
         if !force {
             let has_changes = self.has_uncommitted_changes(&worktree_info.path)?;
             if has_changes {
-                return Err(HnError::Git(git2::Error::from_str(
-                    &format!("Worktree '{}' has uncommitted changes. Use --force to remove anyway.", name)
-                )));
+                return Err(HnError::Git(git2::Error::from_str(&format!(
+                    "Worktree '{}' has uncommitted changes. Use --force to remove anyway.",
+                    name
+                ))));
             }
         }
 
@@ -206,7 +203,7 @@ impl GitBackend {
 
         if !output.status.success() {
             return Err(HnError::Git(git2::Error::from_str(
-                "Failed to check git status"
+                "Failed to check git status",
             )));
         }
 
@@ -246,7 +243,7 @@ impl GitBackend {
 
         if !output.status.success() {
             return Err(HnError::Git(git2::Error::from_str(
-                "Failed to get git status"
+                "Failed to get git status",
             )));
         }
 

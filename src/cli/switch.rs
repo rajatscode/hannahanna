@@ -63,7 +63,10 @@ pub fn run(name: String) -> Result<()> {
     }
     eprintln!("Switching to worktree '{}'", matched_name);
     eprintln!("  Branch: {}", worktree.branch);
-    eprintln!("  Commit: {}", &worktree.commit[..7.min(worktree.commit.len())]);
+    eprintln!(
+        "  Commit: {}",
+        &worktree.commit[..7.min(worktree.commit.len())]
+    );
 
     Ok(())
 }

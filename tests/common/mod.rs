@@ -4,6 +4,7 @@ use std::process::Command;
 use tempfile::TempDir;
 
 /// A test repository with temporary directory management
+#[allow(dead_code)]
 pub struct TestRepo {
     pub temp_dir: TempDir,
     pub repo_path: PathBuf,
@@ -60,6 +61,7 @@ impl TestRepo {
     }
 
     /// Get the repository path
+    #[allow(dead_code)]
     pub fn path(&self) -> &Path {
         &self.repo_path
     }
@@ -81,31 +83,25 @@ impl TestRepo {
     }
 
     /// Check if a worktree exists
+    #[allow(dead_code)]
     pub fn worktree_exists(&self, name: &str) -> bool {
-        self.repo_path
-            .parent()
-            .unwrap()
-            .join(name)
-            .exists()
+        self.repo_path.parent().unwrap().join(name).exists()
     }
 
     /// Get worktree path
+    #[allow(dead_code)]
     pub fn worktree_path(&self, name: &str) -> PathBuf {
-        self.repo_path
-            .parent()
-            .unwrap()
-            .join(name)
+        self.repo_path.parent().unwrap().join(name)
     }
 
     /// Check if state directory exists
+    #[allow(dead_code)]
     pub fn state_exists(&self, name: &str) -> bool {
-        self.repo_path
-            .join(".wt-state")
-            .join(name)
-            .exists()
+        self.repo_path.join(".wt-state").join(name).exists()
     }
 
     /// Create a config file
+    #[allow(dead_code)]
     pub fn create_config(&self, content: &str) {
         let config_dir = self.repo_path.join(".wt");
         std::fs::create_dir_all(&config_dir).expect("Failed to create .wt directory");
@@ -114,9 +110,9 @@ impl TestRepo {
     }
 
     /// Create a file and commit it
+    #[allow(dead_code)]
     pub fn create_and_commit(&self, filename: &str, content: &str, message: &str) {
-        std::fs::write(self.repo_path.join(filename), content)
-            .expect("Failed to write file");
+        std::fs::write(self.repo_path.join(filename), content).expect("Failed to write file");
 
         Command::new("git")
             .args(["add", filename])
@@ -152,6 +148,7 @@ impl CommandResult {
     }
 
     /// Assert the command failed
+    #[allow(dead_code)]
     pub fn assert_failure(&self) {
         if self.success {
             panic!(
@@ -162,6 +159,7 @@ impl CommandResult {
     }
 
     /// Assert stdout contains text
+    #[allow(dead_code)]
     pub fn assert_stdout_contains(&self, text: &str) {
         assert!(
             self.stdout.contains(text),
@@ -172,6 +170,7 @@ impl CommandResult {
     }
 
     /// Assert stderr contains text
+    #[allow(dead_code)]
     pub fn assert_stderr_contains(&self, text: &str) {
         assert!(
             self.stderr.contains(text),

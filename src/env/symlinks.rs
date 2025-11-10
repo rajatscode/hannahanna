@@ -6,15 +6,10 @@ use std::os::unix::fs as unix_fs;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum SymlinkAction {
-    Created {
-        source: PathBuf,
-        target: PathBuf,
-    },
-    Skipped {
-        resource: String,
-        reason: String,
-    },
+    Created { source: PathBuf, target: PathBuf },
+    Skipped { resource: String, reason: String },
 }
 
 pub struct SymlinkManager;
@@ -59,11 +54,8 @@ impl SymlinkManager {
 
         // Check compatibility if configured
         if let Some(ref lockfile) = resource.compatibility {
-            let compatible = CompatibilityChecker::is_compatible_fast(
-                lockfile,
-                main_repo,
-                worktree,
-            )?;
+            let compatible =
+                CompatibilityChecker::is_compatible_fast(lockfile, main_repo, worktree)?;
 
             if !compatible {
                 return Ok(SymlinkAction::Skipped {
@@ -115,7 +107,8 @@ impl SymlinkManager {
             target.to_path_buf()
         } else {
             // Check the parent directory
-            target.parent()
+            target
+                .parent()
                 .ok_or_else(|| HnError::SymlinkError("Invalid target path".to_string()))?
                 .to_path_buf()
         };
@@ -138,7 +131,6 @@ impl SymlinkManager {
 mod tests {
     use super::*;
     use crate::config::SharedResource;
-    use std::io::Write;
     use tempfile::TempDir;
 
     #[test]
@@ -187,7 +179,11 @@ mod tests {
         fs::create_dir_all(main_dir.join("node_modules")).unwrap();
 
         // Create different lockfiles
-        fs::write(main_dir.join("package-lock.json"), "dependencies: foo@1.0.0").unwrap();
+        fs::write(
+            main_dir.join("package-lock.json"),
+            "dependencies: foo@1.0.0",
+        )
+        .unwrap();
         fs::write(wt_dir.join("package-lock.json"), "dependencies: foo@2.0.0").unwrap();
 
         let resource = SharedResource {
@@ -229,14 +225,12 @@ mod tests {
 
         // Should either fail or skip with error message
         match result {
-            Ok(actions) => {
-                match &actions[0] {
-                    SymlinkAction::Skipped { reason, .. } => {
-                        assert!(reason.contains("Error"));
-                    }
-                    _ => panic!("Expected symlink to be skipped or error"),
+            Ok(actions) => match &actions[0] {
+                SymlinkAction::Skipped { reason, .. } => {
+                    assert!(reason.contains("Error"));
                 }
-            }
+                _ => panic!("Expected symlink to be skipped or error"),
+            },
             Err(_) => {
                 // Also acceptable - operation failed entirely
             }

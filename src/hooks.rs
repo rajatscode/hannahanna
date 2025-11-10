@@ -109,7 +109,6 @@ mod tests {
     use super::*;
     use crate::config::HooksConfig;
     use crate::vcs::Worktree;
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     fn create_test_worktree(temp: &TempDir) -> Worktree {

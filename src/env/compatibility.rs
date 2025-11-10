@@ -8,11 +8,7 @@ pub struct CompatibilityChecker;
 impl CompatibilityChecker {
     /// Check if two directories are compatible by comparing their lockfiles
     /// Returns true if lockfiles are identical (safe to share resources)
-    pub fn is_compatible(
-        lockfile_name: &str,
-        main_repo: &Path,
-        worktree: &Path,
-    ) -> Result<bool> {
+    pub fn is_compatible(lockfile_name: &str, main_repo: &Path, worktree: &Path) -> Result<bool> {
         let main_lockfile = main_repo.join(lockfile_name);
         let worktree_lockfile = worktree.join(lockfile_name);
 
@@ -86,7 +82,6 @@ impl CompatibilityChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     use tempfile::TempDir;
 
     #[test]
@@ -101,12 +96,8 @@ mod tests {
         fs::write(main_dir.join("package-lock.json"), lockfile_content).unwrap();
         fs::write(wt_dir.join("package-lock.json"), lockfile_content).unwrap();
 
-        let result = CompatibilityChecker::is_compatible(
-            "package-lock.json",
-            &main_dir,
-            &wt_dir,
-        )
-        .unwrap();
+        let result =
+            CompatibilityChecker::is_compatible("package-lock.json", &main_dir, &wt_dir).unwrap();
 
         assert!(result);
     }
@@ -119,15 +110,15 @@ mod tests {
         fs::create_dir_all(&main_dir).unwrap();
         fs::create_dir_all(&wt_dir).unwrap();
 
-        fs::write(main_dir.join("package-lock.json"), "dependencies: foo@1.0.0").unwrap();
-        fs::write(wt_dir.join("package-lock.json"), "dependencies: foo@2.0.0").unwrap();
-
-        let result = CompatibilityChecker::is_compatible(
-            "package-lock.json",
-            &main_dir,
-            &wt_dir,
+        fs::write(
+            main_dir.join("package-lock.json"),
+            "dependencies: foo@1.0.0",
         )
         .unwrap();
+        fs::write(wt_dir.join("package-lock.json"), "dependencies: foo@2.0.0").unwrap();
+
+        let result =
+            CompatibilityChecker::is_compatible("package-lock.json", &main_dir, &wt_dir).unwrap();
 
         assert!(!result);
     }
@@ -140,12 +131,8 @@ mod tests {
         fs::create_dir_all(&main_dir).unwrap();
         fs::create_dir_all(&wt_dir).unwrap();
 
-        let result = CompatibilityChecker::is_compatible(
-            "package-lock.json",
-            &main_dir,
-            &wt_dir,
-        )
-        .unwrap();
+        let result =
+            CompatibilityChecker::is_compatible("package-lock.json", &main_dir, &wt_dir).unwrap();
 
         assert!(!result);
     }

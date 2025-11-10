@@ -25,9 +25,13 @@ pub fn run(name: Option<String>) -> Result<()> {
     println!("Worktree: {}", worktree.name);
     println!("Path: {}", worktree.path.display());
     println!("Branch: {}", worktree.branch);
-    println!("Commit: {} {}",
+    println!(
+        "Commit: {} {}",
         &worktree.commit[..7.min(worktree.commit.len())],
-        git.get_commit_message(&worktree.path)?.lines().next().unwrap_or("")
+        git.get_commit_message(&worktree.path)?
+            .lines()
+            .next()
+            .unwrap_or("")
     );
     println!();
 
@@ -37,16 +41,32 @@ pub fn run(name: Option<String>) -> Result<()> {
         println!("  Clean (no changes)");
     } else {
         if status.modified > 0 {
-            println!("  Modified: {} file{}", status.modified, if status.modified == 1 { "" } else { "s" });
+            println!(
+                "  Modified: {} file{}",
+                status.modified,
+                if status.modified == 1 { "" } else { "s" }
+            );
         }
         if status.added > 0 {
-            println!("  Added: {} file{}", status.added, if status.added == 1 { "" } else { "s" });
+            println!(
+                "  Added: {} file{}",
+                status.added,
+                if status.added == 1 { "" } else { "s" }
+            );
         }
         if status.deleted > 0 {
-            println!("  Deleted: {} file{}", status.deleted, if status.deleted == 1 { "" } else { "s" });
+            println!(
+                "  Deleted: {} file{}",
+                status.deleted,
+                if status.deleted == 1 { "" } else { "s" }
+            );
         }
         if status.untracked > 0 {
-            println!("  Untracked: {} file{}", status.untracked, if status.untracked == 1 { "" } else { "s" });
+            println!(
+                "  Untracked: {} file{}",
+                status.untracked,
+                if status.untracked == 1 { "" } else { "s" }
+            );
         }
     }
 
