@@ -31,7 +31,7 @@ impl GitBackend {
     }
 
     /// Create a new git worktree
-    pub fn create_worktree(&self, name: &str, branch: Option<&str>) -> Result<Worktree> {
+    pub fn create_worktree(&self, name: &str, branch: Option<&str>, from: Option<&str>, no_branch: bool) -> Result<Worktree> {
         // Get the repository's worktree directory (parent of .git)
         let repo_path = self.repo.path().parent().ok_or_else(|| {
             HnError::Git(git2::Error::from_str("Could not determine repository path"))
@@ -56,7 +56,7 @@ impl GitBackend {
         let branch_name = branch.unwrap_or(name);
 
         // Create the worktree using git command
-        self.create_worktree_via_command(&worktree_path, branch_name)?;
+        self.create_worktree_via_command(&worktree_path, branch_name, from, no_branch)?;
 
         // Get commit hash from the worktree
         let commit = if let Ok(wt_repo) = Repository::open(&worktree_path) {
@@ -83,7 +83,7 @@ impl GitBackend {
     }
 
     /// Create worktree using git command (libgit2's worktree API is limited)
-    fn create_worktree_via_command(&self, path: &Path, branch: &str) -> Result<()> {
+    fn create_worktree_via_command(&self, path: &Path, branch: &str, from: Option<&str>, no_branch: bool) -> Result<()> {
         use std::process::Command;
 
         // Get the repository's working directory
@@ -91,33 +91,40 @@ impl GitBackend {
             HnError::Git(git2::Error::from_str("Repository has no working directory"))
         })?;
 
-        let output = Command::new("git")
-            .current_dir(repo_workdir)
+        let mut cmd = Command::new("git");
+        cmd.current_dir(repo_workdir)
             .arg("worktree")
-            .arg("add")
-            .arg("-b")
-            .arg(branch)
-            .arg(path)
-            .output()?;
+            .arg("add");
+
+        if no_branch {
+            // Checkout existing branch without creating new one
+            cmd.arg(path).arg(branch);
+        } else {
+            // Create new branch
+            cmd.arg("-b").arg(branch).arg(path);
+
+            // If from is specified, use it as the base
+            if let Some(base_branch) = from {
+                cmd.arg(base_branch);
+            }
+        }
+
+        let output = cmd.output()?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            eprintln!("DEBUG: First git worktree add failed");
-            eprintln!("DEBUG: stdout: {}", stdout);
-            eprintln!("DEBUG: stderr: {}", stderr);
 
-            // Check if branch already exists error
-            if stderr.contains("already exists") {
-                eprintln!("DEBUG: Detected 'already exists', trying fallback");
-                // Try without -b flag (checkout existing branch)
-                let output = Command::new("git")
+            // If not using no_branch and branch already exists, try without -b flag
+            if !no_branch && stderr.contains("already exists") {
+                let mut fallback_cmd = Command::new("git");
+                fallback_cmd
                     .current_dir(repo_workdir)
                     .arg("worktree")
                     .arg("add")
                     .arg(path)
-                    .arg(branch)
-                    .output()?;
+                    .arg(branch);
+
+                let output = fallback_cmd.output()?;
 
                 if !output.status.success() {
                     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -133,15 +140,84 @@ impl GitBackend {
 
     /// List all git worktrees
     pub fn list_worktrees(&self) -> Result<Vec<Worktree>> {
+        use std::process::Command;
+
+        let repo_workdir = self.repo.workdir().ok_or_else(|| {
+            HnError::Git(git2::Error::from_str("Repository has no working directory"))
+        })?;
+
+        // Use git worktree list --porcelain to get accurate list
+        let output = Command::new("git")
+            .current_dir(repo_workdir)
+            .arg("worktree")
+            .arg("list")
+            .arg("--porcelain")
+            .output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(HnError::Git(git2::Error::from_str(&stderr)));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        self.parse_worktree_list(&stdout)
+    }
+
+    /// Parse the output of git worktree list --porcelain
+    fn parse_worktree_list(&self, output: &str) -> Result<Vec<Worktree>> {
         let mut worktrees = Vec::new();
+        let mut current_worktree: Option<(std::path::PathBuf, String, String)> = None;
 
-        // Get the list of worktree names from git
-        let worktree_names = self.repo.worktrees()?;
-
-        for name in worktree_names.iter().flatten() {
-            if let Ok(wt) = self.get_worktree_info(name) {
-                worktrees.push(wt);
+        for line in output.lines() {
+            if line.starts_with("worktree ") {
+                // Save previous worktree if any
+                if let Some((path, branch, commit)) = current_worktree.take() {
+                    let name = path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    worktrees.push(Worktree {
+                        name,
+                        path,
+                        branch,
+                        commit,
+                    });
+                }
+                // Start new worktree
+                let path = std::path::PathBuf::from(line.trim_start_matches("worktree "));
+                current_worktree = Some((path, String::new(), String::new()));
+            } else if line.starts_with("HEAD ") {
+                if let Some((_, _, ref mut commit)) = current_worktree {
+                    *commit = line.trim_start_matches("HEAD ").to_string();
+                }
+            } else if line.starts_with("branch ") {
+                if let Some((_, ref mut branch, _)) = current_worktree {
+                    let full_branch = line.trim_start_matches("branch ");
+                    // Extract short branch name (remove refs/heads/)
+                    *branch = full_branch
+                        .strip_prefix("refs/heads/")
+                        .unwrap_or(full_branch)
+                        .to_string();
+                }
+            } else if line.starts_with("detached") {
+                if let Some((_, ref mut branch, _)) = current_worktree {
+                    *branch = "(detached)".to_string();
+                }
             }
+        }
+
+        // Don't forget the last worktree
+        if let Some((path, branch, commit)) = current_worktree.take() {
+            let name = path.file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("unknown")
+                .to_string();
+            worktrees.push(Worktree {
+                name,
+                path,
+                branch,
+                commit,
+            });
         }
 
         Ok(worktrees)
@@ -151,12 +227,7 @@ impl GitBackend {
     pub fn remove_worktree(&self, name: &str, force: bool) -> Result<()> {
         use std::process::Command;
 
-        // Check if worktree exists
-        if self.repo.find_worktree(name).is_err() {
-            return Err(HnError::WorktreeNotFound(name.to_string()));
-        }
-
-        // Get worktree path for checking uncommitted changes
+        // Get worktree info (also checks if it exists)
         let worktree_info = self.get_worktree_info(name)?;
 
         // If not force, check for uncommitted changes
@@ -171,14 +242,20 @@ impl GitBackend {
         }
 
         // Remove the worktree using git command
+        let repo_workdir = self.repo.workdir().ok_or_else(|| {
+            HnError::Git(git2::Error::from_str("Repository has no working directory"))
+        })?;
+
         let mut cmd = Command::new("git");
-        cmd.arg("worktree").arg("remove");
+        cmd.current_dir(repo_workdir)
+            .arg("worktree")
+            .arg("remove");
 
         if force {
             cmd.arg("--force");
         }
 
-        cmd.arg(name);
+        cmd.arg(&worktree_info.path);
 
         let output = cmd.output()?;
 
@@ -298,7 +375,12 @@ impl GitBackend {
     /// Get the commit message for a worktree
     pub fn get_commit_message(&self, worktree_path: &Path) -> Result<String> {
         let wt_repo = Repository::open(worktree_path)?;
-        let head = wt_repo.head()?;
+
+        // Try to get HEAD, but handle the case where it doesn't exist yet
+        let head = match wt_repo.head() {
+            Ok(h) => h,
+            Err(_) => return Ok("(no commits yet)".to_string()),
+        };
 
         if let Some(commit_oid) = head.target() {
             let commit = wt_repo.find_commit(commit_oid)?;
@@ -310,38 +392,12 @@ impl GitBackend {
 
     /// Get information about a specific worktree
     fn get_worktree_info(&self, name: &str) -> Result<Worktree> {
-        eprintln!("DEBUG: get_worktree_info called with name: {}", name);
-        let worktree = match self.repo.find_worktree(name) {
-            Ok(wt) => wt,
-            Err(e) => {
-                eprintln!("DEBUG: find_worktree failed: {}", e);
-                return Err(HnError::Git(e));
-            }
-        };
-        let path = worktree.path().to_path_buf();
+        // Get all worktrees and find the one matching the name
+        let worktrees = self.list_worktrees()?;
 
-        // Open the worktree's repository to get branch and commit info
-        let wt_repo = Repository::open(&path)?;
-
-        // Get the branch name
-        let head = wt_repo.head()?;
-        let branch = if head.is_branch() {
-            head.shorthand().unwrap_or("(detached)").to_string()
-        } else {
-            "(detached)".to_string()
-        };
-
-        // Get the commit hash
-        let commit = head
-            .target()
-            .map(|oid| oid.to_string())
-            .unwrap_or_else(|| "unknown".to_string());
-
-        Ok(Worktree {
-            name: name.to_string(),
-            path,
-            branch,
-            commit,
-        })
+        worktrees
+            .into_iter()
+            .find(|wt| wt.name == name)
+            .ok_or_else(|| HnError::WorktreeNotFound(name.to_string()))
     }
 }

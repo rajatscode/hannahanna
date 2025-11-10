@@ -28,9 +28,19 @@ enum Commands {
         name: String,
         /// Branch to checkout (defaults to creating new branch with same name)
         branch: Option<String>,
+        /// Base branch to create from (defaults to current branch)
+        #[arg(long)]
+        from: Option<String>,
+        /// Checkout existing branch instead of creating new one
+        #[arg(long)]
+        no_branch: bool,
     },
     /// List all worktrees
-    List,
+    List {
+        /// Show parent/child tree view
+        #[arg(long)]
+        tree: bool,
+    },
     /// Remove a worktree
     Remove {
         /// Name of the worktree to remove
@@ -59,8 +69,8 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Add { name, branch } => cli::add::run(name, branch)?,
-        Commands::List => cli::list::run()?,
+        Commands::Add { name, branch, from, no_branch } => cli::add::run(name, branch, from, no_branch)?,
+        Commands::List { tree } => cli::list::run(tree)?,
         Commands::Remove { name, force } => cli::remove::run(name, force)?,
         Commands::Switch { name } => cli::switch::run(name)?,
         Commands::Info { name } => cli::info::run(name)?,

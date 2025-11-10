@@ -1,4 +1,5 @@
 use crate::errors::Result;
+use crate::fuzzy;
 use crate::vcs::git::GitBackend;
 use std::env;
 
@@ -10,8 +11,15 @@ pub fn run(name: Option<String>) -> Result<()> {
 
     // Determine which worktree to show info for
     let worktree = if let Some(name) = name {
+        // Get all worktrees for fuzzy matching
+        let worktrees = git.list_worktrees()?;
+        let worktree_names: Vec<String> = worktrees.iter().map(|wt| wt.name.clone()).collect();
+
+        // Find the best match using fuzzy matching
+        let matched_name = fuzzy::find_best_match(&name, &worktree_names)?;
+
         // Show info for named worktree
-        git.get_worktree_by_name(&name)?
+        git.get_worktree_by_name(&matched_name)?
     } else {
         // Show info for current worktree
         let current_dir = env::current_dir()?;

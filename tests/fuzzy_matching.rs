@@ -3,9 +3,7 @@ mod common;
 
 use common::TestRepo;
 
-// TODO: Fix git integration for fuzzy matching to work
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_exact_match_preferred() {
     let repo = TestRepo::new();
 
@@ -19,9 +17,7 @@ fn test_exact_match_preferred() {
     result.assert_stdout_contains("feature");
 }
 
-// TODO: Fix git integration for fuzzy matching to work
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_substring_match() {
     let repo = TestRepo::new();
 
@@ -33,9 +29,7 @@ fn test_substring_match() {
     result.assert_stdout_contains("feature-auth");
 }
 
-// TODO: Fix git integration for fuzzy matching to work
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_case_insensitive_match() {
     let repo = TestRepo::new();
 
@@ -72,9 +66,7 @@ fn test_no_match_fails() {
     result.assert_failure();
 }
 
-// TODO: Fix git integration for fuzzy matching to work
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_fuzzy_match_in_remove() {
     let repo = TestRepo::new();
 
@@ -87,9 +79,7 @@ fn test_fuzzy_match_in_remove() {
     assert!(!repo.worktree_exists("feature-authentication"));
 }
 
-// TODO: Fix git integration for fuzzy matching to work
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_fuzzy_match_in_switch() {
     let repo = TestRepo::new();
 
@@ -100,9 +90,7 @@ fn test_fuzzy_match_in_switch() {
     result.assert_success();
 }
 
-// TODO: Fix git integration for fuzzy matching to work
 #[test]
-#[ignore = "Feature not fully implemented: git integration required"]
 fn test_unique_prefix_matches() {
     let repo = TestRepo::new();
 

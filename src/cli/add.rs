@@ -5,7 +5,7 @@ use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
 use crate::vcs::git::GitBackend;
 
-pub fn run(name: String, branch: Option<String>) -> Result<()> {
+pub fn run(name: String, branch: Option<String>, from: Option<String>, no_branch: bool) -> Result<()> {
     // Validate name (basic validation for now)
     if name.is_empty() {
         return Err(crate::errors::HnError::InvalidWorktreeName(
@@ -24,7 +24,7 @@ pub fn run(name: String, branch: Option<String>) -> Result<()> {
 
     // Create the worktree
     println!("Creating worktree '{}'...", name);
-    let worktree = git.create_worktree(&name, branch.as_deref())?;
+    let worktree = git.create_worktree(&name, branch.as_deref(), from.as_deref(), no_branch)?;
     println!("✓ Git worktree created at {}", worktree.path.display());
 
     // Create state directory
