@@ -53,12 +53,31 @@ impl GitBackend {
         // Determine branch name (use provided branch or create new with same name as worktree)
         let branch_name = branch.unwrap_or(name);
 
-        // Create the worktree using libgit2
-        // Note: libgit2's worktree API is limited, so we'll use git command for now
+        // Create the worktree using git command
         self.create_worktree_via_command(&worktree_path, branch_name)?;
 
-        // Return the worktree info
-        self.get_worktree_info(name)
+        // Get commit hash from the worktree
+        let commit = if let Ok(wt_repo) = Repository::open(&worktree_path) {
+            if let Ok(head) = wt_repo.head() {
+                head.target()
+                    .map(|oid| oid.to_string())
+                    .unwrap_or_else(|| "unknown".to_string())
+            } else {
+                "unknown".to_string()
+            }
+        } else {
+            "unknown".to_string()
+        };
+
+        // Return the worktree info directly
+        // Note: We construct this directly because libgit2's find_worktree doesn't see
+        // worktrees created by external git commands without reloading
+        Ok(Worktree {
+            name: name.to_string(),
+            path: worktree_path,
+            branch: branch_name.to_string(),
+            commit,
+        })
     }
 
     /// Create worktree using git command (libgit2's worktree API is limited)
@@ -69,7 +88,13 @@ impl GitBackend {
     ) -> Result<()> {
         use std::process::Command;
 
+        // Get the repository's working directory
+        let repo_workdir = self.repo.workdir().ok_or_else(|| {
+            HnError::Git(git2::Error::from_str("Repository has no working directory"))
+        })?;
+
         let output = Command::new("git")
+            .current_dir(repo_workdir)
             .arg("worktree")
             .arg("add")
             .arg("-b")
@@ -79,11 +104,17 @@ impl GitBackend {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            eprintln!("DEBUG: First git worktree add failed");
+            eprintln!("DEBUG: stdout: {}", stdout);
+            eprintln!("DEBUG: stderr: {}", stderr);
 
             // Check if branch already exists error
             if stderr.contains("already exists") {
+                eprintln!("DEBUG: Detected 'already exists', trying fallback");
                 // Try without -b flag (checkout existing branch)
                 let output = Command::new("git")
+                    .current_dir(repo_workdir)
                     .arg("worktree")
                     .arg("add")
                     .arg(path)
@@ -282,7 +313,14 @@ impl GitBackend {
 
     /// Get information about a specific worktree
     fn get_worktree_info(&self, name: &str) -> Result<Worktree> {
-        let worktree = self.repo.find_worktree(name)?;
+        eprintln!("DEBUG: get_worktree_info called with name: {}", name);
+        let worktree = match self.repo.find_worktree(name) {
+            Ok(wt) => wt,
+            Err(e) => {
+                eprintln!("DEBUG: find_worktree failed: {}", e);
+                return Err(HnError::Git(e));
+            }
+        };
         let path = worktree.path().to_path_buf();
 
         // Open the worktree's repository to get branch and commit info
