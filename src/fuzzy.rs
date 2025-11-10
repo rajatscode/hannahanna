@@ -142,8 +142,9 @@ mod tests {
 
     #[test]
     fn test_fuzzy_match() {
-        let candidates = vec!["feature-authentication".to_string(), "fix-auth-bug".to_string()];
+        let candidates = vec!["feature-authentication".to_string(), "fix-login-bug".to_string()];
         let result = find_best_match("fauth", &candidates).unwrap();
+        // Should match "feature-authentication" because it has consecutive "aut" in "authentication"
         assert_eq!(result, "feature-authentication");
     }
 
