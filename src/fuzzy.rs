@@ -24,8 +24,12 @@ pub fn find_best_match(query: &str, candidates: &[String]) -> Result<String> {
         }
     }
 
-    // Try prefix match
-    let prefix_matches: Vec<&String> = candidates.iter().filter(|c| c.starts_with(query)).collect();
+    // Try case-insensitive prefix match
+    let query_lower = query.to_lowercase();
+    let prefix_matches: Vec<&String> = candidates
+        .iter()
+        .filter(|c| c.to_lowercase().starts_with(&query_lower))
+        .collect();
 
     if prefix_matches.len() == 1 {
         return Ok(prefix_matches[0].clone());
@@ -34,6 +38,19 @@ pub fn find_best_match(query: &str, candidates: &[String]) -> Result<String> {
             query.to_string(),
             prefix_matches.iter().map(|s| s.to_string()).collect(),
         ));
+    }
+
+    // Try case-insensitive substring match
+    let substring_matches: Vec<&String> = candidates
+        .iter()
+        .filter(|c| c.to_lowercase().contains(&query_lower))
+        .collect();
+
+    if substring_matches.len() == 1 {
+        return Ok(substring_matches[0].clone());
+    } else if substring_matches.len() > 1 {
+        // If multiple substring matches, continue to fuzzy scoring to find best
+        // Don't return error yet, let fuzzy scoring disambiguate
     }
 
     // Try fuzzy matching with scoring
