@@ -563,4 +563,51 @@ impl VcsBackend for GitBackend {
     fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorkspaceStatus> {
         self.get_worktree_status(worktree_path)
     }
+
+    fn setup_sparse_checkout(&self, worktree_path: &Path, paths: &[String]) -> Result<()> {
+        use std::process::Command;
+
+        if paths.is_empty() {
+            return Ok(());
+        }
+
+        // Initialize sparse-checkout in cone mode (more efficient)
+        let init_output = Command::new("git")
+            .arg("-C")
+            .arg(worktree_path)
+            .args(["sparse-checkout", "init", "--cone"])
+            .output()?;
+
+        if !init_output.status.success() {
+            let stderr = String::from_utf8_lossy(&init_output.stderr);
+            return Err(HnError::Git(git2::Error::from_str(&format!(
+                "Failed to initialize sparse checkout: {}",
+                stderr
+            ))));
+        }
+
+        // Set sparse checkout paths
+        let mut set_cmd = Command::new("git");
+        set_cmd
+            .arg("-C")
+            .arg(worktree_path)
+            .args(["sparse-checkout", "set"]);
+
+        // Add all paths
+        for path in paths {
+            set_cmd.arg(path);
+        }
+
+        let set_output = set_cmd.output()?;
+
+        if !set_output.status.success() {
+            let stderr = String::from_utf8_lossy(&set_output.stderr);
+            return Err(HnError::Git(git2::Error::from_str(&format!(
+                "Failed to set sparse checkout paths: {}",
+                stderr
+            ))));
+        }
+
+        Ok(())
+    }
 }

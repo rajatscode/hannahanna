@@ -43,6 +43,10 @@ enum Commands {
         /// Checkout existing branch instead of creating new one
         #[arg(long)]
         no_branch: bool,
+        /// Sparse checkout paths (can be specified multiple times)
+        /// Example: --sparse services/api/ --sparse libs/utils/
+        #[arg(long)]
+        sparse: Option<Vec<String>>,
     },
     /// List all worktrees
     List {
@@ -231,7 +235,8 @@ fn main() {
             branch,
             from,
             no_branch,
-        } => cli::add::run(name, branch, from, no_branch, cli.no_hooks, vcs_type),
+            sparse,
+        } => cli::add::run(name, branch, from, no_branch, sparse, cli.no_hooks, vcs_type),
         Commands::List { tree } => cli::list::run(tree, vcs_type),
         Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks, vcs_type),
         Commands::Switch { name } => cli::switch::run(name, vcs_type),

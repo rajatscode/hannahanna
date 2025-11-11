@@ -292,6 +292,35 @@ impl VcsBackend for JujutsuBackend {
 
         Ok(status)
     }
+
+    fn setup_sparse_checkout(&self, worktree_path: &Path, paths: &[String]) -> Result<()> {
+        if paths.is_empty() {
+            return Ok(());
+        }
+
+        // Jujutsu uses `jj sparse set` to configure sparse checkout
+        let mut cmd = Command::new("jj");
+        cmd.arg("sparse")
+            .arg("set")
+            .current_dir(worktree_path);
+
+        // Add all paths
+        for path in paths {
+            cmd.arg(path);
+        }
+
+        let output = cmd.output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(HnError::ConfigError(format!(
+                "Failed to set sparse checkout for Jujutsu: {}",
+                stderr
+            )));
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

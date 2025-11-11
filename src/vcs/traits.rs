@@ -86,6 +86,21 @@ pub trait VcsBackend {
         let status = self.get_workspace_status(worktree_path)?;
         Ok(!status.is_clean())
     }
+
+    /// Setup sparse checkout for a workspace
+    ///
+    /// # Arguments
+    /// * `worktree_path` - Path to the worktree
+    /// * `paths` - List of paths to include in sparse checkout
+    ///
+    /// # Default Implementation
+    /// Returns an error indicating sparse checkout is not supported for this VCS
+    fn setup_sparse_checkout(&self, _worktree_path: &Path, _paths: &[String]) -> Result<()> {
+        Err(crate::errors::HnError::ConfigError(format!(
+            "Sparse checkout not supported for {:?}",
+            self.vcs_type()
+        )))
+    }
 }
 
 /// Auto-detect VCS type by checking for VCS directories

@@ -77,7 +77,21 @@ hn add review-pr --no-branch
 **Options:**
 - `--from <branch>` - Base branch (default: current branch)
 - `--no-branch` - Checkout existing branch instead of creating new one
+- `--sparse <path>` - Sparse checkout paths (repeatable, v0.2+)
 - `--no-hooks` - Skip hook execution (for untrusted repositories)
+
+**Sparse Checkout (v0.2+):**
+```bash
+# Monorepo: only checkout specific paths
+hn add feature-api --sparse services/api/ --sparse libs/utils/
+
+# Configure default sparse paths in .hannahanna.yml
+sparse:
+  enabled: true
+  paths:
+    - services/api/
+    - libs/shared/
+```
 
 ### `hn list [options]`
 
@@ -766,13 +780,17 @@ my-project/              # Main repository
 - ✅ Jujutsu backend skeleton (full implementation in v0.3)
 - ✅ Clear error messages for unsupported VCS operations
 
+**v0.2 Features (In Progress):**
+- ✅ Sparse checkout for Git and Jujutsu (monorepo support)
+- ⏳ Configuration hierarchy (user/repo/worktree)
+- ⏳ Advanced hook conditions
+- ⏳ Performance optimizations
+
 **Planned for v0.3:**
 - Complete Mercurial backend (`hg share` workspaces)
 - Complete Jujutsu backend (`jj workspace` support)
 - VCS override flag (`--vcs`)
-- Sparse checkout for monorepos
-- Configuration hierarchy (user/repo/worktree)
-- Advanced hook conditions
+- Sparse checkout for Mercurial
 
 **See:** [`spec/plan.md`](spec/plan.md) and [`spec/spec.md`](spec/spec.md) for detailed roadmap
 
