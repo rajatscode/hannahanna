@@ -2,30 +2,7 @@
 /// Centralizes logic for creating backends with auto-detection or explicit VCS type
 use crate::errors::{HnError, Result};
 use crate::vcs::traits::{create_backend, detect_vcs_type, VcsBackend, VcsType};
-use colored::Colorize;
 use std::path::Path;
-
-/// Warn user about experimental VCS backend support
-fn warn_experimental_backend(vcs_type: VcsType) {
-    if vcs_type != VcsType::Git {
-        eprintln!(
-            "{} {} support is {}",
-            "Warning:".bright_yellow(),
-            vcs_type.as_str(),
-            "experimental and incomplete".bright_red()
-        );
-        eprintln!(
-            "  Only {} is fully supported in v0.1.0",
-            "Git".bright_green()
-        );
-        eprintln!(
-            "  {} and {} backends are under development",
-            "Mercurial".bright_cyan(),
-            "Jujutsu".bright_cyan()
-        );
-        eprintln!();
-    }
-}
 
 /// Initialize a VCS backend from the current directory with auto-detection
 pub fn init_backend_from_current_dir() -> Result<Box<dyn VcsBackend>> {
@@ -60,9 +37,6 @@ pub fn init_backend_with_detection(
         Some(vcs) => vcs,
         None => detect_vcs_type(path).ok_or(HnError::NotInRepository)?,
     };
-
-    // Warn about experimental backends
-    warn_experimental_backend(detected_vcs);
 
     // Change to the directory before creating backend
     // (backends expect to be called from within the repo)
@@ -210,24 +184,5 @@ mod tests {
 
         // This is verified by the error formatting in the actual implementation
         // at lines 82-91 of backend_init.rs
-    }
-
-    #[test]
-    fn test_experimental_backend_warning() {
-        // This test documents that experimental backends (Mercurial, Jujutsu)
-        // trigger a warning to stderr when initialized.
-        //
-        // The warning is shown by warn_experimental_backend() at lines 8-28
-        // and is called during init_backend_with_detection() at line 65.
-        //
-        // Warning format:
-        // "Warning: <vcs> support is experimental and incomplete"
-        // "  Only Git is fully supported in v0.1.0"
-        // "  Mercurial and Jujutsu backends are under development"
-        //
-        // Git backend does NOT trigger a warning (production-ready).
-        //
-        // This ensures users are honestly informed about backend maturity,
-        // as recommended by Admiral Grace Hopper's review.
     }
 }

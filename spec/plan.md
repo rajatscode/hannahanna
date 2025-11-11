@@ -36,12 +36,18 @@
 - ✅ Jujutsu backend (using native `jj workspace` commands)
 - ✅ Auto-detection of VCS type (Jujutsu → Git → Mercurial)
 
-### What's Deferred to v0.3+
-- ⏸️ CLI integration of Mercurial/Jujutsu backends (--vcs flag)
-- ⏸️ Sparse checkout (v0.3+ - monorepo edge case)
-- ⏸️ Config hierarchy (v0.3+ - one file is enough)
-- ⏸️ Advanced hooks with conditions (v0.3+)
-- ⏸️ Team coordination features (v0.4+)
+### Phase 4 (Completed) - Multi-VCS CLI Integration
+- ✅ Global `--vcs` flag for explicit VCS type selection
+- ✅ All 11 commands support multi-VCS (add, list, remove, switch, info, integrate, sync, return, each, prune, cleanup)
+- ✅ Mercurial backend fully integrated and production-ready
+- ✅ Jujutsu backend fully integrated and production-ready
+- ✅ Comprehensive multi-VCS test suite (23 tests)
+
+### What's Deferred to v0.2+
+- ⏸️ Sparse checkout (v0.2+ - monorepo edge case)
+- ⏸️ Config hierarchy (v0.2+ - one file is enough)
+- ⏸️ Advanced hooks with conditions (v0.2+)
+- ⏸️ Team coordination features (v0.3+)
 
 ### What We're Never Building
 - ❌ Separate Docker/state/port subcommands - keep it simple
@@ -101,12 +107,13 @@ hannahanna/
 │   │   ├── model.rs            # Worktree struct
 │   │   ├── registry.rs         # Tracking worktrees
 │   │   └── fuzzy.rs            # Fuzzy matching
-│   ├── vcs/                    # VCS operations (~1400 lines)
+│   ├── vcs/                    # VCS operations (~1700 lines)
 │   │   ├── mod.rs
 │   │   ├── traits.rs           # VCS abstraction (Phase 3)
+│   │   ├── backend_init.rs     # Backend initialization (Phase 4)
 │   │   ├── git.rs              # Git implementation via git2
-│   │   ├── mercurial.rs        # Mercurial backend (Phase 3)
-│   │   └── jujutsu.rs          # Jujutsu backend (Phase 3)
+│   │   ├── mercurial.rs        # Mercurial backend (Phase 3-4)
+│   │   └── jujutsu.rs          # Jujutsu backend (Phase 3-4)
 │   ├── env/                    # Environment setup (~400 lines)
 │   │   ├── mod.rs
 │   │   ├── symlinks.rs         # Symlink management
@@ -136,8 +143,8 @@ hannahanna/
 │   └── vision.md               # Long-term comprehensive plan
 └── Cargo.toml
 
-Total: ~5,000 lines (v0.1.0 + Phase 2 + Phase 3)
-Test count: 186 tests (184 passing, 2 ignored for Phase 4 CLI integration)
+Total: ~5,500 lines (v0.1.0 + Phase 2 + Phase 3 + Phase 4)
+Test count: 186 tests (all passing)
 ```
 
 ---
@@ -1114,23 +1121,40 @@ hooks:
 - ✅ Jujutsu: Using native `jj workspace` commands
 
 **Testing:**
-- ✅ 21 comprehensive Multi-VCS tests (all passing)
-- ✅ VcsBackend trait fully exercised (7 tests)
-- ✅ Factory functions tested (6 tests)
-- ✅ Mercurial backend end-to-end (3 tests)
-- ✅ Jujutsu backend end-to-end (3 tests)
-- ✅ VCS detection and parsing (2 tests)
-- ⏸️ 2 CLI integration tests ignored (Phase 4)
+- ✅ 23 comprehensive Multi-VCS tests (all passing)
+- ✅ VcsBackend trait fully exercised
+- ✅ Factory functions tested
+- ✅ Mercurial backend end-to-end
+- ✅ Jujutsu backend end-to-end
+- ✅ VCS detection and parsing
+
+### Phase 4: Multi-VCS CLI Integration - ✅ COMPLETED
+
+**Implementation:**
+- ✅ Global `--vcs` flag added to main CLI
+- ✅ All 11 commands accept optional VCS type parameter
+- ✅ Backend initialization with auto-detection or explicit selection
+- ✅ Integration across all command modules (add, list, remove, switch, info, integrate, sync, return, each, prune, cleanup)
+
+**Production Status:**
+- ✅ Git backend: Fully supported, production-ready
+- ✅ Mercurial backend: Fully supported, production-ready
+- ✅ Jujutsu backend: Fully supported, production-ready
+
+**Testing:**
+- ✅ All 186 tests passing
+- ✅ Multi-VCS integration verified end-to-end
+- ✅ Cross-VCS compatibility validated
 
 ---
 
 ## What's Next: Future Development
 
-### Phase 4: CLI Integration for Multi-VCS (Future)
-- ⏸️ Add `--vcs` flag to commands
-- ⏸️ Wire Mercurial/Jujutsu backends into CLI
-- ⏸️ VCS-specific configuration options
-- ⏸️ Cross-VCS compatibility testing
+### v0.2: Monorepo & Advanced Features (Future)
+- ⏸️ Sparse checkout for large monorepos
+- ⏸️ Config hierarchy (multi-level config merging)
+- ⏸️ Advanced hooks with conditions
+- ⏸️ Performance optimizations for 100+ worktrees
 
 See `vision.md` for full long-term roadmap.
 
