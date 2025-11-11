@@ -4,7 +4,7 @@ use crate::errors::{HnError, Result};
 use crate::vcs::Worktree;
 use std::collections::HashMap;
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -92,17 +92,27 @@ impl HookExecutor {
         worktree: &Worktree,
         state_dir: &Path,
     ) -> Result<()> {
+        use std::fs::File;
+        use std::io::Read;
+
         // Build environment variables
         let env = self.build_env(worktree, state_dir);
 
-        // Spawn the command
+        // Create temporary files for stdout/stderr to avoid pipe buffer deadlock
+        // If hooks produce >64KB output, pipes will fill and cause deadlock
+        let stdout_file = tempfile::NamedTempFile::new()
+            .map_err(|e| HnError::HookError(format!("Failed to create temp file for stdout: {}", e)))?;
+        let stderr_file = tempfile::NamedTempFile::new()
+            .map_err(|e| HnError::HookError(format!("Failed to create temp file for stderr: {}", e)))?;
+
+        // Spawn the command with output redirected to files
         let mut child = Command::new("sh")
             .arg("-c")
             .arg(script)
             .current_dir(&worktree.path)
             .envs(env)
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stdout(File::create(stdout_file.path())?)
+            .stderr(File::create(stderr_file.path())?)
             .spawn()?;
 
         // Wait with timeout
@@ -115,13 +125,13 @@ impl HookExecutor {
 
             match wait_result {
                 Some(status) => {
-                    // Process completed
-                    let output = child.wait_with_output()?;
+                    // Process completed - read output from temp files
+                    let mut stdout = String::new();
+                    let mut stderr = String::new();
+                    File::open(stdout_file.path())?.read_to_string(&mut stdout)?;
+                    File::open(stderr_file.path())?.read_to_string(&mut stderr)?;
 
                     if !status.success() {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        let stdout = String::from_utf8_lossy(&output.stdout);
-
                         return Err(HnError::HookError(format!(
                             "{} hook failed with exit code {}\nStdout: {}\nStderr: {}",
                             hook_type.as_str(),
@@ -132,14 +142,46 @@ impl HookExecutor {
                     }
                 }
                 None => {
-                    // Timeout occurred
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    // Timeout occurred - kill process and read partial output
+                    let kill_result = child.kill();
+                    let wait_result = child.wait();
+
+                    // Read whatever output was produced before timeout
+                    let mut stdout = String::new();
+                    let mut stderr = String::new();
+                    let _ = File::open(stdout_file.path())?.read_to_string(&mut stdout);
+                    let _ = File::open(stderr_file.path())?.read_to_string(&mut stderr);
+
+                    // Check if process was already dead (race condition)
+                    if let Err(e) = kill_result {
+                        if e.kind() == std::io::ErrorKind::InvalidInput {
+                            // Process already exited - check if it succeeded
+                            if let Ok(status) = wait_result {
+                                if status.success() {
+                                    // Process completed successfully just before timeout
+                                    return Ok(());
+                                } else {
+                                    return Err(HnError::HookError(format!(
+                                        "{} hook failed with exit code {}\nStdout: {}\nStderr: {}",
+                                        hook_type.as_str(),
+                                        status.code().unwrap_or(-1),
+                                        stdout,
+                                        stderr
+                                    )));
+                                }
+                            }
+                        }
+                    }
+
+                    // Clean up zombie if kill succeeded
+                    let _ = wait_result;
 
                     return Err(HnError::HookError(format!(
-                        "{} hook timed out after {} seconds",
+                        "{} hook timed out after {} seconds\nPartial stdout: {}\nPartial stderr: {}",
                         hook_type.as_str(),
-                        self.config.timeout_seconds
+                        self.config.timeout_seconds,
+                        if stdout.len() > 500 { &stdout[..500] } else { &stdout },
+                        if stderr.len() > 500 { &stderr[..500] } else { &stderr }
                     )));
                 }
             }
@@ -148,16 +190,20 @@ impl HookExecutor {
         #[cfg(not(unix))]
         {
             // For non-Unix systems, use a simple wait (no timeout for now)
-            let output = child.wait_with_output()?;
+            // TODO: Implement timeout for Windows using WaitForSingleObject
+            let status = child.wait()?;
 
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                let stdout = String::from_utf8_lossy(&output.stdout);
+            // Read output from temp files
+            let mut stdout = String::new();
+            let mut stderr = String::new();
+            File::open(stdout_file.path())?.read_to_string(&mut stdout)?;
+            File::open(stderr_file.path())?.read_to_string(&mut stderr)?;
 
+            if !status.success() {
                 return Err(HnError::HookError(format!(
                     "{} hook failed with exit code {}\nStdout: {}\nStderr: {}",
                     hook_type.as_str(),
-                    output.status.code().unwrap_or(-1),
+                    status.code().unwrap_or(-1),
                     stdout,
                     stderr
                 )));
@@ -200,12 +246,12 @@ fn wait_with_timeout(
 
     loop {
         // Check if process has completed
-        match child.try_wait()? {
-            Some(status) => {
+        match child.try_wait() {
+            Ok(Some(status)) => {
                 // Process completed
                 return Ok(Some(status));
             }
-            None => {
+            Ok(None) => {
                 // Process still running, check timeout
                 if clock.now().duration_since(start) >= timeout {
                     // Timeout exceeded
@@ -214,6 +260,16 @@ fn wait_with_timeout(
 
                 // Sleep before next poll
                 clock.sleep(poll_interval);
+            }
+            Err(e) => {
+                // Error in try_wait() - try to clean up anyway to prevent orphan
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(HnError::HookError(format!(
+                    "Failed to monitor child process: {}",
+                    e
+                ))
+                .into());
             }
         }
     }

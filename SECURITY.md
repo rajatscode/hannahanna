@@ -80,6 +80,23 @@ hannahanna operates on a **trust-the-repository** model:
 - Verify any external resources hooks depend on
 - Use checksums or signatures for downloaded content
 
+#### 4. Time-of-Check-Time-of-Use (TOCTOU)
+**Scenario:** Configuration file is modified between when you review it and when you run `hn add`.
+
+This could happen via:
+- Shared network drives where another process modifies the file
+- Git hooks that automatically update `.hannahanna.yml`
+- Race conditions in CI/CD pipelines
+- Malware that watches for file reads and injects malicious content
+
+**Prevention:**
+- Work in repositories you control and trust
+- Use file integrity monitoring (e.g., `inotify` on Linux, `fswatch` on macOS)
+- Run `hn config show` immediately before `hn add` to verify current config
+- Consider read-only filesystems for untrusted repositories
+- Use `hn add --no-hooks` when working with potentially compromised repos
+- In CI/CD, verify config file hash before operations
+
 ## Built-In Security Features
 
 hannahanna includes several security measures:
@@ -122,8 +139,41 @@ Future versions will include additional security features:
 - [x] `--no-hooks` flag to disable hook execution
 - [x] Hook execution timeout (prevent infinite loops)
 
+#### Hook Timeout Details
+
+Hooks automatically timeout after 300 seconds (5 minutes) by default. You can customize this in your config:
+
+```yaml
+hooks:
+  timeout_seconds: 600  # 10 minutes
+```
+
+**Platform Support:**
+- ✅ **Linux, macOS, BSD**: Full timeout support with process termination
+- ⚠️  **Windows**: Timeout not yet implemented - hooks can run indefinitely
+- ⚠️  **Non-Unix platforms**: No timeout protection currently available
+
+**Behavior:**
+- Timeout applies to the entire hook script, not individual commands within it
+- Timed-out processes are sent SIGTERM for graceful shutdown
+- If the process doesn't exit, it will become a zombie process (manual cleanup required)
+- Partial output from timed-out hooks is included in error messages (first 500 chars)
+
+**Limitations:**
+- Processes that ignore SIGTERM (or are in stopped state via SIGSTOP) cannot be killed
+- Child processes spawned by hooks may continue running after parent times out
+- Hooks producing >500MB of output may cause memory issues (output is buffered)
+
+**Best Practices:**
+- Use reasonable timeouts for your operations (npm install, cargo build, etc.)
+- Test your hooks to ensure they complete within the configured timeout
+- Redirect verbose output to log files: `npm install > install.log 2>&1`
+- Use `--quiet` flags where supported to reduce output volume
+- On Windows, monitor hooks manually until timeout support is implemented
+
 ### Planned for v0.2
 - [ ] Hook approval workflow for first-time repositories
+- [ ] Windows timeout implementation using WaitForSingleObject
 
 ### Planned for v0.3
 - [ ] Hook sandboxing with resource limits
