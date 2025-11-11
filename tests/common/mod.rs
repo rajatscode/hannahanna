@@ -10,6 +10,7 @@ pub struct TestRepo {
     pub repo_path: PathBuf,
 }
 
+#[allow(dead_code)] // Test utilities - not all used in every test file
 impl TestRepo {
     /// Create a new test repository with git initialized
     pub fn new() -> Self {
@@ -139,11 +140,12 @@ impl TestRepo {
             .expect("Failed to commit");
     }
 
-    /// Run git command in the current directory (for tests that need to run git from within worktrees)
+    /// Run git command in the main repo
     #[allow(dead_code)]
     pub fn git(&self, args: &[&str]) -> CommandResult {
         let output = Command::new("git")
             .args(args)
+            .current_dir(&self.repo_path)
             .output()
             .expect("Failed to execute git command");
 
@@ -154,9 +156,34 @@ impl TestRepo {
             exit_code: output.status.code(),
         }
     }
+
+    /// Run git command in a specific worktree
+    #[allow(dead_code)]
+    pub fn git_in_worktree(&self, worktree_name: &str, args: &[&str]) -> CommandResult {
+        let worktree_path = self.worktree_path(worktree_name);
+        let output = Command::new("git")
+            .args(args)
+            .current_dir(&worktree_path)
+            .output()
+            .expect("Failed to execute git command");
+
+        CommandResult {
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            success: output.status.success(),
+            exit_code: output.status.code(),
+        }
+    }
+
+    /// Get the main repo path (alias for backwards compatibility)
+    #[allow(dead_code)]
+    pub fn main_path(&self) -> &Path {
+        &self.repo_path
+    }
 }
 
 /// Result of running a command
+#[allow(dead_code)] // Test utilities - not all fields used in every test
 pub struct CommandResult {
     pub stdout: String,
     pub stderr: String,
@@ -164,6 +191,7 @@ pub struct CommandResult {
     pub exit_code: Option<i32>,
 }
 
+#[allow(dead_code)] // Test utilities - not all methods used in every test
 impl CommandResult {
     /// Assert the command succeeded
     pub fn assert_success(&self) {

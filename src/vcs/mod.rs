@@ -1,8 +1,15 @@
 pub mod git;
+pub mod jujutsu;
+pub mod mercurial;
+pub mod traits;
+
+// Re-export for convenience
+#[allow(unused_imports)] // Will be used in v0.3 when multi-VCS is fully implemented
+pub use traits::{create_backend, detect_vcs_type, VcsBackend, VcsType, WorkspaceStatus};
 
 use std::path::PathBuf;
 
-/// Represents a git worktree
+/// Represents a VCS worktree/workspace
 #[derive(Debug, Clone, PartialEq)]
 pub struct Worktree {
     pub name: String,
