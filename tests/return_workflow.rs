@@ -14,15 +14,18 @@ fn test_return_validation_delete_requires_merge() {
 
     // Run return command with just --delete (should fail)
     let result = Command::new(env!("CARGO_BIN_EXE_hn"))
-        .args(&["return", "--delete"])
+        .args(["return", "--delete"])
         .current_dir(repo.worktree_path("test-wt"))
         .output()
         .expect("Failed to run command");
 
     assert!(!result.status.success());
     let stderr = String::from_utf8_lossy(&result.stderr);
-    assert!(stderr.contains("--delete requires --merge"),
-        "Expected error about --delete requiring --merge, got: {}", stderr);
+    assert!(
+        stderr.contains("--delete requires --merge"),
+        "Expected error about --delete requiring --merge, got: {}",
+        stderr
+    );
 }
 
 #[test]
@@ -34,15 +37,18 @@ fn test_return_validation_no_ff_requires_merge() {
 
     // Run return command with just --no-ff (should fail)
     let result = Command::new(env!("CARGO_BIN_EXE_hn"))
-        .args(&["return", "--no-ff"])
+        .args(["return", "--no-ff"])
         .current_dir(repo.worktree_path("test-wt2"))
         .output()
         .expect("Failed to run command");
 
     assert!(!result.status.success());
     let stderr = String::from_utf8_lossy(&result.stderr);
-    assert!(stderr.contains("--no-ff requires --merge"),
-        "Expected error about --no-ff requiring --merge, got: {}", stderr);
+    assert!(
+        stderr.contains("--no-ff requires --merge"),
+        "Expected error about --no-ff requiring --merge, got: {}",
+        stderr
+    );
 }
 
 #[test]
@@ -54,15 +60,18 @@ fn test_return_error_no_parent() {
 
     // Try to return from worktree with no parent
     let result = Command::new(env!("CARGO_BIN_EXE_hn"))
-        .args(&["return"])
+        .args(["return"])
         .current_dir(repo.worktree_path("standalone"))
         .output()
         .expect("Failed to run command");
 
     assert!(!result.status.success());
     let stderr = String::from_utf8_lossy(&result.stderr);
-    assert!(stderr.contains("no parent") || stderr.contains("NoParent"),
-        "Expected error about no parent, got: {}", stderr);
+    assert!(
+        stderr.contains("no parent") || stderr.contains("NoParent"),
+        "Expected error about no parent, got: {}",
+        stderr
+    );
 }
 
 // Note: Full end-to-end tests for `hn return` with actual merging

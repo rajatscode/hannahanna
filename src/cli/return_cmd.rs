@@ -8,13 +8,13 @@ pub fn run(merge: bool, delete: bool, no_ff: bool, no_hooks: bool) -> Result<()>
     // Validate flag combinations
     if delete && !merge {
         return Err(HnError::ConfigError(
-            "--delete requires --merge. Use 'hn return --merge --delete'".to_string()
+            "--delete requires --merge. Use 'hn return --merge --delete'".to_string(),
         ));
     }
 
     if no_ff && !merge {
         return Err(HnError::ConfigError(
-            "--no-ff requires --merge. Use 'hn return --merge --no-ff'".to_string()
+            "--no-ff requires --merge. Use 'hn return --merge --no-ff'".to_string(),
         ));
     }
 
@@ -45,7 +45,10 @@ pub fn run(merge: bool, delete: bool, no_ff: bool, no_hooks: bool) -> Result<()>
 
     // If merge requested, merge current branch into parent
     if merge {
-        eprintln!("\n→ Merging '{}' into '{}'...", current_worktree.branch, parent_name);
+        eprintln!(
+            "\n→ Merging '{}' into '{}'...",
+            current_worktree.branch, parent_name
+        );
 
         // Change to parent worktree directory
         env::set_current_dir(&parent.path)?;

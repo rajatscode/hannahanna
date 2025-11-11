@@ -124,8 +124,15 @@ fn test_port_release_on_remove() {
 
     // Verify it's released
     let all_ports = allocator.list_all();
-    assert_eq!(all_ports.len(), 2, "Should have 2 allocations after release");
-    assert!(allocator.get_ports("feature-b").is_err(), "feature-b should be released");
+    assert_eq!(
+        all_ports.len(),
+        2,
+        "Should have 2 allocations after release"
+    );
+    assert!(
+        allocator.get_ports("feature-b").is_err(),
+        "feature-b should be released"
+    );
 
     // Allocate a new worktree - the allocator should be able to find an available port
     // (either by filling the gap left by feature-b, or by finding the next available port)
@@ -133,11 +140,18 @@ fn test_port_release_on_remove() {
     let port_new = *ports_new.get("app").unwrap();
 
     // The new port should be different from feature-c (which is still allocated)
-    assert_ne!(port_new, port_c, "New allocation should not conflict with existing");
+    assert_ne!(
+        port_new, port_c,
+        "New allocation should not conflict with existing"
+    );
 
     // Verify we now have 3 allocations again
     let all_ports = allocator.list_all();
-    assert_eq!(all_ports.len(), 3, "Should have 3 allocations after new allocation");
+    assert_eq!(
+        all_ports.len(),
+        3,
+        "Should have 3 allocations after new allocation"
+    );
 }
 
 #[test]

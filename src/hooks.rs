@@ -35,11 +35,7 @@ impl HookExecutor {
     }
 
     #[cfg(test)]
-    pub fn new_with_clock(
-        config: HooksConfig,
-        skip_hooks: bool,
-        clock: Arc<dyn Clock>,
-    ) -> Self {
+    pub fn new_with_clock(config: HooksConfig, skip_hooks: bool, clock: Arc<dyn Clock>) -> Self {
         Self {
             config,
             skip_hooks,
@@ -48,11 +44,7 @@ impl HookExecutor {
     }
 
     #[cfg(not(test))]
-    pub fn new_with_clock(
-        config: HooksConfig,
-        skip_hooks: bool,
-        clock: Arc<dyn Clock>,
-    ) -> Self {
+    pub fn new_with_clock(config: HooksConfig, skip_hooks: bool, clock: Arc<dyn Clock>) -> Self {
         Self {
             config,
             skip_hooks,
@@ -100,10 +92,12 @@ impl HookExecutor {
 
         // Create temporary files for stdout/stderr to avoid pipe buffer deadlock
         // If hooks produce >64KB output, pipes will fill and cause deadlock
-        let stdout_file = tempfile::NamedTempFile::new()
-            .map_err(|e| HnError::HookError(format!("Failed to create temp file for stdout: {}", e)))?;
-        let stderr_file = tempfile::NamedTempFile::new()
-            .map_err(|e| HnError::HookError(format!("Failed to create temp file for stderr: {}", e)))?;
+        let stdout_file = tempfile::NamedTempFile::new().map_err(|e| {
+            HnError::HookError(format!("Failed to create temp file for stdout: {}", e))
+        })?;
+        let stderr_file = tempfile::NamedTempFile::new().map_err(|e| {
+            HnError::HookError(format!("Failed to create temp file for stderr: {}", e))
+        })?;
 
         // Spawn the command with output redirected to files
         let mut child = Command::new("sh")
@@ -268,8 +262,7 @@ fn wait_with_timeout(
                 return Err(HnError::HookError(format!(
                     "Failed to monitor child process: {}",
                     e
-                ))
-                .into());
+                )));
             }
         }
     }

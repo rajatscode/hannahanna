@@ -88,10 +88,16 @@ pub fn init() -> Result<()> {
     println!("{}", "✓ Configuration file created!".bright_green());
     println!("\nCreated: {}", CONFIG_FILE.bright_cyan());
     println!("\nNext steps:");
-    println!("  1. Review the configuration: {}", format!("cat {}", CONFIG_FILE).bright_cyan());
+    println!(
+        "  1. Review the configuration: {}",
+        format!("cat {}", CONFIG_FILE).bright_cyan()
+    );
     println!("  2. Customize for your project");
     println!("  3. Commit to version control");
-    println!("\nValidate your config anytime with: {}", "hn config validate".bright_cyan());
+    println!(
+        "\nValidate your config anytime with: {}",
+        "hn config validate".bright_cyan()
+    );
 
     Ok(())
 }
@@ -123,7 +129,10 @@ pub fn validate() -> Result<()> {
 
             // Shared resources
             if !config.shared_resources.is_empty() {
-                println!("  • {} shared resources configured", config.shared_resources.len());
+                println!(
+                    "  • {} shared resources configured",
+                    config.shared_resources.len()
+                );
                 for resource in &config.shared_resources {
                     print!("    - {}", resource.source);
                     if let Some(compat) = &resource.compatibility {
@@ -146,7 +155,8 @@ pub fn validate() -> Result<()> {
             }
 
             // Hooks
-            let hooks_configured = config.hooks.post_create.is_some() || config.hooks.pre_remove.is_some();
+            let hooks_configured =
+                config.hooks.post_create.is_some() || config.hooks.pre_remove.is_some();
             if hooks_configured {
                 println!("  • Lifecycle hooks configured");
                 if config.hooks.post_create.is_some() {
@@ -171,14 +181,26 @@ pub fn validate() -> Result<()> {
         }
         Err(e) => {
             println!(" {}", "✗".bright_red());
-            println!("\n{}: Configuration is invalid", "Error".bright_red().bold());
+            println!(
+                "\n{}: Configuration is invalid",
+                "Error".bright_red().bold()
+            );
             println!("\n{}", e);
 
             println!("\n{}:", "Suggestions".bright_yellow());
             println!("  • Check YAML syntax");
-            println!("  • Validate online: {}", "https://www.yamllint.com/".bright_cyan());
-            println!("  • See example: {}", "hn config init --force".bright_cyan());
-            println!("  • Edit config: {}", format!("$EDITOR {}", CONFIG_FILE).bright_cyan());
+            println!(
+                "  • Validate online: {}",
+                "https://www.yamllint.com/".bright_cyan()
+            );
+            println!(
+                "  • See example: {}",
+                "hn config init --force".bright_cyan()
+            );
+            println!(
+                "  • Edit config: {}",
+                format!("$EDITOR {}", CONFIG_FILE).bright_cyan()
+            );
 
             Err(e)
         }
@@ -215,7 +237,10 @@ pub fn show() -> Result<()> {
     println!("\n{}:", "Info".bright_cyan());
     println!("  • Config file: {}", CONFIG_FILE.bright_cyan());
     println!("  • Validate: {}", "hn config validate".bright_cyan());
-    println!("  • Edit: {}", format!("$EDITOR {}", CONFIG_FILE).bright_cyan());
+    println!(
+        "  • Edit: {}",
+        format!("$EDITOR {}", CONFIG_FILE).bright_cyan()
+    );
 
     Ok(())
 }
@@ -227,7 +252,10 @@ pub fn edit() -> Result<()> {
     if !config_path.exists() {
         println!("{}", "⚠ No configuration file found".bright_yellow());
         println!("\nCreate one first: {}", "hn config init".bright_cyan());
-        return Err(HnError::ConfigError(format!("{} does not exist", CONFIG_FILE)));
+        return Err(HnError::ConfigError(format!(
+            "{} does not exist",
+            CONFIG_FILE
+        )));
     }
 
     // Get editor from environment or use default
@@ -243,7 +271,7 @@ pub fn edit() -> Result<()> {
 
     if !status.success() {
         return Err(HnError::ConfigError(
-            "Editor exited with non-zero status".to_string()
+            "Editor exited with non-zero status".to_string(),
         ));
     }
 

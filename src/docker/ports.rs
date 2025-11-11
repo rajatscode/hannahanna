@@ -284,7 +284,11 @@ mod tests {
         // Test behavior, not exact port number (port 3000 might be in use)
         assert!(ports.contains_key("app"), "Should allocate port for 'app'");
         let port = *ports.get("app").unwrap();
-        assert!((3000..=9999).contains(&port), "Port should be in valid range (got {})", port);
+        assert!(
+            (3000..=9999).contains(&port),
+            "Port should be in valid range (got {})",
+            port
+        );
     }
 
     // ============================================================================

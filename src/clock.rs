@@ -25,6 +25,7 @@ impl Clock for SystemClock {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 pub mod test_support {
     use super::*;
     use std::sync::Arc;
@@ -34,6 +35,12 @@ pub mod test_support {
     #[derive(Clone)]
     pub struct FakeClock {
         time: Arc<Mutex<Instant>>,
+    }
+
+    impl Default for FakeClock {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl FakeClock {
@@ -46,7 +53,7 @@ pub mod test_support {
         /// Advance the clock by the given duration
         pub fn advance(&self, duration: Duration) {
             let mut time = self.time.lock().unwrap();
-            *time = *time + duration;
+            *time += duration;
         }
     }
 

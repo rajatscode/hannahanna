@@ -163,7 +163,11 @@ fn main() {
         Commands::List { tree } => cli::list::run(tree),
         Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks),
         Commands::Switch { name } => cli::switch::run(name),
-        Commands::Return { merge, delete, no_ff } => cli::return_cmd::run(merge, delete, no_ff, cli.no_hooks),
+        Commands::Return {
+            merge,
+            delete,
+            no_ff,
+        } => cli::return_cmd::run(merge, delete, no_ff, cli.no_hooks),
         Commands::Info { name } => cli::info::run(name),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
