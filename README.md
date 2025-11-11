@@ -508,6 +508,240 @@ my-project/              # Main repository
 
 **See:** [`spec/plan.md`](spec/plan.md) and [`spec/spec.md`](spec/spec.md) for detailed roadmap
 
+## Troubleshooting
+
+### Shell Integration Not Working
+
+If `hn switch` or `hn return` don't change your directory, check these common issues:
+
+#### 1. Shell Integration Not Loaded
+
+**Symptom:** `hn switch` outputs a path but doesn't change directory
+
+**Diagnosis:**
+```bash
+# Check if shell wrapper is defined
+type hn
+```
+
+**Expected output:**
+```
+hn is a function
+hn ()
+{
+    # ... function code ...
+}
+```
+
+**If it shows `hn is /path/to/hn`:** Shell integration is not loaded.
+
+**Fix:**
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+eval "$(hn init-shell)"
+
+# Then reload your shell
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+#### 2. Wrong Shell Configuration File
+
+**Symptom:** Works in new terminals but not current one
+
+**Common Issues:**
+- Added to `~/.bash_profile` instead of `~/.bashrc` (Linux)
+- Added to `~/.zshrc` but running bash
+- Added to `~/.bashrc` but running zsh
+
+**Fix:**
+```bash
+# Check your shell
+echo $SHELL
+
+# Add eval "$(hn init-shell)" to the correct file:
+# - Bash on Linux: ~/.bashrc
+# - Bash on macOS: ~/.bash_profile or ~/.bashrc
+# - Zsh: ~/.zshrc
+# - Fish: ~/.config/fish/config.fish (not yet supported)
+
+# Then reload
+exec $SHELL -l
+```
+
+#### 3. Shell Integration Conflicts
+
+**Symptom:** Shell wrapper seems loaded but doesn't work correctly
+
+**Possible Causes:**
+- Multiple `eval "$(hn init-shell)"` lines in shell config
+- Conflicting aliases or functions named `hn`
+- PATH issues causing wrong `hn` binary to be called
+
+**Diagnosis:**
+```bash
+# Check for duplicates
+grep -n "hn init-shell" ~/.bashrc ~/.zshrc ~/.bash_profile 2>/dev/null
+
+# Check for conflicts
+alias | grep hn
+type -a hn
+```
+
+**Fix:**
+```bash
+# Remove duplicate eval lines, keep only one
+# Remove conflicting aliases
+unalias hn 2>/dev/null
+
+# Reload shell
+exec $SHELL -l
+```
+
+#### 4. Non-Interactive Shell
+
+**Symptom:** Works in terminal but not in scripts
+
+**Explanation:** Shell integration only works in interactive shells. Scripts should use `cd` with the output of `hn switch`:
+
+```bash
+# In scripts, don't rely on shell wrapper
+cd "$(hn switch feature-x)"
+
+# Or better, use full path operations
+WORKTREE_PATH=$(hn switch feature-x)
+cd "$WORKTREE_PATH"
+./run-tests.sh
+```
+
+### Permission Errors
+
+**Symptom:** `Permission denied` errors when creating worktrees
+
+**Common Causes:**
+- Repository is in read-only location
+- Insufficient permissions for parent directory
+- SELinux or filesystem restrictions
+
+**Fix:**
+```bash
+# Check permissions
+ls -la "$(git rev-parse --show-toplevel)"
+
+# Ensure writable
+chmod u+w path/to/repo
+
+# Check filesystem
+df -T "$(git rev-parse --show-toplevel)"
+```
+
+### Docker Port Conflicts
+
+**Symptom:** Port allocation fails or containers won't start
+
+**Diagnosis:**
+```bash
+# Check port allocations
+hn ports list
+
+# Check what's using a port
+lsof -i :3000
+netstat -tulpn | grep 3000
+```
+
+**Fix:**
+```bash
+# Release ports for a worktree
+hn ports release worktree-name
+
+# Or manually edit port registry
+vi .wt-state/port-registry.json
+
+# Change base port in config
+vi .hannahanna.yml
+# Set docker.ports.base to different range
+```
+
+### Hook Failures
+
+**Symptom:** `hn add` fails with hook errors
+
+**Diagnosis:**
+```bash
+# Validate config
+hn config validate
+
+# Check what hooks would run
+hn config show
+```
+
+**Fix:**
+```bash
+# Skip hooks for untrusted repos
+hn add feature-x --no-hooks
+
+# Debug hook script
+# Hooks run in worktree directory with these variables:
+# - $WT_NAME, $WT_PATH, $WT_BRANCH, $WT_COMMIT, $WT_STATE_DIR
+
+# Test hook manually
+cd path/to/worktree
+export WT_NAME=test
+export WT_PATH=$PWD
+export WT_BRANCH=$(git branch --show-current)
+# ... then run hook commands
+```
+
+### Worktree in Inconsistent State
+
+**Symptom:** Worktree shows in `hn list` but directory doesn't exist
+
+**Fix:**
+```bash
+# Remove git worktree reference
+git worktree prune
+
+# Clean up hannahanna state
+hn prune
+
+# Remove manually if needed
+git worktree remove --force worktree-name
+rm -rf .wt-state/worktree-name
+```
+
+### Performance Issues
+
+**Symptom:** `hn add` is slow, especially with large node_modules
+
+**Solutions:**
+```bash
+# Use shared resources instead of copying
+# In .hannahanna.yml:
+shared_resources:
+  - source: node_modules
+    target: node_modules
+    compatibility: package-lock.json
+
+# Or use Docker isolation
+docker:
+  enabled: true
+```
+
+### Getting More Help
+
+If you're still stuck:
+
+1. **Check verbose output:** Most commands support `-v` or `--verbose` (planned feature)
+2. **Review logs:** Check `.wt-state/` for any state files
+3. **Validate git state:** Run `git worktree list` to see git's view
+4. **File an issue:** [GitHub Issues](https://github.com/yourusername/hannahanna/issues)
+
+**When reporting issues, include:**
+- Output of `hn --version`
+- Your shell: `echo $SHELL`
+- Output of `type hn`
+- Output of `git worktree list`
+- Relevant error messages
+
 ## Contributing
 
 Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
