@@ -29,6 +29,9 @@ pub enum HnError {
     #[error("Symlink error: {0}")]
     SymlinkError(String),
 
+    #[error("Copy error: {0}")]
+    CopyError(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }

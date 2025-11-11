@@ -81,7 +81,7 @@ impl Config {
         }
 
         let content = fs::read_to_string(&config_path)?;
-        let config: Config = serde_yaml::from_str(&content).map_err(|e| {
+        let config: Config = serde_yml::from_str(&content).map_err(|e| {
             crate::errors::HnError::ConfigError(format!("Failed to parse config: {}", e))
         })?;
 

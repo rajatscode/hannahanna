@@ -1,5 +1,6 @@
 use crate::config::SharedResource;
 use crate::env::compatibility::CompatibilityChecker;
+use crate::env::validation;
 use crate::errors::{HnError, Result};
 use std::fs;
 use std::os::unix::fs as unix_fs;
@@ -48,10 +49,6 @@ impl SymlinkManager {
         let source_path = main_repo.join(&resource.source);
         let target_path = worktree.join(&resource.target);
 
-        // Validate paths for security
-        Self::validate_symlink_target(&source_path, main_repo)?;
-        Self::validate_symlink_target(&target_path, worktree)?;
-
         // Check compatibility if configured
         if let Some(ref lockfile) = resource.compatibility {
             let compatible =
@@ -82,48 +79,30 @@ impl SymlinkManager {
         }
 
         // Create parent directory if needed
-        if let Some(parent) = target_path.parent() {
-            fs::create_dir_all(parent)?;
+        validation::ensure_parent_dir(&target_path)?;
+
+        // Create symlink first
+        unix_fs::symlink(&source_path, &target_path)?;
+
+        // Then validate the created symlink is within repo boundaries (TOCTOU-safe)
+        // If validation fails, we clean up the symlink
+        if let Err(e) = validation::validate_path_within_repo(&target_path, worktree) {
+            // Clean up the symlink we just created
+            let _ = fs::remove_file(&target_path);
+            return Err(e);
         }
 
-        // Create symlink
-        unix_fs::symlink(&source_path, &target_path)?;
+        // Also validate source is within main repo
+        if let Err(e) = validation::validate_path_within_repo(&source_path, main_repo) {
+            // Clean up the symlink
+            let _ = fs::remove_file(&target_path);
+            return Err(e);
+        }
 
         Ok(SymlinkAction::Created {
             source: source_path,
             target: target_path,
         })
-    }
-
-    /// Validate that a symlink target is within the repository boundaries
-    /// Prevents symlink traversal attacks
-    fn validate_symlink_target(target: &Path, repo_root: &Path) -> Result<()> {
-        // Canonicalize paths to resolve any .. or symlinks
-        let canonical_repo = fs::canonicalize(repo_root)
-            .map_err(|e| HnError::SymlinkError(format!("Cannot canonicalize repo root: {}", e)))?;
-
-        // For the target, we need to check the parent directory since the target might not exist yet
-        let target_to_check = if target.exists() {
-            target.to_path_buf()
-        } else {
-            // Check the parent directory
-            target
-                .parent()
-                .ok_or_else(|| HnError::SymlinkError("Invalid target path".to_string()))?
-                .to_path_buf()
-        };
-
-        let canonical_target = fs::canonicalize(&target_to_check)
-            .map_err(|e| HnError::SymlinkError(format!("Cannot canonicalize target: {}", e)))?;
-
-        // Check if target is within repo boundaries
-        if !canonical_target.starts_with(&canonical_repo) {
-            return Err(HnError::SymlinkError(
-                "Symlink target is outside repository boundaries".to_string(),
-            ));
-        }
-
-        Ok(())
     }
 }
 

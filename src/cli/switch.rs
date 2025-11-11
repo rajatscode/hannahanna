@@ -1,6 +1,8 @@
+use crate::env::validation;
 use crate::errors::Result;
 use crate::fuzzy;
 use crate::vcs::git::GitBackend;
+use crate::vcs::short_commit;
 
 /// Switch to a worktree by name
 ///
@@ -25,12 +27,8 @@ use crate::vcs::git::GitBackend;
 /// }
 /// ```
 pub fn run(name: String) -> Result<()> {
-    // Validate name (basic validation for now)
-    if name.is_empty() {
-        return Err(crate::errors::HnError::InvalidWorktreeName(
-            "Worktree name cannot be empty".to_string(),
-        ));
-    }
+    // Validate worktree name
+    validation::validate_worktree_name(&name)?;
 
     // Open git repository
     let git = GitBackend::open_from_current_dir()?;
@@ -63,10 +61,7 @@ pub fn run(name: String) -> Result<()> {
     }
     eprintln!("Switching to worktree '{}'", matched_name);
     eprintln!("  Branch: {}", worktree.branch);
-    eprintln!(
-        "  Commit: {}",
-        &worktree.commit[..7.min(worktree.commit.len())]
-    );
+    eprintln!("  Commit: {}", short_commit(&worktree.commit));
 
     Ok(())
 }

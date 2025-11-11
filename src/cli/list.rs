@@ -1,6 +1,6 @@
 use crate::errors::Result;
 use crate::vcs::git::GitBackend;
-use crate::vcs::Worktree;
+use crate::vcs::{short_commit, Worktree};
 use std::collections::HashMap;
 
 pub fn run(tree: bool) -> Result<()> {
@@ -19,9 +19,7 @@ pub fn run(tree: bool) -> Result<()> {
         for wt in worktrees {
             println!(
                 "{:<20} {:<25} {:<10}",
-                wt.name,
-                wt.branch,
-                &wt.commit[..7.min(wt.commit.len())] // Short hash
+                wt.name, wt.branch, short_commit(&wt.commit)
             );
         }
     }
@@ -49,7 +47,7 @@ fn display_tree_view(worktrees: &[Worktree]) {
                 "{} ({}) [{}]",
                 root.name,
                 root.branch,
-                &root.commit[..7.min(root.commit.len())]
+                short_commit(&root.commit)
             );
 
             // Display children of this root
@@ -82,7 +80,7 @@ fn display_worktree_node(
         branch_char,
         wt.name,
         wt.branch,
-        &wt.commit[..7.min(wt.commit.len())]
+        short_commit(&wt.commit)
     );
 
     // Display children
