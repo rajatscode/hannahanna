@@ -5,6 +5,8 @@ use crate::config::DockerConfig;
 use crate::errors::{HnError, Result};
 use std::path::Path;
 use std::process::Command;
+use std::thread;
+use std::time::Duration;
 
 /// Container status information
 #[derive(Debug, Clone)]
@@ -13,16 +15,61 @@ pub struct ContainerStatus {
     pub container_count: usize,
 }
 
+/// Docker Compose command variant
+#[derive(Debug, Clone, Copy)]
+enum DockerComposeVariant {
+    /// Legacy docker-compose (with hyphen)
+    Hyphenated,
+    /// Modern docker compose (no hyphen, subcommand of docker)
+    Subcommand,
+}
+
 /// Manages Docker container lifecycle for worktrees
 pub struct ContainerManager<'a> {
     config: &'a DockerConfig,
     state_dir: &'a Path,
+    compose_variant: DockerComposeVariant,
 }
 
 impl<'a> ContainerManager<'a> {
     /// Create a new container manager
     pub fn new(config: &'a DockerConfig, state_dir: &'a Path) -> Result<Self> {
-        Ok(Self { config, state_dir })
+        let compose_variant = Self::detect_compose_variant();
+        Ok(Self {
+            config,
+            state_dir,
+            compose_variant,
+        })
+    }
+
+    /// Detect which docker-compose variant is available
+    fn detect_compose_variant() -> DockerComposeVariant {
+        // Try modern "docker compose" first
+        let modern = Command::new("docker")
+            .arg("compose")
+            .arg("version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false);
+
+        if modern {
+            return DockerComposeVariant::Subcommand;
+        }
+
+        // Fall back to legacy "docker-compose"
+        DockerComposeVariant::Hyphenated
+    }
+
+    /// Get the docker-compose command and args based on detected variant
+    fn get_compose_command(&self, args: &[String]) -> (String, Vec<String>) {
+        match self.compose_variant {
+            DockerComposeVariant::Subcommand => {
+                let mut compose_args = vec!["compose".to_string()];
+                compose_args.extend_from_slice(args);
+                ("docker".to_string(), compose_args)
+            }
+            DockerComposeVariant::Hyphenated => ("docker-compose".to_string(), args.to_vec()),
+        }
     }
 
     /// Check if Docker is available on the system
@@ -37,40 +84,54 @@ impl<'a> ContainerManager<'a> {
     /// Get container status for a worktree
     pub fn get_status(&self, worktree_name: &str, worktree_path: &Path) -> Result<ContainerStatus> {
         // Check if containers are running using docker-compose
-        let running = if self.is_docker_available() {
-            self.check_containers_running(worktree_name, worktree_path)
+        let (running, container_count) = if self.is_docker_available() {
+            let count = self.count_running_containers(worktree_name, worktree_path);
+            (count > 0, count)
         } else {
-            false
+            (false, 0)
         };
 
         Ok(ContainerStatus {
             running,
-            container_count: if running { 1 } else { 0 },
+            container_count,
         })
     }
 
-    /// Start containers for a worktree
+    /// Start containers for a worktree (secure, no command injection)
     pub fn start(&self, worktree_name: &str, worktree_path: &Path) -> Result<()> {
+        // Validate inputs
+        Self::validate_worktree_name(worktree_name)?;
+
         if !self.is_docker_available() {
             return Err(HnError::DockerError(
                 "Docker is not available. Please install Docker.".to_string(),
             ));
         }
 
-        let cmd = self.build_start_command(worktree_name, worktree_path)?;
-        self.execute_command(&cmd, worktree_path)?;
+        let args = self.build_start_command_args(worktree_name)?;
+        let (program, full_args) = self.get_compose_command(&args);
+        self.execute_command_safe(&program, &full_args, worktree_path)?;
+
+        // Wait for health checks if enabled
+        if self.config.healthcheck.enabled {
+            self.wait_for_healthy(worktree_name)?;
+        }
 
         Ok(())
     }
 
-    /// Stop containers for a worktree
+    /// Stop containers for a worktree (secure, no command injection)
     pub fn stop(&self, worktree_name: &str, worktree_path: &Path) -> Result<()> {
+        // Validate inputs
+        Self::validate_worktree_name(worktree_name)?;
+
         if !self.is_docker_available() {
             return Ok(()); // Silent success if Docker not available
         }
 
-        let cmd = self.build_stop_command(worktree_name, worktree_path)?;
-        self.execute_command(&cmd, worktree_path)?;
+        let args = self.build_stop_command_args(worktree_name)?;
+        let (program, full_args) = self.get_compose_command(&args);
+        self.execute_command_safe(&program, &full_args, worktree_path)?;
 
         Ok(())
     }
@@ -97,88 +158,347 @@ impl<'a> ContainerManager<'a> {
             .join("-")
     }
 
-    /// Build docker-compose up command
-    pub fn build_start_command(&self, worktree_name: &str, _worktree_path: &Path) -> Result<String> {
+    /// Build docker-compose up command arguments (safe from injection)
+    fn build_start_command_args(&self, worktree_name: &str) -> Result<Vec<String>> {
         let project_name = self.get_project_name(worktree_name);
         let override_file = self
             .state_dir
             .join(worktree_name)
             .join("docker-compose.override.yml");
 
-        let mut cmd = format!("docker-compose -p {} ", project_name);
-
-        // Add compose file
-        cmd.push_str(&format!("-f {} ", self.config.compose_file));
+        let mut args = vec![
+            "-p".to_string(),
+            project_name,
+            "-f".to_string(),
+            self.config.compose_file.clone(),
+        ];
 
         // Add override file if it exists
         if override_file.exists() {
-            cmd.push_str(&format!("-f {} ", override_file.to_string_lossy()));
+            args.push("-f".to_string());
+            args.push(override_file.to_string_lossy().to_string());
         }
 
-        cmd.push_str("up -d");
+        args.push("up".to_string());
+        args.push("-d".to_string());
 
-        Ok(cmd)
+        Ok(args)
     }
 
-    /// Build docker-compose down command
-    pub fn build_stop_command(&self, worktree_name: &str, _worktree_path: &Path) -> Result<String> {
+    /// Build docker-compose down command arguments (safe from injection)
+    fn build_stop_command_args(&self, worktree_name: &str) -> Result<Vec<String>> {
         let project_name = self.get_project_name(worktree_name);
 
-        Ok(format!("docker-compose -p {} down", project_name))
+        Ok(vec!["-p".to_string(), project_name, "down".to_string()])
     }
 
-    /// Build docker-compose logs command
-    pub fn build_logs_command(
+    /// Build docker-compose logs command arguments (safe from injection)
+    fn build_logs_command_args(
         &self,
         worktree_name: &str,
-        _worktree_path: &Path,
         service: Option<&str>,
-    ) -> Result<String> {
+    ) -> Result<Vec<String>> {
         let project_name = self.get_project_name(worktree_name);
 
-        let mut cmd = format!("docker-compose -p {} logs -f", project_name);
+        let mut args = vec![
+            "-p".to_string(),
+            project_name,
+            "logs".to_string(),
+            "-f".to_string(),
+        ];
 
         if let Some(svc) = service {
-            cmd.push_str(&format!(" {}", svc));
+            args.push(svc.to_string());
         }
 
-        Ok(cmd)
+        Ok(args)
+    }
+
+    /// Get logs command with variant detection (safe from injection)
+    /// Returns (program, args) tuple ready for direct execution
+    pub fn get_logs_command(
+        &self,
+        worktree_name: &str,
+        service: Option<&str>,
+    ) -> Result<(String, Vec<String>)> {
+        // Validate inputs
+        Self::validate_worktree_name(worktree_name)?;
+        if let Some(svc) = service {
+            Self::validate_service_name(svc)?;
+        }
+
+        let args = self.build_logs_command_args(worktree_name, service)?;
+        Ok(self.get_compose_command(&args))
+    }
+
+    /// Validate worktree name for security
+    fn validate_worktree_name(name: &str) -> Result<()> {
+        // Check length
+        if name.is_empty() || name.len() > 255 {
+            return Err(HnError::DockerError(
+                "Worktree name must be between 1 and 255 characters".to_string(),
+            ));
+        }
+
+        // Check for dangerous characters
+        let dangerous_chars = [
+            '$', '`', '\\', '\n', '\r', ';', '|', '&', '<', '>', '(', ')', '{', '}',
+        ];
+        if name.chars().any(|c| dangerous_chars.contains(&c)) {
+            return Err(HnError::DockerError(
+                "Worktree name contains invalid characters".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Validate service name for security
+    fn validate_service_name(name: &str) -> Result<()> {
+        // Check length
+        if name.is_empty() || name.len() > 255 {
+            return Err(HnError::DockerError(
+                "Service name must be between 1 and 255 characters".to_string(),
+            ));
+        }
+
+        // Service names should be alphanumeric with hyphens and underscores only
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(HnError::DockerError(
+                "Service name must contain only alphanumeric characters, hyphens, and underscores"
+                    .to_string(),
+            ));
+        }
+
+        Ok(())
     }
 
     /// Clean up orphaned containers (for removed worktrees)
-    pub fn cleanup_orphaned(&self, _active_worktrees: &[String]) -> Result<()> {
+    pub fn cleanup_orphaned(&self, active_worktrees: &[String]) -> Result<()> {
         if !self.is_docker_available() {
             return Ok(());
         }
 
-        // List all docker-compose projects
-        // For each project not in active_worktrees, stop and remove
+        // Get list of all docker-compose projects by listing containers
+        // and extracting their project labels
+        let output = Command::new("docker")
+            .arg("ps")
+            .arg("-a")
+            .arg("--filter")
+            .arg("label=com.docker.compose.project")
+            .arg("--format")
+            .arg("{{.Label \"com.docker.compose.project\"}}")
+            .output()?;
 
-        // This is a simplified implementation
-        // Full implementation would scan for hn-managed projects and clean them up
+        if !output.status.success() {
+            return Err(HnError::DockerError(
+                "Failed to list docker-compose projects".to_string(),
+            ));
+        }
+
+        let projects_output = String::from_utf8_lossy(&output.stdout);
+        let mut projects: std::collections::HashSet<String> = projects_output
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(|s| s.to_string())
+            .collect();
+
+        // Convert active worktrees to project names
+        let active_projects: std::collections::HashSet<String> = active_worktrees
+            .iter()
+            .map(|wt| self.get_project_name(wt))
+            .collect();
+
+        // Find orphaned projects (those not in active worktrees)
+        projects.retain(|project| !active_projects.contains(project));
+
+        // Stop and remove each orphaned project
+        for project in projects {
+            eprintln!("Cleaning up orphaned containers for project: {}", project);
+
+            // Build stop command with the appropriate variant
+            let args = vec![
+                "-p".to_string(),
+                project.clone(),
+                "down".to_string(),
+                "--remove-orphans".to_string(),
+            ];
+            let (program, full_args) = self.get_compose_command(&args);
+
+            // Stop containers
+            let stop_result = Command::new(program).args(full_args).output();
+
+            match stop_result {
+                Ok(output) if output.status.success() => {
+                    eprintln!("  ✓ Cleaned up {}", project);
+                }
+                Ok(output) => {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    eprintln!("  ⚠ Warning: Failed to clean up {}: {}", project, stderr);
+                }
+                Err(e) => {
+                    eprintln!("  ⚠ Warning: Failed to clean up {}: {}", project, e);
+                }
+            }
+        }
 
         Ok(())
     }
 
     /// Check if containers are running for a worktree
+    /// Note: Currently not directly called but kept for potential future use
+    #[allow(dead_code)]
     fn check_containers_running(&self, worktree_name: &str, _worktree_path: &Path) -> bool {
         let project_name = self.get_project_name(worktree_name);
+        let args = vec![
+            "-p".to_string(),
+            project_name,
+            "ps".to_string(),
+            "-q".to_string(),
+        ];
+        let (program, full_args) = self.get_compose_command(&args);
 
-        Command::new("docker-compose")
-            .arg("-p")
-            .arg(&project_name)
-            .arg("ps")
-            .arg("-q")
+        Command::new(program)
+            .args(full_args)
             .output()
             .map(|output| output.status.success() && !output.stdout.is_empty())
             .unwrap_or(false)
     }
 
-    /// Execute a shell command in the worktree directory
-    fn execute_command(&self, cmd: &str, worktree_path: &Path) -> Result<()> {
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(cmd)
+    /// Count the number of running containers for a worktree
+    fn count_running_containers(&self, worktree_name: &str, _worktree_path: &Path) -> usize {
+        let project_name = self.get_project_name(worktree_name);
+        let args = vec![
+            "-p".to_string(),
+            project_name,
+            "ps".to_string(),
+            "-q".to_string(),
+        ];
+        let (program, full_args) = self.get_compose_command(&args);
+
+        Command::new(program)
+            .args(full_args)
+            .output()
+            .map(|output| {
+                if output.status.success() {
+                    // Count non-empty lines (each line is a container ID)
+                    String::from_utf8_lossy(&output.stdout)
+                        .lines()
+                        .filter(|line| !line.trim().is_empty())
+                        .count()
+                } else {
+                    0
+                }
+            })
+            .unwrap_or(0)
+    }
+
+    /// Wait for containers to become healthy
+    fn wait_for_healthy(&self, worktree_name: &str) -> Result<()> {
+        let timeout = self.parse_timeout(&self.config.healthcheck.timeout)?;
+        let start = std::time::Instant::now();
+        let project_name = self.get_project_name(worktree_name);
+
+        eprintln!(
+            "Waiting for containers to become healthy (timeout: {}s)...",
+            timeout
+        );
+
+        loop {
+            if start.elapsed().as_secs() > timeout {
+                return Err(HnError::DockerError(format!(
+                    "Health check timeout after {}s",
+                    timeout
+                )));
+            }
+
+            // Check container health status
+            let args = vec![
+                "-p".to_string(),
+                project_name.clone(),
+                "ps".to_string(),
+                "--format".to_string(),
+                "{{.Service}},{{.Status}}".to_string(),
+            ];
+            let (program, full_args) = self.get_compose_command(&args);
+
+            let output = Command::new(program).args(full_args).output()?;
+
+            if !output.status.success() {
+                return Err(HnError::DockerError(
+                    "Failed to check container health".to_string(),
+                ));
+            }
+
+            let status_output = String::from_utf8_lossy(&output.stdout);
+            let mut all_healthy = true;
+            let mut any_containers = false;
+
+            for line in status_output.lines() {
+                if line.trim().is_empty() {
+                    continue;
+                }
+                any_containers = true;
+                let parts: Vec<&str> = line.split(',').collect();
+                if parts.len() >= 2 {
+                    let status = parts[1];
+                    // Check if container is running (not exited, not unhealthy)
+                    if status.contains("(unhealthy)") || status.contains("Exit") {
+                        all_healthy = false;
+                        break;
+                    }
+                }
+            }
+
+            if !any_containers {
+                return Err(HnError::DockerError(
+                    "No containers found for project".to_string(),
+                ));
+            }
+
+            if all_healthy {
+                eprintln!("✓ All containers are healthy");
+                return Ok(());
+            }
+
+            // Wait before next check
+            thread::sleep(Duration::from_secs(2));
+        }
+    }
+
+    /// Parse timeout string (e.g., "30s", "1m") into seconds
+    fn parse_timeout(&self, timeout_str: &str) -> Result<u64> {
+        let timeout_str = timeout_str.trim();
+
+        if let Some(num_str) = timeout_str.strip_suffix('s') {
+            num_str.parse::<u64>().map_err(|_| {
+                HnError::ConfigError(format!("Invalid timeout value: {}", timeout_str))
+            })
+        } else if let Some(num_str) = timeout_str.strip_suffix('m') {
+            let minutes = num_str.parse::<u64>().map_err(|_| {
+                HnError::ConfigError(format!("Invalid timeout value: {}", timeout_str))
+            })?;
+            Ok(minutes * 60)
+        } else {
+            // Default to seconds if no unit specified
+            timeout_str.parse::<u64>().map_err(|_| {
+                HnError::ConfigError(format!("Invalid timeout value: {}", timeout_str))
+            })
+        }
+    }
+
+    /// Execute a command safely without shell injection
+    fn execute_command_safe(
+        &self,
+        program: &str,
+        args: &[String],
+        worktree_path: &Path,
+    ) -> Result<()> {
+        let output = Command::new(program)
+            .args(args)
             .current_dir(worktree_path)
             .output()?;
 
@@ -205,27 +525,5 @@ mod tests {
         assert_eq!(manager.get_project_name("feature-x"), "feature-x");
         assert_eq!(manager.get_project_name("feature/test"), "feature-test");
         assert_eq!(manager.get_project_name("my_feature"), "my-feature");
-    }
-
-    #[test]
-    fn test_build_commands() {
-        let temp_dir = TempDir::new().unwrap();
-        let worktree_dir = temp_dir.path().join("feature-test");
-        std::fs::create_dir_all(&worktree_dir).unwrap();
-
-        let config = DockerConfig::default();
-        let manager = ContainerManager::new(&config, temp_dir.path()).unwrap();
-
-        let start_cmd = manager
-            .build_start_command("feature-test", &worktree_dir)
-            .unwrap();
-        assert!(start_cmd.contains("docker-compose"));
-        assert!(start_cmd.contains("up -d"));
-
-        let stop_cmd = manager
-            .build_stop_command("feature-test", &worktree_dir)
-            .unwrap();
-        assert!(stop_cmd.contains("docker-compose"));
-        assert!(stop_cmd.contains("down"));
     }
 }

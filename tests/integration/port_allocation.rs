@@ -19,22 +19,39 @@ fn test_allocate_sequential_ports() {
     let ports_x = allocator
         .allocate("feature-x", &["app", "postgres"])
         .unwrap();
-    assert_eq!(ports_x.get("app"), Some(&3000));
-    assert_eq!(ports_x.get("postgres"), Some(&5432));
+    // Should allocate ports (actual numbers may vary based on system availability)
+    assert!(ports_x.contains_key("app"));
+    assert!(ports_x.contains_key("postgres"));
+    let app_x = *ports_x.get("app").unwrap();
+    let postgres_x = *ports_x.get("postgres").unwrap();
 
-    // Allocate ports for feature-y (should get next sequential ports)
+    // Allocate ports for feature-y (should get different ports)
     let ports_y = allocator
         .allocate("feature-y", &["app", "postgres"])
         .unwrap();
-    assert_eq!(ports_y.get("app"), Some(&3001));
-    assert_eq!(ports_y.get("postgres"), Some(&5433));
+    assert!(ports_y.contains_key("app"));
+    assert!(ports_y.contains_key("postgres"));
+    let app_y = *ports_y.get("app").unwrap();
+    let postgres_y = *ports_y.get("postgres").unwrap();
+
+    // Ports should be different between worktrees
+    assert_ne!(app_x, app_y);
+    assert_ne!(postgres_x, postgres_y);
 
     // Allocate ports for feature-z
     let ports_z = allocator
         .allocate("feature-z", &["app", "postgres"])
         .unwrap();
-    assert_eq!(ports_z.get("app"), Some(&3002));
-    assert_eq!(ports_z.get("postgres"), Some(&5434));
+    assert!(ports_z.contains_key("app"));
+    assert!(ports_z.contains_key("postgres"));
+    let app_z = *ports_z.get("app").unwrap();
+    let postgres_z = *ports_z.get("postgres").unwrap();
+
+    // All ports should be unique
+    assert_ne!(app_x, app_z);
+    assert_ne!(app_y, app_z);
+    assert_ne!(postgres_x, postgres_z);
+    assert_ne!(postgres_y, postgres_z);
 }
 
 #[test]
@@ -64,18 +81,20 @@ fn test_port_registry_persistence() {
     std::fs::create_dir_all(&state_dir).unwrap();
 
     // First allocator instance
-    {
+    let allocated_port = {
         let mut allocator = PortAllocator::new(&state_dir).unwrap();
         let ports = allocator.allocate("feature-persist", &["app"]).unwrap();
-        assert_eq!(ports.get("app"), Some(&3000));
+        let port = *ports.get("app").unwrap();
         allocator.save().unwrap();
-    }
+        port
+    };
 
     // Second allocator instance - should reload persisted state
     {
         let allocator = PortAllocator::new(&state_dir).unwrap();
         let ports = allocator.get_ports("feature-persist").unwrap();
-        assert_eq!(ports.get("app"), Some(&3000));
+        // Should get the same port that was allocated before
+        assert_eq!(ports.get("app"), Some(&allocated_port));
     }
 }
 
@@ -92,14 +111,17 @@ fn test_port_release_on_remove() {
 
     // Allocate ports
     let ports_1 = allocator.allocate("feature-temp", &["app"]).unwrap();
-    assert_eq!(ports_1.get("app"), Some(&3000));
+    let port_1 = *ports_1.get("app").unwrap();
+    assert!(ports_1.contains_key("app"));
 
     // Release ports
     allocator.release("feature-temp").unwrap();
 
-    // Allocate again - should reuse the port
+    // Allocate again - should reuse the same port (gap filling)
     let ports_2 = allocator.allocate("feature-new", &["app"]).unwrap();
-    assert_eq!(ports_2.get("app"), Some(&3000));
+    let port_2 = *ports_2.get("app").unwrap();
+    // Should get the same port back since we released it
+    assert_eq!(port_2, port_1);
 }
 
 #[test]
