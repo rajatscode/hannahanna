@@ -142,6 +142,39 @@ hn return --merge             # Merge into feature-payment
 - `--delete` - Delete current worktree after merging (requires `--merge`)
 - `--no-ff` - Force merge commit (no fast-forward)
 
+### `hn each <command> [options]`
+
+Execute a command in all worktrees.
+
+```bash
+# Run tests in all worktrees
+hn each cargo test
+
+# Run command in parallel
+hn each --parallel npm install
+
+# Only run on feature worktrees
+hn each --filter="^feature" git status
+
+# Stop on first failure
+hn each --stop-on-error cargo check
+
+# Only run on worktrees with Docker running
+hn each --docker-running docker-compose ps
+```
+
+**Options:**
+- `--parallel` - Execute commands concurrently across all worktrees
+- `--stop-on-error` - Stop on first command failure (default: continue)
+- `--filter=<pattern>` - Filter worktrees by name using regex
+- `--docker-running` - Only run on worktrees with active Docker containers
+
+**Perfect for:**
+- Running tests across all features simultaneously
+- Updating dependencies in all worktrees
+- Checking git status or running git commands everywhere
+- Batch operations on filtered subsets of worktrees
+
 ### `hn info [name]`
 
 Show detailed information about a worktree.
@@ -212,6 +245,65 @@ hn config edit
 - `validate` - Check configuration syntax and show summary
 - `show` - Display current configuration as YAML
 - `edit` - Open config in `$EDITOR` and validate after saving
+
+### `hn docker <subcommand>`
+
+Manage Docker containers for worktrees (requires Docker configuration).
+
+```bash
+# Show container status for all worktrees
+hn docker ps
+
+# Start containers for a worktree
+hn docker start feature-x
+
+# Stop containers for a worktree
+hn docker stop feature-x
+
+# Restart containers for a worktree
+hn docker restart feature-x
+
+# View logs from containers
+hn docker logs feature-x
+hn docker logs feature-x web  # Specific service
+
+# Clean up orphaned containers
+hn docker prune
+```
+
+**Subcommands:**
+- `ps` - Show container status for all worktrees
+- `start <name>` - Start Docker containers for a worktree
+- `stop <name>` - Stop Docker containers for a worktree
+- `restart <name>` - Restart Docker containers for a worktree
+- `logs <name> [service]` - View logs (optionally for specific service)
+- `prune` - Remove containers for deleted worktrees
+
+**Features:**
+- Automatic port allocation to avoid conflicts
+- Isolated Docker Compose projects per worktree
+- Health check monitoring
+- Works with both `docker compose` and legacy `docker-compose`
+
+### `hn ports <subcommand>`
+
+Manage Docker port allocations.
+
+```bash
+# List all port allocations
+hn ports list
+
+# Show ports for a specific worktree
+hn ports show feature-x
+
+# Release ports for a worktree
+hn ports release feature-x
+```
+
+**Subcommands:**
+- `list` - Show all port allocations across worktrees
+- `show <name>` - Show port allocations for a specific worktree
+- `release <name>` - Manually release port allocations
 
 ## Configuration
 
