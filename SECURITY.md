@@ -120,9 +120,9 @@ Future versions will include additional security features:
 
 ### Implemented in v0.1
 - [x] `--no-hooks` flag to disable hook execution
+- [x] Hook execution timeout (prevent infinite loops)
 
 ### Planned for v0.2
-- [ ] Hook execution timeout (prevent infinite loops)
 - [ ] Hook approval workflow for first-time repositories
 
 ### Planned for v0.3

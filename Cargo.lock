@@ -280,6 +280,7 @@ dependencies = [
  "colored",
  "fs2",
  "git2",
+ "libc",
  "serde",
  "serde_yml",
  "sha2",

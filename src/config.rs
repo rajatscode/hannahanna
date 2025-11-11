@@ -71,6 +71,13 @@ where
 pub struct HooksConfig {
     pub post_create: Option<String>,
     pub pre_remove: Option<String>,
+    /// Hook execution timeout in seconds (default: 300 = 5 minutes)
+    #[serde(default = "default_hook_timeout")]
+    pub timeout_seconds: u64,
+}
+
+fn default_hook_timeout() -> u64 {
+    300 // 5 minutes
 }
 
 #[derive(Debug, Deserialize, Serialize)]

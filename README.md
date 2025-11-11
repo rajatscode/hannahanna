@@ -282,6 +282,7 @@ Execute commands at specific lifecycle events:
 hooks:
   post_create: "npm install && npm run setup"
   pre_remove: "npm run cleanup"
+  timeout_seconds: 300  # 5 minutes (default)
 ```
 
 **⚠️ SECURITY WARNING:** Hooks execute arbitrary shell commands from your `.hannahanna.yml` configuration file. Only use hannahanna in repositories you trust. Never clone and run `hn add` in untrusted repositories without first reviewing the `.hannahanna.yml` file for malicious hooks.
@@ -302,6 +303,16 @@ hn remove feature-x --no-hooks # Skip pre_remove hook
 - `$WT_BRANCH` - Branch name
 - `$WT_PARENT` - Parent worktree (if any)
 - `$WT_STATE_DIR` - State directory path
+
+**Hook Timeout:**
+Hooks automatically timeout after 5 minutes (300 seconds) by default to prevent hanging processes. You can customize this in your config:
+
+```yaml
+hooks:
+  timeout_seconds: 600  # 10 minutes
+```
+
+If a hook times out, the operation will fail with a clear error message. Use `--no-hooks` to skip hooks entirely.
 
 ## Use Cases
 

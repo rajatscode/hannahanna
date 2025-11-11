@@ -39,6 +39,10 @@ hooks:
     echo "Cleaning up worktree..."
     # make cleanup
 
+  # Hook execution timeout in seconds (default: 300 = 5 minutes)
+  # Prevents hooks from hanging indefinitely
+  timeout_seconds: 300
+
 # Docker configuration (optional)
 docker:
   enabled: false
