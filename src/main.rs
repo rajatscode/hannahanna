@@ -94,6 +94,37 @@ enum Commands {
         #[arg(long)]
         docker_running: bool,
     },
+    /// Merge a source worktree/branch into a target worktree/branch
+    Integrate {
+        /// Source worktree name or branch name
+        source: String,
+        /// Target worktree name (defaults to current)
+        #[arg(long)]
+        into: Option<String>,
+        /// Force merge commit (no fast-forward)
+        #[arg(long)]
+        no_ff: bool,
+        /// Squash commits before merging
+        #[arg(long)]
+        squash: bool,
+        /// Merge strategy (e.g., 'recursive', 'ours', 'theirs')
+        #[arg(long)]
+        strategy: Option<String>,
+    },
+    /// Sync current worktree with another branch
+    Sync {
+        /// Source branch to sync with (defaults to 'main')
+        source_branch: Option<String>,
+        /// Sync strategy: 'merge' or 'rebase' (defaults to 'merge')
+        #[arg(long)]
+        strategy: Option<String>,
+        /// Automatically stash and unstash changes
+        #[arg(long)]
+        autostash: bool,
+        /// Don't automatically commit after merge
+        #[arg(long)]
+        no_commit: bool,
+    },
     /// Output shell integration code for ~/.bashrc or ~/.zshrc
     InitShell,
     /// Clean up orphaned state directories
@@ -199,6 +230,19 @@ fn main() {
             filter,
             docker_running,
         } => cli::each::run(command, parallel, stop_on_error, filter, docker_running),
+        Commands::Integrate {
+            source,
+            into,
+            no_ff,
+            squash,
+            strategy,
+        } => cli::integrate::run(source, into, no_ff, squash, strategy),
+        Commands::Sync {
+            source_branch,
+            strategy,
+            autostash,
+            no_commit,
+        } => cli::sync::run(source_branch, strategy, autostash, no_commit),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
         Commands::Config { command } => match command {

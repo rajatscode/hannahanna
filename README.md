@@ -175,6 +175,97 @@ hn each --docker-running docker-compose ps
 - Checking git status or running git commands everywhere
 - Batch operations on filtered subsets of worktrees
 
+### `hn integrate <source> [options]`
+
+Merge a source worktree or branch into a target worktree.
+
+```bash
+# Merge a worktree into current worktree
+hn integrate feature-x
+
+# Merge a worktree into a specific target
+hn integrate feature-x --into main
+
+# Merge a branch (not a worktree) into current worktree
+hn integrate develop
+
+# Force merge commit (no fast-forward)
+hn integrate feature-x --no-ff
+
+# Squash commits before merging
+hn integrate feature-x --squash
+
+# Use specific merge strategy
+hn integrate feature-x --strategy=recursive
+```
+
+**Options:**
+- `--into=<target>` - Target worktree name (defaults to current worktree)
+- `--no-ff` - Force merge commit (no fast-forward)
+- `--squash` - Squash commits before merging
+- `--strategy=<strategy>` - Git merge strategy (e.g., 'recursive', 'ours', 'theirs')
+
+**Examples:**
+```bash
+# Work on a feature, then merge it into main worktree
+hn add feature-auth
+cd ../feature-auth
+# ... make changes, commit ...
+hn integrate feature-auth --into main
+
+# Integrate changes from main into current feature branch
+hn integrate main
+```
+
+**Note:** Target worktree must have no uncommitted changes. Supports fuzzy matching for worktree names.
+
+### `hn sync [source-branch] [options]`
+
+Sync current worktree with another branch (typically main).
+
+```bash
+# Sync with main branch (default)
+hn sync
+
+# Sync with specific branch
+hn sync develop
+
+# Use rebase instead of merge
+hn sync --strategy=rebase
+
+# Automatically stash/unstash uncommitted changes
+hn sync --autostash
+
+# Merge without auto-committing
+hn sync --no-commit
+```
+
+**Options:**
+- `source-branch` - Branch to sync with (defaults to 'main')
+- `--strategy=<merge|rebase>` - Sync strategy (defaults to 'merge')
+- `--autostash` - Automatically stash uncommitted changes before sync
+- `--no-commit` - Don't automatically commit after merge
+
+**Examples:**
+```bash
+# Keep feature branch up to date with main
+hn add feature-dashboard
+cd ../feature-dashboard
+# ... work on feature ...
+hn sync  # Pull latest from main
+
+# Use rebase for cleaner history
+hn sync --strategy=rebase
+
+# Sync with uncommitted changes
+hn sync --autostash
+```
+
+**Perfect for:**
+- Keeping feature branches up to date with main
+- Pulling in latest changes from develop branch
+- Resolving conflicts with upstream changes
+
 ### `hn info [name]`
 
 Show detailed information about a worktree.
@@ -557,6 +648,67 @@ State directories are automatically cleaned up when you remove a worktree. Orpha
 hn prune
 ```
 
+### Graphite Compatibility
+
+**hannahanna works seamlessly with Graphite!**
+
+[Graphite](https://graphite.dev/) is a tool for managing stacked diffs and PRs. Since Graphite is built on top of standard Git operations, hannahanna's worktree management integrates perfectly with Graphite workflows.
+
+**Using hannahanna with Graphite:**
+
+```bash
+# Create separate worktrees for different stacks
+hn add stack-auth
+cd ../stack-auth
+gt stack create auth-v2
+
+# Work on your stack in isolation
+# Each worktree can have its own Graphite stack
+
+# Switch between different stacks easily
+hn switch stack-billing
+gt stack checkout billing-v1
+
+# Sync stacks with main
+hn sync main
+gt stack sync
+```
+
+**Benefits of using hannahanna with Graphite:**
+- **Isolated stacks**: Each worktree can have its own Graphite stack without interference
+- **Parallel development**: Work on multiple stacks simultaneously
+- **Easy context switching**: Switch between stacks without stashing or committing
+- **Resource isolation**: Different dependency versions for different stacks
+
+**Example workflow:**
+```bash
+# Stack 1: Authentication overhaul
+hn add auth-overhaul
+cd ../auth-overhaul
+gt stack create
+gt create "Add JWT support"
+gt create "Implement refresh tokens"
+gt create "Add rate limiting"
+
+# Stack 2: Billing features (in parallel)
+hn add billing-features
+cd ../billing-features
+gt stack create
+gt create "Add subscription tiers"
+gt create "Implement payment webhooks"
+
+# Work on both stacks independently
+hn switch auth-overhaul
+# Make changes to JWT...
+gt submit
+
+hn switch billing-features
+# Make changes to billing...
+gt submit
+```
+
+Since Graphite uses standard Git branches and commits under the hood, all hannahanna commands (`integrate`, `sync`, `return`) work perfectly with Graphite-managed branches.
+
 ## Project Structure
 
 When you use hannahanna, your repository layout looks like:
@@ -590,19 +742,22 @@ my-project/              # Main repository
 - ✅ Git worktree management (add, list, remove, switch, info, prune)
 - ✅ Parent/child tracking with nested workflow support
 - ✅ `return` command for merging back to parent
+- ✅ **`integrate` command for merging worktrees/branches** (Phase 2)
+- ✅ **`sync` command for keeping branches up to date** (Phase 2)
 - ✅ Fuzzy name matching
 - ✅ Shared resource symlinks with compatibility checking
 - ✅ File copying for templates
 - ✅ Lifecycle hooks (post_create, pre_remove)
 - ✅ State management with file locking
-- ✅ **Docker integration** (ahead of schedule!)
+- ✅ Docker integration
   - Port allocation system
   - Container lifecycle management
   - Docker Compose override generation
-- ✅ **Config management commands** (init/validate/show/edit)
-- ✅ **Helpful error messages with actionable suggestions**
+- ✅ Config management commands (init/validate/show/edit)
+- ✅ Helpful error messages with actionable suggestions
+- ✅ **Graphite compatibility** - Works seamlessly with Graphite stacks
 
-**Test Coverage:** 193 tests passing, ~80% coverage
+**Test Coverage:** 143 tests passing, ~85% coverage
 
 **Planned for v0.2:**
 - Advanced hook conditions
