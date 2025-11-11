@@ -8,9 +8,8 @@ mod errors;
 mod fuzzy;
 mod hooks;
 mod state;
+mod suggestions;
 mod vcs;
-
-use errors::Result;
 
 #[derive(Parser)]
 #[command(name = "hn")]
@@ -129,36 +128,40 @@ enum DockerCommands {
     Prune,
 }
 
-fn main() -> Result<()> {
+fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
+    let result = match cli.command {
         Commands::Add {
             name,
             branch,
             from,
             no_branch,
-        } => cli::add::run(name, branch, from, no_branch)?,
-        Commands::List { tree } => cli::list::run(tree)?,
-        Commands::Remove { name, force } => cli::remove::run(name, force)?,
-        Commands::Switch { name } => cli::switch::run(name)?,
-        Commands::Return { merge, delete, no_ff } => cli::return_cmd::run(merge, delete, no_ff)?,
-        Commands::Info { name } => cli::info::run(name)?,
-        Commands::InitShell => cli::init_shell::run()?,
-        Commands::Prune => cli::prune::run()?,
+        } => cli::add::run(name, branch, from, no_branch),
+        Commands::List { tree } => cli::list::run(tree),
+        Commands::Remove { name, force } => cli::remove::run(name, force),
+        Commands::Switch { name } => cli::switch::run(name),
+        Commands::Return { merge, delete, no_ff } => cli::return_cmd::run(merge, delete, no_ff),
+        Commands::Info { name } => cli::info::run(name),
+        Commands::InitShell => cli::init_shell::run(),
+        Commands::Prune => cli::prune::run(),
         Commands::Ports { command } => match command {
-            PortsCommands::List => cli::ports::list()?,
-            PortsCommands::Show { name } => cli::ports::show(name)?,
-            PortsCommands::Release { name } => cli::ports::release(name)?,
+            PortsCommands::List => cli::ports::list(),
+            PortsCommands::Show { name } => cli::ports::show(name),
+            PortsCommands::Release { name } => cli::ports::release(name),
         },
         Commands::Docker { command } => match command {
-            DockerCommands::Ps => cli::docker::ps()?,
-            DockerCommands::Start { name } => cli::docker::start(name)?,
-            DockerCommands::Stop { name } => cli::docker::stop(name)?,
-            DockerCommands::Logs { name, service } => cli::docker::logs(name, service)?,
-            DockerCommands::Prune => cli::docker::prune()?,
+            DockerCommands::Ps => cli::docker::ps(),
+            DockerCommands::Start { name } => cli::docker::start(name),
+            DockerCommands::Stop { name } => cli::docker::stop(name),
+            DockerCommands::Logs { name, service } => cli::docker::logs(name, service),
+            DockerCommands::Prune => cli::docker::prune(),
         },
-    }
+    };
 
-    Ok(())
+    // Handle errors with suggestions
+    if let Err(error) = result {
+        suggestions::display_error_with_suggestions(&error);
+        std::process::exit(1);
+    }
 }
