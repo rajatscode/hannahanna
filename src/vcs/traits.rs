@@ -94,12 +94,16 @@ pub trait VcsBackend {
     /// * `paths` - List of paths to include in sparse checkout
     ///
     /// # Default Implementation
-    /// Returns an error indicating sparse checkout is not supported for this VCS
-    fn setup_sparse_checkout(&self, _worktree_path: &Path, _paths: &[String]) -> Result<()> {
-        Err(crate::errors::HnError::ConfigError(format!(
-            "Sparse checkout not supported for {:?}",
-            self.vcs_type()
-        )))
+    /// No-op that logs a warning. VCS backends that don't support sparse checkout
+    /// will gracefully skip this step rather than failing.
+    fn setup_sparse_checkout(&self, _worktree_path: &Path, paths: &[String]) -> Result<()> {
+        if !paths.is_empty() {
+            eprintln!(
+                "⚠ Sparse checkout not supported for {:?}, continuing with full checkout",
+                self.vcs_type()
+            );
+        }
+        Ok(())
     }
 }
 

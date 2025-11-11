@@ -43,22 +43,22 @@ pub fn run(
 
     // Setup sparse checkout if requested
     // Priority: CLI flag > config default
-    let effective_sparse_paths = if let Some(cli_paths) = sparse_paths {
+    let effective_sparse_paths: &[String] = if let Some(ref cli_paths) = sparse_paths {
         // CLI override
-        Some(cli_paths)
+        cli_paths
     } else if config.sparse.enabled && !config.sparse.paths.is_empty() {
         // Use config default
-        Some(config.sparse.paths.clone())
+        &config.sparse.paths
     } else {
-        None
+        &[]
     };
 
-    if let Some(paths) = effective_sparse_paths {
+    if !effective_sparse_paths.is_empty() {
         eprintln!("Setting up sparse checkout...");
-        match backend.setup_sparse_checkout(&worktree.path, &paths) {
+        match backend.setup_sparse_checkout(&worktree.path, effective_sparse_paths) {
             Ok(_) => {
                 eprintln!("✓ Sparse checkout configured:");
-                for path in &paths {
+                for path in effective_sparse_paths {
                     eprintln!("  - {}", path);
                 }
             }
