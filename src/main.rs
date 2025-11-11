@@ -76,6 +76,24 @@ enum Commands {
         /// Name of the worktree (defaults to current)
         name: Option<String>,
     },
+    /// Execute a command in each worktree
+    Each {
+        /// Command to execute (everything after 'each')
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
+        command: Vec<String>,
+        /// Execute commands in parallel
+        #[arg(long)]
+        parallel: bool,
+        /// Stop on first error
+        #[arg(long)]
+        stop_on_error: bool,
+        /// Filter worktrees by name pattern (regex)
+        #[arg(long)]
+        filter: Option<String>,
+        /// Only run on worktrees with Docker containers running
+        #[arg(long)]
+        docker_running: bool,
+    },
     /// Output shell integration code for ~/.bashrc or ~/.zshrc
     InitShell,
     /// Clean up orphaned state directories
@@ -139,6 +157,11 @@ enum DockerCommands {
         /// Name of the worktree
         name: String,
     },
+    /// Restart containers for a worktree
+    Restart {
+        /// Name of the worktree
+        name: String,
+    },
     /// View logs for a worktree's containers
     Logs {
         /// Name of the worktree
@@ -169,6 +192,13 @@ fn main() {
             no_ff,
         } => cli::return_cmd::run(merge, delete, no_ff, cli.no_hooks),
         Commands::Info { name } => cli::info::run(name),
+        Commands::Each {
+            command,
+            parallel,
+            stop_on_error,
+            filter,
+            docker_running,
+        } => cli::each::run(command, parallel, stop_on_error, filter, docker_running),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
         Commands::Config { command } => match command {
@@ -186,6 +216,7 @@ fn main() {
             DockerCommands::Ps => cli::docker::ps(),
             DockerCommands::Start { name } => cli::docker::start(name),
             DockerCommands::Stop { name } => cli::docker::stop(name),
+            DockerCommands::Restart { name } => cli::docker::restart(name),
             DockerCommands::Logs { name, service } => cli::docker::logs(name, service),
             DockerCommands::Prune => cli::docker::prune(),
         },

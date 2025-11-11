@@ -41,6 +41,9 @@ pub enum HnError {
     #[error("Port allocation error: {0}")]
     PortAllocationError(String),
 
+    #[error("Command failed: {0}")]
+    CommandFailed(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }

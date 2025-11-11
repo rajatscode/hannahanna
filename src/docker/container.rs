@@ -120,6 +120,36 @@ impl<'a> ContainerManager<'a> {
         Ok(())
     }
 
+    /// Restart containers for a worktree (secure, no command injection)
+    pub fn restart(&self, worktree_name: &str, worktree_path: &Path) -> Result<()> {
+        let project_name = self.get_project_name(worktree_name);
+
+        // Build docker-compose restart command safely
+        let args = vec![
+            "-p".to_string(),
+            project_name,
+            "restart".to_string(),
+        ];
+
+        let (program, compose_args) = self.get_compose_command(&args);
+
+        // Execute restart without shell - no injection risk
+        let output = Command::new(&program)
+            .args(&compose_args)
+            .current_dir(worktree_path)
+            .output()?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            return Err(HnError::DockerError(format!(
+                "Failed to restart containers for '{}': {}",
+                worktree_name, stderr
+            )));
+        }
+
+        Ok(())
+    }
+
     /// Stop containers for a worktree (secure, no command injection)
     pub fn stop(&self, worktree_name: &str, worktree_path: &Path) -> Result<()> {
         // Validate inputs

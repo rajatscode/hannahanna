@@ -1,6 +1,7 @@
 pub mod add;
 pub mod config_cmd;
 pub mod docker;
+pub mod each;
 pub mod info;
 pub mod init_shell;
 pub mod list;
