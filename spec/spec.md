@@ -651,21 +651,99 @@ hn dk ps           # → hn docker ps
 
 ## 8. Configuration Hierarchy
 
+**Status:** ✅ Implemented in v0.2
+
+hannahanna supports multi-level configuration merging, allowing users to have system-wide defaults, user preferences, project settings, and local overrides.
+
 **Priority (highest to lowest):**
-1. `.wt/config.local.yaml` - Repo-specific, gitignored (overrides)
-2. `.wt/config.yaml` - Repo-specific, committed
-3. `~/.config/wt/config.yaml` - User global
-4. `/etc/wt/config.yaml` - System-wide
+1. `.hannahanna.local.yml` - Repo-specific, gitignored (highest priority, local overrides)
+2. `.hannahanna.yml` - Repo-specific, committed (project defaults)
+3. `~/.config/hannahanna/config.yml` - User global preferences
+4. `/etc/hannahanna/config.yml` - System-wide defaults
 
 **Merge Strategy:**
-- Deep merge (not replace)
-- Arrays append
-- Primitives override
+- **Deep merge** (not replace) - configs are combined intelligently
+- **Arrays append** - shared_resources, sparse paths, docker volumes, etc. are combined from all levels
+- **Primitives override** - boolean and string values from higher priority configs override lower ones
 
-**Environment Variables:**
-- `WT_CONFIG` - Override config location
-- `WT_STATE_DIR` - Override state directory
-- `WT_DOCKER_STRATEGY` - Override Docker strategy
+**Example:**
+
+User config (`~/.config/hannahanna/config.yml`):
+```yaml
+sparse:
+  enabled: true
+  paths:
+    - common/libs/
+
+docker:
+  ports:
+    base:
+      app: 3000
+```
+
+Project config (`.hannahanna.yml`):
+```yaml
+sparse:
+  paths:
+    - services/api/
+
+hooks:
+  post_create: "npm install"
+
+docker:
+  enabled: true
+  ports:
+    base:
+      postgres: 5432
+```
+
+Local override (`.hannahanna.local.yml`):
+```yaml
+hooks:
+  post_create: "yarn install"
+
+docker:
+  ports:
+    base:
+      app: 4000
+```
+
+**Merged Result:**
+```yaml
+sparse:
+  enabled: true          # From user config
+  paths:
+    - common/libs/       # From user config
+    - services/api/      # From project config (appended)
+
+hooks:
+  post_create: "yarn install"  # From local (overrides project)
+
+docker:
+  enabled: true          # From project config
+  ports:
+    base:
+      app: 4000          # From local (overrides user)
+      postgres: 5432     # From project config
+```
+
+**Commands:**
+```bash
+hn config show      # Display merged configuration with sources
+hn config validate  # Validate all config files in hierarchy
+hn config edit      # Edit project config (.hannahanna.yml)
+```
+
+**View Merged Config:**
+```bash
+hn config show
+```
+
+Output shows:
+- Which config files were loaded
+- Priority order (highest first)
+- The final merged result
+- Merge strategy information
 
 ---
 

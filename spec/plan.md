@@ -45,8 +45,15 @@
 
 ### v0.2 Features (In Progress)
 - ✅ Sparse checkout for Git and Jujutsu (monorepo support - COMPLETED)
-- ⏸️ Config hierarchy (v0.2+ - one file is enough)
-- ⏸️ Advanced hooks with conditions (v0.2+)
+- ✅ Config hierarchy (multi-level config merging - COMPLETED)
+  - System: `/etc/hannahanna/config.yml`
+  - User: `~/.config/hannahanna/config.yml`
+  - Repo: `.hannahanna.yml` (committed)
+  - Local: `.hannahanna.local.yml` (gitignored, highest priority)
+  - Deep merge strategy: arrays append, primitives override
+  - `hn config show` displays merged result with sources
+  - 13 comprehensive tests covering all merge scenarios
+- ⏸️ Advanced hooks with conditions (v0.2+ - next priority)
 
 ### What's Deferred to v0.3+
 - ⏸️ Sparse checkout for Mercurial (deferred to v0.3)
@@ -147,8 +154,8 @@ hannahanna/
 │   └── vision.md               # Long-term comprehensive plan
 └── Cargo.toml
 
-Total: ~5,500 lines (v0.1.0 + Phase 2 + Phase 3 + Phase 4 + v0.2 sparse checkout)
-Test count: 194 tests (all passing - 186 v0.1.0 + 8 sparse checkout)
+Total: ~5,600 lines (v0.1.0 + Phase 2 + Phase 3 + Phase 4 + v0.2 features)
+Test count: 211 tests (all passing - 186 v0.1.0 + 12 sparse checkout + 13 config hierarchy)
 ```
 
 ---
@@ -1158,11 +1165,15 @@ hooks:
 - ✅ Sparse checkout for large monorepos (Git and Jujutsu - COMPLETED)
   - Git: Full support via `git sparse-checkout` (cone mode)
   - Jujutsu: Full support via `jj sparse set`
-  - 8 comprehensive tests covering all scenarios
+  - 12 comprehensive tests covering all scenarios
   - CLI flag: `--sparse <path>` (repeatable)
   - Config support: `sparse.enabled` and `sparse.paths`
-- ⏸️ Config hierarchy (multi-level config merging)
-- ⏸️ Advanced hooks with conditions
+- ✅ Config hierarchy (multi-level config merging - COMPLETED)
+  - 4 config levels: system, user, repo, local
+  - Deep merge strategy with intelligent array appending
+  - Enhanced `hn config show` with source tracking
+  - 13 comprehensive tests for merge behavior
+- ⏸️ Advanced hooks with conditions (NEXT PRIORITY)
 - ⏸️ Performance optimizations for 100+ worktrees
 
 ### v0.3: Extended VCS Support & Performance
