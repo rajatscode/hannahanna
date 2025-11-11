@@ -519,6 +519,24 @@ impl GitBackend {
 
         Err(HnError::Git(git2::Error::from_str("No parent config")))
     }
+
+    /// Parse git version string (e.g., "git version 2.34.1" -> (2, 34, 1))
+    fn parse_git_version(version_str: &str) -> Option<(u32, u32, u32)> {
+        // Extract version numbers from "git version X.Y.Z"
+        let parts: Vec<&str> = version_str.split_whitespace().collect();
+        let version_part = parts.get(2)?;
+
+        let nums: Vec<&str> = version_part.split('.').collect();
+        if nums.len() < 2 {
+            return None;
+        }
+
+        let major = nums[0].parse::<u32>().ok()?;
+        let minor = nums[1].parse::<u32>().ok()?;
+        let patch = nums.get(2).and_then(|p| p.parse::<u32>().ok()).unwrap_or(0);
+
+        Some((major, minor, patch))
+    }
 }
 
 // ===== VcsBackend trait implementation =====
@@ -562,5 +580,69 @@ impl VcsBackend for GitBackend {
 
     fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorkspaceStatus> {
         self.get_worktree_status(worktree_path)
+    }
+
+    fn setup_sparse_checkout(&self, worktree_path: &Path, paths: &[String]) -> Result<()> {
+        use std::process::Command;
+
+        if paths.is_empty() {
+            return Ok(());
+        }
+
+        // Check Git version (sparse-checkout requires Git >= 2.25)
+        let version_output = Command::new("git")
+            .args(["--version"])
+            .output()?;
+
+        if version_output.status.success() {
+            let version_str = String::from_utf8_lossy(&version_output.stdout);
+            if let Some(version) = Self::parse_git_version(&version_str) {
+                if version < (2, 25, 0) {
+                    return Err(HnError::Git(git2::Error::from_str(&format!(
+                        "Sparse checkout requires Git >= 2.25.0 (found {})",
+                        version_str.trim()
+                    ))));
+                }
+            }
+        }
+
+        // Initialize sparse-checkout in cone mode (more efficient)
+        let init_output = Command::new("git")
+            .arg("-C")
+            .arg(worktree_path)
+            .args(["sparse-checkout", "init", "--cone"])
+            .output()?;
+
+        if !init_output.status.success() {
+            let stderr = String::from_utf8_lossy(&init_output.stderr);
+            return Err(HnError::Git(git2::Error::from_str(&format!(
+                "Failed to initialize sparse checkout: {}",
+                stderr
+            ))));
+        }
+
+        // Set sparse checkout paths
+        let mut set_cmd = Command::new("git");
+        set_cmd
+            .arg("-C")
+            .arg(worktree_path)
+            .args(["sparse-checkout", "set"]);
+
+        // Add all paths
+        for path in paths {
+            set_cmd.arg(path);
+        }
+
+        let set_output = set_cmd.output()?;
+
+        if !set_output.status.success() {
+            let stderr = String::from_utf8_lossy(&set_output.stderr);
+            return Err(HnError::Git(git2::Error::from_str(&format!(
+                "Failed to set sparse checkout paths: {}",
+                stderr
+            ))));
+        }
+
+        Ok(())
     }
 }

@@ -394,6 +394,14 @@ sparse:
   hn add feature-api --sparse=services/api/,libs/utils/
   ```
 
+**VCS Support:**
+- **Git:** ✅ Full support via `git sparse-checkout` (cone mode)
+- **Jujutsu:** ✅ Full support via `jj sparse set`
+- **Mercurial:** ⏸️ Not supported in v0.2 (deferred to v0.3)
+  - Mercurial has experimental sparse checkout via `hg sparse`
+  - Requires additional testing for `hg share` compatibility
+  - Will gracefully fail with error message if attempted
+
 **Use Cases:**
 - 100GB monorepo, only need 5GB for your service
 - Faster checkout and disk usage

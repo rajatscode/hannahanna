@@ -15,6 +15,7 @@ pub fn run(
     branch: Option<String>,
     from: Option<String>,
     no_branch: bool,
+    sparse_paths: Option<Vec<String>>,
     no_hooks: bool,
     vcs_type: Option<VcsType>,
 ) -> Result<()> {
@@ -39,6 +40,34 @@ pub fn run(
     let worktree =
         backend.create_workspace(&name, branch.as_deref(), from.as_deref(), no_branch)?;
     eprintln!("✓ Worktree created at {}", worktree.path.display());
+
+    // Setup sparse checkout if requested
+    // Priority: CLI flag > config default
+    let effective_sparse_paths: &[String] = if let Some(ref cli_paths) = sparse_paths {
+        // CLI override
+        cli_paths
+    } else if config.sparse.enabled && !config.sparse.paths.is_empty() {
+        // Use config default
+        &config.sparse.paths
+    } else {
+        &[]
+    };
+
+    if !effective_sparse_paths.is_empty() {
+        eprintln!("Setting up sparse checkout...");
+        match backend.setup_sparse_checkout(&worktree.path, effective_sparse_paths) {
+            Ok(_) => {
+                eprintln!("✓ Sparse checkout configured:");
+                for path in effective_sparse_paths {
+                    eprintln!("  - {}", path);
+                }
+            }
+            Err(e) => {
+                eprintln!("⚠ Sparse checkout failed: {}", e);
+                eprintln!("  Continuing with full checkout...");
+            }
+        }
+    }
 
     // Create state directory
     let state_manager = StateManager::new(&repo_root)?;

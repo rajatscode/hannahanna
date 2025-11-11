@@ -14,6 +14,8 @@ pub struct Config {
     pub hooks: HooksConfig,
     #[serde(default)]
     pub docker: DockerConfig,
+    #[serde(default)]
+    pub sparse: SparseConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -78,6 +80,17 @@ pub struct HooksConfig {
 
 fn default_hook_timeout() -> u64 {
     300 // 5 minutes
+}
+
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+pub struct SparseConfig {
+    /// Enable sparse checkout by default for new worktrees
+    #[serde(default)]
+    pub enabled: bool,
+    /// Default sparse paths (applied when sparse is enabled)
+    /// Example: ["services/api/", "libs/utils/"]
+    #[serde(default)]
+    pub paths: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

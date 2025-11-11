@@ -43,10 +43,13 @@
 - ✅ Jujutsu backend fully integrated and production-ready
 - ✅ Comprehensive multi-VCS test suite (23 tests)
 
-### What's Deferred to v0.2+
-- ⏸️ Sparse checkout (v0.2+ - monorepo edge case)
+### v0.2 Features (In Progress)
+- ✅ Sparse checkout for Git and Jujutsu (monorepo support - COMPLETED)
 - ⏸️ Config hierarchy (v0.2+ - one file is enough)
 - ⏸️ Advanced hooks with conditions (v0.2+)
+
+### What's Deferred to v0.3+
+- ⏸️ Sparse checkout for Mercurial (deferred to v0.3)
 - ⏸️ Team coordination features (v0.3+)
 
 ### What We're Never Building
@@ -134,6 +137,7 @@ hannahanna/
 │   ├── multi_vcs.rs            # Phase 3 VCS backend tests
 │   ├── return_workflow.rs      # Return command tests
 │   ├── scenarios.rs            # Real-world scenario tests
+│   ├── sparse_checkout.rs      # v0.2 sparse checkout tests (8 tests)
 │   ├── worktree_lifecycle.rs   # Full lifecycle tests
 │   └── common/
 │       └── mod.rs              # Test utilities
@@ -143,8 +147,8 @@ hannahanna/
 │   └── vision.md               # Long-term comprehensive plan
 └── Cargo.toml
 
-Total: ~5,500 lines (v0.1.0 + Phase 2 + Phase 3 + Phase 4)
-Test count: 186 tests (all passing)
+Total: ~5,500 lines (v0.1.0 + Phase 2 + Phase 3 + Phase 4 + v0.2 sparse checkout)
+Test count: 194 tests (all passing - 186 v0.1.0 + 8 sparse checkout)
 ```
 
 ---
@@ -1150,11 +1154,20 @@ hooks:
 
 ## What's Next: Future Development
 
-### v0.2: Monorepo & Advanced Features (Future)
-- ⏸️ Sparse checkout for large monorepos
+### v0.2: Monorepo & Advanced Features (In Progress)
+- ✅ Sparse checkout for large monorepos (Git and Jujutsu - COMPLETED)
+  - Git: Full support via `git sparse-checkout` (cone mode)
+  - Jujutsu: Full support via `jj sparse set`
+  - 8 comprehensive tests covering all scenarios
+  - CLI flag: `--sparse <path>` (repeatable)
+  - Config support: `sparse.enabled` and `sparse.paths`
 - ⏸️ Config hierarchy (multi-level config merging)
 - ⏸️ Advanced hooks with conditions
 - ⏸️ Performance optimizations for 100+ worktrees
+
+### v0.3: Extended VCS Support & Performance
+- ⏸️ Sparse checkout for Mercurial
+- ⏸️ Additional performance optimizations
 
 See `vision.md` for full long-term roadmap.
 
