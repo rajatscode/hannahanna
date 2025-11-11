@@ -11,36 +11,47 @@
 ### Core Value Proposition
 **Enable developers to work on multiple branches simultaneously with isolated environments.**
 
-### What's In MVP (v0.1)
+### What's In v0.1.0 (MVP - Completed)
 - ✅ Git worktree management (create, list, delete, switch, info)
 - ✅ Parent/child tracking for nested workflows
 - ✅ Fuzzy name matching
 - ✅ Shared resource management (node_modules, vendor, etc.)
 - ✅ Compatibility checking (lockfile comparison)
-- ✅ Basic hooks (post_create, pre_remove)
+- ✅ Basic hooks (post_create, pre_remove, post_switch)
 - ✅ Simple config (one YAML file)
 - ✅ Concurrency-safe state management
+- ✅ Docker integration (opt-in with --docker flag)
+- ✅ Port allocation system
+- ✅ `hn each` command for batch operations
+- ✅ `hn return` command for Graphite-style workflows
 
-### What's Deferred to v0.2+
-- ⏸️ Docker integration (v0.2 - add as opt-in flag)
-- ⏸️ Port allocation system (v0.2 - needed for Docker)
-- ⏸️ Multi-VCS support (v0.3+ - only if demanded)
+### Phase 2 (Completed) - Integration Operations
+- ✅ `hn integrate` - Merge branches with fuzzy matching
+- ✅ `hn sync` - Keep branches up-to-date with merge/rebase strategies
+
+### Phase 3 (Completed) - Multi-VCS Foundation
+- ✅ VCS abstraction layer (trait-based design)
+- ✅ Git backend implementation (via VcsBackend trait)
+- ✅ Mercurial backend (using `hg share` and registry tracking)
+- ✅ Jujutsu backend (using native `jj workspace` commands)
+- ✅ Auto-detection of VCS type (Jujutsu → Git → Mercurial)
+
+### What's Deferred to v0.3+
+- ⏸️ CLI integration of Mercurial/Jujutsu backends (--vcs flag)
 - ⏸️ Sparse checkout (v0.3+ - monorepo edge case)
 - ⏸️ Config hierarchy (v0.3+ - one file is enough)
 - ⏸️ Advanced hooks with conditions (v0.3+)
 - ⏸️ Team coordination features (v0.4+)
 
 ### What We're Never Building
-- ❌ `hn integrate` - just use `git merge`
-- ❌ `hn sync` - just use `git pull` or `git rebase`
-- ❌ `hn each` - use shell loops
 - ❌ Separate Docker/state/port subcommands - keep it simple
 - ❌ Windows native support - Linux/macOS/WSL2 only
 
 ---
 
-## Commands (6 Total)
+## Commands (11 Total)
 
+### Core Commands (v0.1.0)
 ```bash
 hn create <name> [options]   # Create worktree
 hn list [--tree]             # List worktrees
@@ -50,7 +61,19 @@ hn info [name]               # Show worktree details
 hn prune                     # Clean orphaned state
 ```
 
-**That's it.** Simple, focused, easy to remember.
+### Workflow Commands (Phase 2)
+```bash
+hn integrate <source> [into] # Merge branches with fuzzy matching
+hn sync [branch]             # Keep branch up-to-date (merge/rebase)
+```
+
+### Batch Operations (v0.1.0)
+```bash
+hn each <command>            # Run command in all worktrees
+hn return [--merge|--delete] # Return from nested worktree (Graphite-style)
+```
+
+**Simple, focused, easy to remember.**
 
 ---
 
@@ -59,24 +82,31 @@ hn prune                     # Clean orphaned state
 ```
 hannahanna/
 ├── src/
-│   ├── main.rs                 # CLI entry point (~200 lines)
-│   ├── cli/                    # Command handlers (~400 lines)
+│   ├── main.rs                 # CLI entry point (~300 lines)
+│   ├── cli/                    # Command handlers (~800 lines)
 │   │   ├── mod.rs
 │   │   ├── create.rs
 │   │   ├── list.rs
 │   │   ├── delete.rs
 │   │   ├── switch.rs
 │   │   ├── info.rs
-│   │   └── prune.rs
+│   │   ├── prune.rs
+│   │   ├── each.rs             # Batch operations (v0.1.0)
+│   │   ├── return_cmd.rs       # Graphite-style return (v0.1.0)
+│   │   ├── integrate.rs        # Branch integration (Phase 2)
+│   │   └── sync.rs             # Branch sync (Phase 2)
 │   ├── worktree/               # Core domain logic (~800 lines)
 │   │   ├── mod.rs
 │   │   ├── manager.rs          # Main API
 │   │   ├── model.rs            # Worktree struct
 │   │   ├── registry.rs         # Tracking worktrees
 │   │   └── fuzzy.rs            # Fuzzy matching
-│   ├── vcs/                    # Git operations (~400 lines)
+│   ├── vcs/                    # VCS operations (~1400 lines)
 │   │   ├── mod.rs
-│   │   └── git.rs              # Git implementation via git2
+│   │   ├── traits.rs           # VCS abstraction (Phase 3)
+│   │   ├── git.rs              # Git implementation via git2
+│   │   ├── mercurial.rs        # Mercurial backend (Phase 3)
+│   │   └── jujutsu.rs          # Jujutsu backend (Phase 3)
 │   ├── env/                    # Environment setup (~400 lines)
 │   │   ├── mod.rs
 │   │   ├── symlinks.rs         # Symlink management
@@ -87,18 +117,27 @@ hannahanna/
 │   ├── errors.rs               # Error types (~100 lines)
 │   └── utils.rs                # Utilities (~100 lines)
 ├── tests/
-│   ├── integration/
-│   │   ├── lifecycle_test.rs
-│   │   ├── concurrency_test.rs
-│   │   └── scenarios_test.rs
-│   └── fixtures/
+│   ├── basic_worktree.rs       # Basic worktree operations
+│   ├── docker_integration.rs   # Docker lifecycle tests
+│   ├── each_command.rs         # Batch operation tests
+│   ├── environment.rs          # Environment setup tests
+│   ├── fuzzy_matching.rs       # Fuzzy matching tests
+│   ├── hooks.rs                # Hook execution tests
+│   ├── integrate_sync.rs       # Phase 2 integration tests
+│   ├── multi_vcs.rs            # Phase 3 VCS backend tests
+│   ├── return_workflow.rs      # Return command tests
+│   ├── scenarios.rs            # Real-world scenario tests
+│   ├── worktree_lifecycle.rs   # Full lifecycle tests
+│   └── common/
+│       └── mod.rs              # Test utilities
 ├── spec/
 │   ├── spec.md                 # Feature spec (reference)
 │   ├── plan.md                 # This file (MVP plan)
 │   └── vision.md               # Long-term comprehensive plan
 └── Cargo.toml
 
-Total: ~3,000 lines (vs ~10,000 for full vision)
+Total: ~5,000 lines (v0.1.0 + Phase 2 + Phase 3)
+Test count: 174 tests (166 passing, 8 ignored for full Hg/Jj environments)
 ```
 
 ---
@@ -107,22 +146,28 @@ Total: ~3,000 lines (vs ~10,000 for full vision)
 
 ```toml
 [dependencies]
-clap = { version = "4.5", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }   # CLI framework
 git2 = "0.18"                                        # Git operations via libgit2
-serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9"                                   # Config parsing
 anyhow = "1.0"                                       # Error handling
 thiserror = "1.0"                                    # Custom errors
+serde = { version = "1.0", features = ["derive"] }  # Serialization
+serde_yml = "0.0.12"                                 # Config parsing
+serde_json = "1.0"                                   # JSON for Mercurial registry (Phase 3)
+sha2 = "0.10"                                        # Hashing for compatibility checks
+fs2 = "0.4"                                          # File locking
 colored = "2.1"                                      # Terminal colors
-home = "0.5"                                         # Home directory detection
+tempfile = "3.8"                                     # Temp dirs
+regex = "1.10"                                       # Pattern matching
+chrono = "0.4"                                       # Timestamps (Phase 2)
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"                                         # Unix-specific operations
 
 [dev-dependencies]
 tempfile = "3.8"                                     # Temp dirs for testing
-assert_cmd = "2.0"                                   # CLI testing
-predicates = "3.0"                                   # Test assertions
 ```
 
-No Docker client, no async runtime, no complex dependencies. Keep it simple.
+No Docker client, no async runtime. Keep it simple.
 
 ---
 
@@ -1003,18 +1048,22 @@ hooks:
 
 ## Success Criteria
 
-### MVP is complete when:
+### MVP (v0.1.0) - ✅ COMPLETED
 
 **Functionality:**
-- ✅ All 6 commands work correctly
+- ✅ All 6 core commands work correctly
 - ✅ Git worktrees created and managed
 - ✅ Parent/child tracking persists
 - ✅ Symlinks created with compatibility checking
 - ✅ Hooks execute successfully
 - ✅ Concurrency-safe (file locking works)
+- ✅ Docker integration (opt-in with --docker flag)
+- ✅ Port allocation system
+- ✅ Batch operations with `hn each`
+- ✅ Graphite-style workflow with `hn return`
 
 **Quality:**
-- ✅ 80%+ test coverage
+- ✅ 80%+ test coverage (174 tests)
 - ✅ All integration tests pass
 - ✅ No panics (graceful error handling)
 - ✅ Clear error messages with suggestions
@@ -1035,19 +1084,52 @@ hooks:
 - ✅ Binary builds for Linux/macOS
 - ✅ Shell wrapper installation works
 
+### Phase 2: Integration Operations - ✅ COMPLETED
+
+**Implementation:**
+- ✅ `hn integrate` command with fuzzy matching and merge options
+- ✅ `hn sync` command with merge/rebase strategies
+- ✅ Support for --no-ff, --squash, --strategy flags
+- ✅ Autostash support for uncommitted changes
+- ✅ 11 comprehensive integration tests
+
+**Features:**
+- ✅ Merge branches with fuzzy name matching
+- ✅ Keep branches synchronized with upstream
+- ✅ Validate conflicting options (--squash + --no-ff)
+- ✅ Handle uncommitted changes gracefully
+
+### Phase 3: Multi-VCS Foundation - ✅ COMPLETED
+
+**Architecture:**
+- ✅ VCS abstraction layer via `VcsBackend` trait
+- ✅ Auto-detection of VCS type (Jujutsu → Git → Mercurial)
+- ✅ Git backend refactored to implement trait
+- ✅ Full Mercurial backend with registry tracking
+- ✅ Full Jujutsu backend with native workspace commands
+
+**Backends:**
+- ✅ Git: Using libgit2 via existing implementation
+- ✅ Mercurial: Using `hg share` with JSON registry
+- ✅ Jujutsu: Using native `jj workspace` commands
+
+**Testing:**
+- ✅ Unit tests for backend discovery
+- ✅ Registry operations for Mercurial
+- ✅ Workspace parsing for Jujutsu
+- ✅ 8 ignored tests ready for full Hg/Jj environments
+
 ---
 
-## Post-MVP: What's Next (v0.2)
+## What's Next: Future Development
 
-Once MVP is shipped and validated by real users:
+### Phase 4: CLI Integration for Multi-VCS (Future)
+- ⏸️ Add `--vcs` flag to commands
+- ⏸️ Wire Mercurial/Jujutsu backends into CLI
+- ⏸️ VCS-specific configuration options
+- ⏸️ Cross-VCS compatibility testing
 
-### v0.2: Docker Integration
-- Add `--docker` flag to `hn create`
-- Port allocation system
-- Docker compose override generation
-- Container lifecycle commands
-
-See `vision.md` for full roadmap.
+See `vision.md` for full long-term roadmap.
 
 ---
 
