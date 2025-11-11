@@ -32,6 +32,12 @@ pub enum HnError {
     #[error("Copy error: {0}")]
     CopyError(String),
 
+    #[error("Docker error: {0}")]
+    DockerError(String),
+
+    #[error("Port allocation error: {0}")]
+    PortAllocationError(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 }

@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 
 mod cli;
 mod config;
+mod docker;
 mod env;
 mod errors;
 mod fuzzy;
@@ -63,6 +64,27 @@ enum Commands {
     InitShell,
     /// Clean up orphaned state directories
     Prune,
+    /// Manage Docker port allocations
+    Ports {
+        #[command(subcommand)]
+        command: PortsCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum PortsCommands {
+    /// List all port allocations
+    List,
+    /// Show port allocations for a specific worktree
+    Show {
+        /// Name of the worktree
+        name: String,
+    },
+    /// Release port allocations for a worktree
+    Release {
+        /// Name of the worktree
+        name: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -81,6 +103,11 @@ fn main() -> Result<()> {
         Commands::Info { name } => cli::info::run(name)?,
         Commands::InitShell => cli::init_shell::run()?,
         Commands::Prune => cli::prune::run()?,
+        Commands::Ports { command } => match command {
+            PortsCommands::List => cli::ports::list()?,
+            PortsCommands::Show { name } => cli::ports::show(name)?,
+            PortsCommands::Release { name } => cli::ports::release(name)?,
+        },
     }
 
     Ok(())
