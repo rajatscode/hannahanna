@@ -34,7 +34,9 @@ pub struct CopyResource {
 }
 
 /// Custom deserializer for copy list that handles "source -> target" format
-fn deserialize_copy_list<'de, D>(deserializer: D) -> std::result::Result<Vec<CopyResource>, D::Error>
+fn deserialize_copy_list<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<CopyResource>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {

@@ -38,11 +38,7 @@ impl CopyManager {
     }
 
     /// Copy a single file
-    fn copy_file(
-        resource: &CopyResource,
-        main_repo: &Path,
-        worktree: &Path,
-    ) -> Result<CopyAction> {
+    fn copy_file(resource: &CopyResource, main_repo: &Path, worktree: &Path) -> Result<CopyAction> {
         let source_path = main_repo.join(&resource.source);
         let target_path = worktree.join(&resource.target);
 
@@ -92,9 +88,8 @@ impl CopyManager {
     /// Prevents path traversal attacks
     fn validate_copy_target(target: &Path, repo_root: &Path) -> Result<()> {
         // Canonicalize paths to resolve any .. or symlinks
-        let canonical_repo = fs::canonicalize(repo_root).map_err(|e| {
-            HnError::SymlinkError(format!("Cannot canonicalize repo root: {}", e))
-        })?;
+        let canonical_repo = fs::canonicalize(repo_root)
+            .map_err(|e| HnError::SymlinkError(format!("Cannot canonicalize repo root: {}", e)))?;
 
         // For the target, we need to check the parent directory since the target might not exist yet
         let target_to_check = if target.exists() {
@@ -107,9 +102,8 @@ impl CopyManager {
                 .to_path_buf()
         };
 
-        let canonical_target = fs::canonicalize(&target_to_check).map_err(|e| {
-            HnError::SymlinkError(format!("Cannot canonicalize target: {}", e))
-        })?;
+        let canonical_target = fs::canonicalize(&target_to_check)
+            .map_err(|e| HnError::SymlinkError(format!("Cannot canonicalize target: {}", e)))?;
 
         // Check if target is within repo boundaries
         if !canonical_target.starts_with(&canonical_repo) {
