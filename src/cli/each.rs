@@ -40,10 +40,8 @@ pub fn run(
 
         if config.docker.enabled {
             let state_dir = repo_root.join(".wt-state");
-            let docker_manager = crate::docker::container::ContainerManager::new(
-                &config.docker,
-                &state_dir,
-            )?;
+            let docker_manager =
+                crate::docker::container::ContainerManager::new(&config.docker, &state_dir)?;
 
             let mut running_worktrees = Vec::new();
             for wt in worktrees {
@@ -77,11 +75,7 @@ pub fn run(
     }
 }
 
-fn run_sequential(
-    worktrees: &[Worktree],
-    command: &[String],
-    stop_on_error: bool,
-) -> Result<()> {
+fn run_sequential(worktrees: &[Worktree], command: &[String], stop_on_error: bool) -> Result<()> {
     let mut had_errors = false;
 
     for wt in worktrees {
@@ -117,11 +111,7 @@ fn run_sequential(
     Ok(())
 }
 
-fn run_parallel(
-    worktrees: &[Worktree],
-    command: &[String],
-    stop_on_error: bool,
-) -> Result<()> {
+fn run_parallel(worktrees: &[Worktree], command: &[String], stop_on_error: bool) -> Result<()> {
     use std::thread;
 
     let had_errors = Arc::new(AtomicBool::new(false));
@@ -189,10 +179,7 @@ fn print_separator(worktree_name: &str) {
     );
 }
 
-fn execute_in_worktree(
-    wt: &Worktree,
-    command: &[String],
-) -> Result<bool> {
+fn execute_in_worktree(wt: &Worktree, command: &[String]) -> Result<bool> {
     let program = &command[0];
     let args = &command[1..];
 

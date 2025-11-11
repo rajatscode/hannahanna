@@ -1,6 +1,6 @@
 #!/bin/sh
 # Pre-commit hook for hannahanna
-# Runs rustfmt and clippy to ensure code quality
+# Runs rustfmt, clippy, and tests to ensure code quality
 
 set -e
 
@@ -23,5 +23,14 @@ if ! cargo clippy --all-targets --all-features -- -D warnings; then
     exit 1
 fi
 echo "✓ Clippy checks passed"
+
+# Run tests
+echo "→ Running tests..."
+if ! cargo test --quiet; then
+    echo "❌ Tests failed!"
+    echo "   Fix failing tests before committing."
+    exit 1
+fi
+echo "✓ All tests passed"
 
 echo "✅ All pre-commit checks passed!"

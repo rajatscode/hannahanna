@@ -2,7 +2,6 @@
 mod common;
 
 use common::TestRepo;
-use std::fs;
 
 #[test]
 fn test_each_basic_command() {
@@ -65,7 +64,8 @@ fn test_each_creates_files() {
     repo.hn(&["add", "wt2"]).assert_success();
 
     // Create a test file in each worktree
-    repo.hn(&["each", "touch", "test-file.txt"]).assert_success();
+    repo.hn(&["each", "touch", "test-file.txt"])
+        .assert_success();
 
     // Verify files were created
     assert!(repo.worktree_path("wt1").join("test-file.txt").exists());
@@ -94,7 +94,5 @@ fn test_each_empty_command() {
 
     // Should fail with error about missing command
     assert!(!result.success);
-    assert!(
-        result.stderr.contains("command") || result.stderr.contains("required")
-    );
+    assert!(result.stderr.contains("command") || result.stderr.contains("required"));
 }

@@ -125,11 +125,7 @@ impl<'a> ContainerManager<'a> {
         let project_name = self.get_project_name(worktree_name);
 
         // Build docker-compose restart command safely
-        let args = vec![
-            "-p".to_string(),
-            project_name,
-            "restart".to_string(),
-        ];
+        let args = vec!["-p".to_string(), project_name, "restart".to_string()];
 
         let (program, compose_args) = self.get_compose_command(&args);
 
