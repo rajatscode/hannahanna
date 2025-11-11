@@ -47,6 +47,33 @@ impl StateManager {
         Ok(())
     }
 
+    /// List all worktrees that have state directories
+    pub fn list_worktrees(&self) -> Result<Vec<String>> {
+        let mut worktrees = Vec::new();
+
+        if !self.state_root.exists() {
+            return Ok(worktrees);
+        }
+
+        for entry in fs::read_dir(&self.state_root)? {
+            let entry = entry?;
+            let path = entry.path();
+
+            // Skip .gitignore and non-directories
+            if !path.is_dir() {
+                continue;
+            }
+
+            if let Some(name) = path.file_name() {
+                if let Some(name_str) = name.to_str() {
+                    worktrees.push(name_str.to_string());
+                }
+            }
+        }
+
+        Ok(worktrees)
+    }
+
     /// List orphaned state directories (directories that don't have corresponding worktrees)
     pub fn list_orphaned(&self, active_worktrees: &[String]) -> Result<Vec<String>> {
         let mut orphaned = Vec::new();

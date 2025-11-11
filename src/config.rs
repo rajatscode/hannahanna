@@ -1,5 +1,6 @@
 use crate::errors::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -11,6 +12,8 @@ pub struct Config {
     pub shared: Option<SharedConfig>,
     #[serde(default)]
     pub hooks: HooksConfig,
+    #[serde(default)]
+    pub docker: DockerConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -64,10 +67,123 @@ where
     Ok(resources)
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct HooksConfig {
     pub post_create: Option<String>,
     pub pre_remove: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct DockerConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_strategy")]
+    pub strategy: String,
+    #[serde(default = "default_compose_file")]
+    pub compose_file: String,
+    #[serde(default)]
+    pub ports: PortsConfig,
+    #[serde(default)]
+    pub shared: DockerSharedConfig,
+    #[serde(default)]
+    pub isolated: DockerIsolatedConfig,
+    #[serde(default)]
+    pub auto_start: bool,
+    #[serde(default)]
+    pub auto_stop_others: bool,
+    #[serde(default)]
+    pub env: HashMap<String, String>,
+    #[serde(default)]
+    pub healthcheck: HealthCheckConfig,
+}
+
+impl Default for DockerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            strategy: default_strategy(),
+            compose_file: default_compose_file(),
+            ports: PortsConfig::default(),
+            shared: DockerSharedConfig::default(),
+            isolated: DockerIsolatedConfig::default(),
+            auto_start: false,
+            auto_stop_others: false,
+            env: HashMap::new(),
+            healthcheck: HealthCheckConfig::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PortsConfig {
+    #[serde(default = "default_port_strategy")]
+    pub strategy: String,
+    #[serde(default)]
+    pub base: HashMap<String, u16>,
+    #[serde(default)]
+    pub range: Option<[u16; 2]>,
+}
+
+impl Default for PortsConfig {
+    fn default() -> Self {
+        let mut base = HashMap::new();
+        base.insert("app".to_string(), 3000);
+        base.insert("postgres".to_string(), 5432);
+        base.insert("redis".to_string(), 6379);
+
+        Self {
+            strategy: default_port_strategy(),
+            base,
+            range: Some([3000, 9999]),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct DockerSharedConfig {
+    #[serde(default)]
+    pub volumes: Vec<String>,
+    #[serde(default)]
+    pub networks: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct DockerIsolatedConfig {
+    #[serde(default)]
+    pub volumes: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct HealthCheckConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_healthcheck_timeout")]
+    pub timeout: String,
+}
+
+impl Default for HealthCheckConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            timeout: default_healthcheck_timeout(),
+        }
+    }
+}
+
+fn default_strategy() -> String {
+    "per-worktree".to_string()
+}
+
+fn default_compose_file() -> String {
+    "docker-compose.yml".to_string()
+}
+
+fn default_port_strategy() -> String {
+    "auto-offset".to_string()
+}
+
+fn default_healthcheck_timeout() -> String {
+    "30s".to_string()
 }
 
 impl Config {
@@ -156,5 +272,97 @@ hooks:
             Some("package-lock.json".to_string())
         );
         assert_eq!(config.hooks.post_create, Some("npm install".to_string()));
+    }
+
+    #[test]
+    fn test_docker_config_defaults() {
+        let config = Config::default();
+        assert!(!config.docker.enabled);
+        assert_eq!(config.docker.strategy, "per-worktree");
+        assert_eq!(config.docker.compose_file, "docker-compose.yml");
+        assert!(!config.docker.auto_start);
+        assert!(!config.docker.auto_stop_others);
+        assert_eq!(config.docker.ports.strategy, "auto-offset");
+        assert_eq!(config.docker.ports.base.get("app"), Some(&3000));
+        assert_eq!(config.docker.ports.base.get("postgres"), Some(&5432));
+    }
+
+    #[test]
+    fn test_parse_docker_config() {
+        let temp_dir = TempDir::new().unwrap();
+        let config_path = temp_dir.path().join(".hannahanna.yml");
+
+        let yaml = r#"
+docker:
+  enabled: true
+  strategy: "per-worktree"
+  compose_file: "docker-compose.yml"
+
+  ports:
+    strategy: "auto-offset"
+    base:
+      app: 3000
+      postgres: 5432
+      redis: 6379
+    range: [3000, 4000]
+
+  shared:
+    volumes: [postgres-data]
+    networks: [app-net]
+
+  isolated:
+    volumes: [app-cache, logs]
+
+  auto_start: true
+  auto_stop_others: false
+
+  env:
+    DATABASE_URL: "postgres://localhost:{{port.postgres}}/myapp_{{worktree_name}}"
+    PORT: "{{port.app}}"
+
+  healthcheck:
+    enabled: true
+    timeout: "30s"
+"#;
+
+        let mut file = fs::File::create(&config_path).unwrap();
+        file.write_all(yaml.as_bytes()).unwrap();
+
+        let config = Config::load(temp_dir.path()).unwrap();
+
+        // Verify Docker config is parsed correctly
+        assert!(config.docker.enabled);
+        assert_eq!(config.docker.strategy, "per-worktree");
+        assert_eq!(config.docker.compose_file, "docker-compose.yml");
+        assert!(config.docker.auto_start);
+        assert!(!config.docker.auto_stop_others);
+
+        // Verify ports config
+        assert_eq!(config.docker.ports.strategy, "auto-offset");
+        assert_eq!(config.docker.ports.base.get("app"), Some(&3000));
+        assert_eq!(config.docker.ports.base.get("postgres"), Some(&5432));
+        assert_eq!(config.docker.ports.base.get("redis"), Some(&6379));
+        assert_eq!(config.docker.ports.range, Some([3000, 4000]));
+
+        // Verify shared resources
+        assert_eq!(config.docker.shared.volumes, vec!["postgres-data"]);
+        assert_eq!(config.docker.shared.networks, vec!["app-net"]);
+
+        // Verify isolated resources
+        assert_eq!(config.docker.isolated.volumes, vec!["app-cache", "logs"]);
+
+        // Verify env vars
+        assert_eq!(
+            config.docker.env.get("DATABASE_URL"),
+            Some(&"postgres://localhost:{{port.postgres}}/myapp_{{worktree_name}}".to_string())
+        );
+        assert_eq!(
+            config.docker.env.get("PORT"),
+            Some(&"{{port.app}}".to_string())
+        );
+
+        // Verify healthcheck
+        assert!(config.docker.healthcheck.enabled);
+        assert_eq!(config.docker.healthcheck.timeout, "30s");
     }
 }

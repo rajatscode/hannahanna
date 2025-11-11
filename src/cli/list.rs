@@ -19,7 +19,9 @@ pub fn run(tree: bool) -> Result<()> {
         for wt in worktrees {
             println!(
                 "{:<20} {:<25} {:<10}",
-                wt.name, wt.branch, short_commit(&wt.commit)
+                wt.name,
+                wt.branch,
+                short_commit(&wt.commit)
             );
         }
     }

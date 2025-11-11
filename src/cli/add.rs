@@ -1,4 +1,7 @@
 use crate::config::Config;
+use crate::docker::compose::ComposeGenerator;
+use crate::docker::container::ContainerManager;
+use crate::docker::ports::PortAllocator;
 use crate::env::copy::{CopyAction, CopyManager};
 use crate::env::symlinks::{SymlinkAction, SymlinkManager};
 use crate::env::validation;
@@ -77,9 +80,50 @@ pub fn run(
     // Run post_create hook if configured
     if config.hooks.post_create.is_some() {
         eprintln!("Running post_create hook...");
-        let hook_executor = HookExecutor::new(config.hooks);
+        let hook_executor = HookExecutor::new(config.hooks.clone());
         hook_executor.run_hook(HookType::PostCreate, &worktree, &state_dir)?;
         eprintln!("✓ Hook completed successfully");
+    }
+
+    // Docker integration
+    if config.docker.enabled {
+        eprintln!("\nSetting up Docker...");
+
+        // Allocate ports
+        let state_dir_path = repo_root.join(".wt-state");
+        let mut port_allocator = PortAllocator::new(&state_dir_path)?;
+
+        // Get services from config or use defaults
+        let services: Vec<&str> = config
+            .docker
+            .ports
+            .base
+            .keys()
+            .map(|s| s.as_str())
+            .collect();
+
+        let ports = port_allocator.allocate(&name, &services)?;
+
+        // Display allocated ports
+        for (service, port) in &ports {
+            eprintln!("  {} port: {}", service, port);
+        }
+
+        // Generate docker-compose.override.yml
+        let compose_gen = ComposeGenerator::new(&config.docker, &state_dir_path);
+        compose_gen.save(&name, &worktree.path, &ports)?;
+        eprintln!("✓ Generated docker-compose.override.yml");
+
+        // Auto-start containers if configured
+        if config.docker.auto_start {
+            eprintln!("Starting Docker containers...");
+            let container_mgr = ContainerManager::new(&config.docker, &state_dir_path)?;
+
+            match container_mgr.start(&name, &worktree.path) {
+                Ok(_) => eprintln!("✓ Containers started"),
+                Err(e) => eprintln!("⚠ Failed to start containers: {}", e),
+            }
+        }
     }
 
     eprintln!("\nDone! Switch to the worktree with:");

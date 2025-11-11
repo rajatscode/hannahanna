@@ -6,9 +6,8 @@ use std::path::Path;
 /// This uses a safer approach that validates after creation to avoid TOCTOU issues
 /// For symlinks, this validates the symlink location itself, not where it points
 pub fn validate_path_within_repo(path: &Path, repo_root: &Path) -> Result<()> {
-    let canonical_repo = fs::canonicalize(repo_root).map_err(|e| {
-        HnError::SymlinkError(format!("Cannot canonicalize repo root: {}", e))
-    })?;
+    let canonical_repo = fs::canonicalize(repo_root)
+        .map_err(|e| HnError::SymlinkError(format!("Cannot canonicalize repo root: {}", e)))?;
 
     // For symlinks, we want to check the symlink's location, not its target
     // So we canonicalize the parent directory and then append the filename
