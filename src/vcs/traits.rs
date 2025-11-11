@@ -79,7 +79,7 @@ pub trait VcsBackend {
     fn get_current_workspace(&self) -> Result<Worktree>;
 
     /// Get workspace status (modified, added, deleted, untracked files)
-    fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorkspaceStatus>;
+    fn get_workspace_status(&self, worktree_path: &Path) -> Result<crate::vcs::WorkspaceStatus>;
 
     /// Check if a path has uncommitted changes
     fn has_uncommitted_changes(&self, worktree_path: &Path) -> Result<bool> {
@@ -87,9 +87,6 @@ pub trait VcsBackend {
         Ok(!status.is_clean())
     }
 }
-
-// Re-export WorktreeStatus from git module (will be unified)
-pub use crate::vcs::git::WorktreeStatus as WorkspaceStatus;
 
 /// Auto-detect VCS type by checking for VCS directories
 ///

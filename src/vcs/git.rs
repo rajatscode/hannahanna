@@ -22,19 +22,8 @@ fn git_error_from_output(output: &Output, context: &str) -> HnError {
 }
 
 /// Git status information for a worktree
-#[derive(Debug, Clone)]
-pub struct WorktreeStatus {
-    pub modified: usize,
-    pub added: usize,
-    pub deleted: usize,
-    pub untracked: usize,
-}
-
-impl WorktreeStatus {
-    pub fn is_clean(&self) -> bool {
-        self.modified == 0 && self.added == 0 && self.deleted == 0 && self.untracked == 0
-    }
-}
+// Re-export the common WorkspaceStatus type for compatibility
+pub use crate::vcs::WorkspaceStatus;
 
 pub struct GitBackend {
     repo: Repository,
@@ -368,7 +357,7 @@ impl GitBackend {
     }
 
     /// Get git status for a worktree
-    pub fn get_worktree_status(&self, worktree_path: &Path) -> Result<WorktreeStatus> {
+    pub fn get_worktree_status(&self, worktree_path: &Path) -> Result<WorkspaceStatus> {
         use std::process::Command;
 
         let output = Command::new("git")
@@ -385,7 +374,7 @@ impl GitBackend {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let mut status = WorktreeStatus {
+        let mut status = WorkspaceStatus {
             modified: 0,
             added: 0,
             deleted: 0,
@@ -571,7 +560,7 @@ impl VcsBackend for GitBackend {
         self.get_current_worktree()
     }
 
-    fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorktreeStatus> {
+    fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorkspaceStatus> {
         self.get_worktree_status(worktree_path)
     }
 }
