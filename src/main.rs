@@ -75,6 +75,11 @@ enum Commands {
     InitShell,
     /// Clean up orphaned state directories
     Prune,
+    /// Manage configuration
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommands,
+    },
     /// Manage Docker port allocations
     Ports {
         #[command(subcommand)]
@@ -85,6 +90,18 @@ enum Commands {
         #[command(subcommand)]
         command: DockerCommands,
     },
+}
+
+#[derive(Subcommand)]
+enum ConfigCommands {
+    /// Create a new configuration file
+    Init,
+    /// Validate configuration file
+    Validate,
+    /// Show current configuration
+    Show,
+    /// Edit configuration file in $EDITOR
+    Edit,
 }
 
 #[derive(Subcommand)]
@@ -145,6 +162,12 @@ fn main() {
         Commands::Info { name } => cli::info::run(name),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
+        Commands::Config { command } => match command {
+            ConfigCommands::Init => cli::config_cmd::init(),
+            ConfigCommands::Validate => cli::config_cmd::validate(),
+            ConfigCommands::Show => cli::config_cmd::show(),
+            ConfigCommands::Edit => cli::config_cmd::edit(),
+        },
         Commands::Ports { command } => match command {
             PortsCommands::List => cli::ports::list(),
             PortsCommands::Show { name } => cli::ports::show(name),
