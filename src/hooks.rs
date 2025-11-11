@@ -22,11 +22,12 @@ impl HookType {
 
 pub struct HookExecutor {
     config: HooksConfig,
+    skip_hooks: bool,
 }
 
 impl HookExecutor {
-    pub fn new(config: HooksConfig) -> Self {
-        Self { config }
+    pub fn new(config: HooksConfig, skip_hooks: bool) -> Self {
+        Self { config, skip_hooks }
     }
 
     /// Execute a hook if it's configured
@@ -36,6 +37,11 @@ impl HookExecutor {
         worktree: &Worktree,
         state_dir: &Path,
     ) -> Result<()> {
+        // Skip hook execution if --no-hooks flag is set
+        if self.skip_hooks {
+            return Ok(());
+        }
+
         let script = match hook_type {
             HookType::PostCreate => &self.config.post_create,
             HookType::PreRemove => &self.config.pre_remove,
@@ -136,7 +142,7 @@ mod tests {
             pre_remove: None,
         };
 
-        let executor = HookExecutor::new(config);
+        let executor = HookExecutor::new(config, false);
         let result = executor.run_hook(HookType::PostCreate, &worktree, &state_dir);
 
         assert!(result.is_ok());
@@ -154,7 +160,7 @@ mod tests {
             pre_remove: None,
         };
 
-        let executor = HookExecutor::new(config);
+        let executor = HookExecutor::new(config, false);
         let result = executor.run_hook(HookType::PostCreate, &worktree, &state_dir);
 
         assert!(result.is_err());
@@ -177,7 +183,7 @@ mod tests {
             pre_remove: None,
         };
 
-        let executor = HookExecutor::new(config);
+        let executor = HookExecutor::new(config, false);
         let result = executor.run_hook(HookType::PostCreate, &worktree, &state_dir);
 
         // Should succeed without doing anything
@@ -207,7 +213,7 @@ echo "WT_COMMIT=$WT_COMMIT" >> {}"#,
             pre_remove: None,
         };
 
-        let executor = HookExecutor::new(config);
+        let executor = HookExecutor::new(config, false);
         executor
             .run_hook(HookType::PostCreate, &worktree, &state_dir)
             .unwrap();
@@ -217,5 +223,25 @@ echo "WT_COMMIT=$WT_COMMIT" >> {}"#,
         assert!(content.contains("WT_NAME=test-worktree"));
         assert!(content.contains("WT_BRANCH=main"));
         assert!(content.contains("WT_COMMIT=abc123"));
+    }
+
+    #[test]
+    fn test_skip_hooks_flag() {
+        let temp = TempDir::new().unwrap();
+        let worktree = create_test_worktree(&temp);
+        let state_dir = temp.path().join("state");
+        std::fs::create_dir_all(&state_dir).unwrap();
+
+        // Create a hook that would fail
+        let config = HooksConfig {
+            post_create: Some("exit 1".to_string()),
+            pre_remove: None,
+        };
+
+        // With skip_hooks=true, should succeed even though hook would fail
+        let executor = HookExecutor::new(config, true);
+        let result = executor.run_hook(HookType::PostCreate, &worktree, &state_dir);
+
+        assert!(result.is_ok(), "Hook should be skipped and not fail");
     }
 }

@@ -77,6 +77,7 @@ hn add review-pr --no-branch
 **Options:**
 - `--from <branch>` - Base branch (default: current branch)
 - `--no-branch` - Checkout existing branch instead of creating new one
+- `--no-hooks` - Skip hook execution (for untrusted repositories)
 
 ### `hn list [options]`
 
@@ -171,9 +172,13 @@ hn remove feature-x
 hn remove feature-x --force
 ```
 
+**Options:**
+- `--force` / `-f` - Force removal even if there are uncommitted changes
+- `--no-hooks` - Skip hook execution (for untrusted repositories)
+
 **Safety checks:**
 - Warns about uncommitted changes (unless `--force`)
-- Runs `pre_remove` hook if configured
+- Runs `pre_remove` hook if configured (unless `--no-hooks`)
 - Cleans up state directories
 
 ### `hn prune`
@@ -280,6 +285,12 @@ hooks:
 ```
 
 **⚠️ SECURITY WARNING:** Hooks execute arbitrary shell commands from your `.hannahanna.yml` configuration file. Only use hannahanna in repositories you trust. Never clone and run `hn add` in untrusted repositories without first reviewing the `.hannahanna.yml` file for malicious hooks.
+
+**Security Feature:** Use the `--no-hooks` flag to disable hook execution when working with untrusted repositories:
+```bash
+hn add feature-x --no-hooks    # Skip post_create hook
+hn remove feature-x --no-hooks # Skip pre_remove hook
+```
 
 **Available hooks:**
 - `post_create` - Runs after worktree creation

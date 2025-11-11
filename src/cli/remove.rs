@@ -9,7 +9,7 @@ use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
 use crate::vcs::git::GitBackend;
 
-pub fn run(name: String, force: bool) -> Result<()> {
+pub fn run(name: String, force: bool, no_hooks: bool) -> Result<()> {
     // Validate worktree name
     validation::validate_worktree_name(&name)?;
 
@@ -40,11 +40,13 @@ pub fn run(name: String, force: bool) -> Result<()> {
     let state_manager = StateManager::new(&repo_root)?;
     let state_dir = state_manager.get_state_dir(&matched_name);
 
-    if config.hooks.pre_remove.is_some() {
+    if config.hooks.pre_remove.is_some() && !no_hooks {
         println!("Running pre_remove hook...");
-        let hook_executor = HookExecutor::new(config.hooks.clone());
+        let hook_executor = HookExecutor::new(config.hooks.clone(), no_hooks);
         hook_executor.run_hook(HookType::PreRemove, &worktree, &state_dir)?;
         println!("✓ Hook completed successfully");
+    } else if config.hooks.pre_remove.is_some() && no_hooks {
+        println!("⚠ Skipping pre_remove hook (--no-hooks)");
     }
 
     // Docker cleanup

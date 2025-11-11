@@ -4,7 +4,7 @@ use crate::vcs::git::GitBackend;
 use std::env;
 use std::process::Command;
 
-pub fn run(merge: bool, delete: bool, no_ff: bool) -> Result<()> {
+pub fn run(merge: bool, delete: bool, no_ff: bool, no_hooks: bool) -> Result<()> {
     // Validate flag combinations
     if delete && !merge {
         return Err(HnError::ConfigError(
@@ -81,7 +81,7 @@ pub fn run(merge: bool, delete: bool, no_ff: bool) -> Result<()> {
         env::set_current_dir(&parent.path)?;
 
         // Remove the worktree
-        crate::cli::remove::run(current_worktree.name.clone(), false)?;
+        crate::cli::remove::run(current_worktree.name.clone(), false, no_hooks)?;
 
         eprintln!("✓ Worktree deleted");
     }

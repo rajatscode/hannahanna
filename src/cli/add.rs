@@ -15,6 +15,7 @@ pub fn run(
     branch: Option<String>,
     from: Option<String>,
     no_branch: bool,
+    no_hooks: bool,
 ) -> Result<()> {
     // Validate worktree name
     validation::validate_worktree_name(&name)?;
@@ -78,11 +79,13 @@ pub fn run(
     }
 
     // Run post_create hook if configured
-    if config.hooks.post_create.is_some() {
+    if config.hooks.post_create.is_some() && !no_hooks {
         eprintln!("Running post_create hook...");
-        let hook_executor = HookExecutor::new(config.hooks.clone());
+        let hook_executor = HookExecutor::new(config.hooks.clone(), no_hooks);
         hook_executor.run_hook(HookType::PostCreate, &worktree, &state_dir)?;
         eprintln!("✓ Hook completed successfully");
+    } else if config.hooks.post_create.is_some() && no_hooks {
+        eprintln!("⚠ Skipping post_create hook (--no-hooks)");
     }
 
     // Docker integration

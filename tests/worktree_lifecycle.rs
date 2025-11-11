@@ -236,3 +236,51 @@ fn test_full_lifecycle() {
     repo.hn(&["remove", "feature-2"]).assert_success();
     repo.hn(&["remove", "feature-3"]).assert_success();
 }
+
+#[test]
+fn test_no_hooks_flag_skips_hooks() {
+    let repo = TestRepo::new();
+
+    // Create a config file with a hook that would fail
+    let config = r#"
+hooks:
+  post_create: |
+    echo "This hook would run"
+    exit 1
+  pre_remove: |
+    echo "This hook would also run"
+    exit 1
+"#;
+    repo.create_config(config);
+
+    // Add worktree with --no-hooks (should succeed even though hook would fail)
+    let result = repo.hn(&["add", "test-wt", "--no-hooks"]);
+    result.assert_success();
+    result.assert_stderr_contains("Skipping post_create hook (--no-hooks)");
+    assert!(repo.worktree_exists("test-wt"));
+
+    // Remove worktree with --no-hooks (should succeed even though hook would fail)
+    let result = repo.hn(&["remove", "test-wt", "--no-hooks"]);
+    result.assert_success();
+    result.assert_stdout_contains("Skipping pre_remove hook (--no-hooks)");
+    assert!(!repo.worktree_exists("test-wt"));
+}
+
+#[test]
+fn test_hooks_run_without_no_hooks_flag() {
+    let repo = TestRepo::new();
+
+    // Create a config file with a failing hook
+    let config = r#"
+hooks:
+  post_create: |
+    echo "Hook is running"
+    exit 1
+"#;
+    repo.create_config(config);
+
+    // Add worktree WITHOUT --no-hooks (should fail because hook exits 1)
+    let result = repo.hn(&["add", "test-wt"]);
+    assert!(!result.success, "Should fail when hook fails");
+    result.assert_stderr_contains("hook failed");
+}

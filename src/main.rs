@@ -16,6 +16,10 @@ mod vcs;
 #[command(about = "Git worktree manager with isolated development environments", long_about = None)]
 #[command(version)]
 struct Cli {
+    /// Skip hook execution (for untrusted repositories)
+    #[arg(long, global = true)]
+    no_hooks: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -154,11 +158,11 @@ fn main() {
             branch,
             from,
             no_branch,
-        } => cli::add::run(name, branch, from, no_branch),
+        } => cli::add::run(name, branch, from, no_branch, cli.no_hooks),
         Commands::List { tree } => cli::list::run(tree),
-        Commands::Remove { name, force } => cli::remove::run(name, force),
+        Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks),
         Commands::Switch { name } => cli::switch::run(name),
-        Commands::Return { merge, delete, no_ff } => cli::return_cmd::run(merge, delete, no_ff),
+        Commands::Return { merge, delete, no_ff } => cli::return_cmd::run(merge, delete, no_ff, cli.no_hooks),
         Commands::Info { name } => cli::info::run(name),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
