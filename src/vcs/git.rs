@@ -523,3 +523,47 @@ impl GitBackend {
         Err(HnError::Git(git2::Error::from_str("No parent config")))
     }
 }
+
+// ===== VcsBackend trait implementation =====
+
+use crate::vcs::traits::{VcsBackend, VcsType};
+
+impl VcsBackend for GitBackend {
+    fn vcs_type(&self) -> VcsType {
+        VcsType::Git
+    }
+
+    fn repo_root(&self) -> Result<std::path::PathBuf> {
+        self.repo_root()
+    }
+
+    fn create_workspace(
+        &self,
+        name: &str,
+        branch: Option<&str>,
+        from: Option<&str>,
+        no_branch: bool,
+    ) -> Result<Worktree> {
+        self.create_worktree(name, branch, from, no_branch)
+    }
+
+    fn list_workspaces(&self) -> Result<Vec<Worktree>> {
+        self.list_worktrees()
+    }
+
+    fn remove_workspace(&self, name: &str, force: bool) -> Result<()> {
+        self.remove_worktree(name, force)
+    }
+
+    fn get_workspace_by_name(&self, name: &str) -> Result<Worktree> {
+        self.get_worktree_by_name(name)
+    }
+
+    fn get_current_workspace(&self) -> Result<Worktree> {
+        self.get_current_worktree()
+    }
+
+    fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorktreeStatus> {
+        self.get_worktree_status(worktree_path)
+    }
+}

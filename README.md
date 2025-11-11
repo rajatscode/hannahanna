@@ -757,12 +757,22 @@ my-project/              # Main repository
 - ✅ Helpful error messages with actionable suggestions
 - ✅ **Graphite compatibility** - Works seamlessly with Graphite stacks
 
-**Test Coverage:** 143 tests passing, ~85% coverage
+**Test Coverage:** 146 tests passing, ~85% coverage
 
-**Planned for v0.2:**
-- Advanced hook conditions
-- Multi-VCS support (Mercurial, Jujutsu)
+**Multi-VCS Support (Phase 3 - Foundation Complete):**
+- ✅ VCS abstraction layer with trait-based design
+- ✅ Auto-detection (Jujutsu → Git → Mercurial priority)
+- ✅ Mercurial backend skeleton (full implementation in v0.3)
+- ✅ Jujutsu backend skeleton (full implementation in v0.3)
+- ✅ Clear error messages for unsupported VCS operations
+
+**Planned for v0.3:**
+- Complete Mercurial backend (`hg share` workspaces)
+- Complete Jujutsu backend (`jj workspace` support)
+- VCS override flag (`--vcs`)
 - Sparse checkout for monorepos
+- Configuration hierarchy (user/repo/worktree)
+- Advanced hook conditions
 
 **See:** [`spec/plan.md`](spec/plan.md) and [`spec/spec.md`](spec/spec.md) for detailed roadmap
 
