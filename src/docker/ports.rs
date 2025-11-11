@@ -280,7 +280,11 @@ mod tests {
         let mut allocator = PortAllocator::new(temp_dir.path()).unwrap();
 
         let ports = allocator.allocate("test-wt", &["app"]).unwrap();
-        assert_eq!(ports.get("app"), Some(&3000));
+
+        // Test behavior, not exact port number (port 3000 might be in use)
+        assert!(ports.contains_key("app"), "Should allocate port for 'app'");
+        let port = *ports.get("app").unwrap();
+        assert!((3000..=9999).contains(&port), "Port should be in valid range (got {})", port);
     }
 
     // ============================================================================

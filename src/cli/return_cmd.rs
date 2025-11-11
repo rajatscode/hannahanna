@@ -5,6 +5,19 @@ use std::env;
 use std::process::Command;
 
 pub fn run(merge: bool, delete: bool, no_ff: bool) -> Result<()> {
+    // Validate flag combinations
+    if delete && !merge {
+        return Err(HnError::ConfigError(
+            "--delete requires --merge. Use 'hn return --merge --delete'".to_string()
+        ));
+    }
+
+    if no_ff && !merge {
+        return Err(HnError::ConfigError(
+            "--no-ff requires --merge. Use 'hn return --merge --no-ff'".to_string()
+        ));
+    }
+
     let git = GitBackend::open_from_current_dir()?;
 
     // Get current worktree

@@ -238,9 +238,9 @@ pub fn edit() -> Result<()> {
         .map_err(|e| HnError::ConfigError(format!("Failed to open editor: {}", e)))?;
 
     if !status.success() {
-        return Err(HnError::ConfigError(format!(
-            "Editor exited with non-zero status"
-        )));
+        return Err(HnError::ConfigError(
+            "Editor exited with non-zero status".to_string()
+        ));
     }
 
     // Validate after editing
