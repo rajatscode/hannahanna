@@ -137,7 +137,7 @@ hannahanna/
 └── Cargo.toml
 
 Total: ~5,000 lines (v0.1.0 + Phase 2 + Phase 3)
-Test count: 174 tests (166 passing, 8 ignored for full Hg/Jj environments)
+Test count: 186 tests (184 passing, 2 ignored for Phase 4 CLI integration)
 ```
 
 ---
@@ -1063,8 +1063,8 @@ hooks:
 - ✅ Graphite-style workflow with `hn return`
 
 **Quality:**
-- ✅ 80%+ test coverage (174 tests)
-- ✅ All integration tests pass
+- ✅ 80%+ test coverage (186 tests)
+- ✅ All integration tests pass (184 passing, 2 ignored for Phase 4)
 - ✅ No panics (graceful error handling)
 - ✅ Clear error messages with suggestions
 
@@ -1114,10 +1114,13 @@ hooks:
 - ✅ Jujutsu: Using native `jj workspace` commands
 
 **Testing:**
-- ✅ Unit tests for backend discovery
-- ✅ Registry operations for Mercurial
-- ✅ Workspace parsing for Jujutsu
-- ✅ 8 ignored tests ready for full Hg/Jj environments
+- ✅ 21 comprehensive Multi-VCS tests (all passing)
+- ✅ VcsBackend trait fully exercised (7 tests)
+- ✅ Factory functions tested (6 tests)
+- ✅ Mercurial backend end-to-end (3 tests)
+- ✅ Jujutsu backend end-to-end (3 tests)
+- ✅ VCS detection and parsing (2 tests)
+- ⏸️ 2 CLI integration tests ignored (Phase 4)
 
 ---
 

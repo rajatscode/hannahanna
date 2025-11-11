@@ -1,5 +1,8 @@
 /// Integration tests for Multi-VCS support
 /// Tests VCS detection, Mercurial backend, and Jujutsu backend
+///
+/// NOTE: Run with `cargo test --test multi_vcs -- --test-threads=1`
+/// Some tests change current directory and can interfere when run in parallel.
 mod common;
 
 use common::TestRepo;
@@ -413,7 +416,6 @@ fn test_mercurial_list_shares() {
 // ===== JUJUTSU BACKEND TESTS =====
 
 #[test]
-#[ignore] // Requires jj installed (installation problematic in CI)
 fn test_jujutsu_init_repository() {
     let temp = TempDir::new().expect("Failed to create temp dir");
     let repo_path = temp.path().join("jj-repo");
@@ -439,7 +441,6 @@ fn test_jujutsu_init_repository() {
 }
 
 #[test]
-#[ignore] // Requires jj installed (installation problematic in CI)
 fn test_jujutsu_workspace_add() {
     let temp = TempDir::new().expect("Failed to create temp dir");
     let repo_path = temp.path().join("jj-repo");
@@ -468,7 +469,6 @@ fn test_jujutsu_workspace_add() {
 }
 
 #[test]
-#[ignore] // Requires jj installed (installation problematic in CI)
 fn test_jujutsu_workspace_list() {
     let temp = TempDir::new().expect("Failed to create temp dir");
     let repo_path = temp.path().join("jj-repo");
