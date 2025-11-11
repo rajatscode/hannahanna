@@ -651,7 +651,7 @@ hn list --tree
 
 ### State Management
 
-Each worktree gets a state directory (`.wt-state/<name>/`) for:
+Each worktree gets a state directory (`.hn-state/<name>/`) for:
 - Worktree-specific metadata
 - Logs and temporary files
 - Future: isolated databases, caches
@@ -730,7 +730,7 @@ When you use hannahanna, your repository layout looks like:
 ```
 my-project/              # Main repository
 ├── .hannahanna.yml      # Configuration
-├── .wt-state/           # State directories (gitignored)
+├── .hn-state/           # State directories (gitignored)
 │   ├── feature-x/
 │   └── feature-y/
 ├── node_modules/        # Shared when compatible
@@ -940,7 +940,7 @@ netstat -tulpn | grep 3000
 hn ports release worktree-name
 
 # Or manually edit port registry
-vi .wt-state/port-registry.json
+vi .hn-state/port-registry.json
 
 # Change base port in config
 vi .hannahanna.yml
@@ -991,7 +991,7 @@ hn prune
 
 # Remove manually if needed
 git worktree remove --force worktree-name
-rm -rf .wt-state/worktree-name
+rm -rf .hn-state/worktree-name
 ```
 
 ### Performance Issues
@@ -1017,7 +1017,7 @@ docker:
 If you're still stuck:
 
 1. **Check verbose output:** Most commands support `-v` or `--verbose` (planned feature)
-2. **Review logs:** Check `.wt-state/` for any state files
+2. **Review logs:** Check `.hn-state/` for any state files
 3. **Validate git state:** Run `git worktree list` to see git's view
 4. **File an issue:** [GitHub Issues](https://github.com/yourusername/hannahanna/issues)
 

@@ -8,7 +8,7 @@ fn test_container_manager_creation() {
     // Goal: Create container manager instance
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -23,7 +23,7 @@ fn test_check_docker_available() {
     // Goal: Verify method returns bool and doesn't crash
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -41,7 +41,7 @@ fn test_get_container_status() {
     // Goal: Check if containers are running/stopped
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     let worktree_dir = temp_dir.path().join("worktrees").join("feature-status");
     std::fs::create_dir_all(&worktree_dir).unwrap();
     std::fs::create_dir_all(&state_dir).unwrap();
@@ -60,7 +60,7 @@ fn test_project_name_generation() {
     // Goal: Generate valid, unique project names for worktrees
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -91,7 +91,7 @@ fn test_cleanup_orphaned() {
     // Goal: Identify and clean up containers for removed worktrees
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -108,7 +108,7 @@ fn test_get_logs_command() {
     // Goal: Get secure command arguments for viewing logs
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -134,7 +134,7 @@ fn test_get_logs_command() {
 fn test_parse_timeout_seconds() {
     // Test parsing timeout with 's' suffix
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -157,7 +157,7 @@ fn test_parse_timeout_seconds() {
 fn test_parse_timeout_minutes() {
     // Test parsing timeout with 'm' suffix
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -180,7 +180,7 @@ fn test_parse_timeout_minutes() {
 fn test_parse_timeout_plain_number() {
     // Test parsing plain numbers (assumed to be seconds)
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -203,7 +203,7 @@ fn test_parse_timeout_plain_number() {
 fn test_parse_timeout_invalid_format() {
     // Test error handling for invalid formats
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -234,7 +234,7 @@ fn test_parse_timeout_invalid_format() {
 fn test_parse_timeout_edge_cases() {
     // Test boundary conditions
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -258,7 +258,7 @@ fn test_health_check_manager_creation() {
     // Test that ContainerManager can be created with default config
     // which includes health check settings
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -279,7 +279,7 @@ fn test_docker_compose_variant_detection() {
     // Test that Docker Compose variant detection works
     // This is primarily a compilation test as actual detection requires Docker
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
@@ -296,7 +296,7 @@ fn test_docker_compose_variant_detection() {
 fn test_logs_command_uses_detected_variant() {
     // Test that get_logs_command uses the detected Docker Compose variant
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();

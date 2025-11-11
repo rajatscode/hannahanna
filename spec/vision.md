@@ -464,7 +464,7 @@ hn() {
 **Files:** `src/state/directory.rs`, `src/state/cleanup.rs`
 
 #### State Directory
-- Location: `.wt-state/<worktree-name>/`
+- Location: `.hn-state/<worktree-name>/`
 - Created on worktree creation
 - Removed on worktree removal
 - Gitignored (add to `.gitignore` automatically)
@@ -609,7 +609,7 @@ impl ComposeGenerator {
 }
 ```
 
-**Generated File:** `<worktree>/.wt-state/docker-compose.override.yml`
+**Generated File:** `<worktree>/.hn-state/docker-compose.override.yml`
 
 **Template:**
 ```yaml
@@ -666,7 +666,7 @@ impl ContainerManager {
 ```
 
 **Docker Compose Integration:**
-- Use Docker Compose CLI: `docker compose -f docker-compose.yml -f .wt-state/docker-compose.override.yml up -d`
+- Use Docker Compose CLI: `docker compose -f docker-compose.yml -f .hn-state/docker-compose.override.yml up -d`
 - Or use bollard API directly (more control, but complex)
 
 **Project Naming:**

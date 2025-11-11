@@ -485,7 +485,7 @@ pub enum SymlinkAction {
 
 ```rust
 pub struct StateManager {
-    state_root: PathBuf,  // .wt-state/
+    state_root: PathBuf,  // .hn-state/
 }
 
 impl StateManager {
@@ -500,7 +500,7 @@ impl StateManager {
 
 **State Directory Structure:**
 ```
-.wt-state/
+.hn-state/
 ├── feature-x/
 │   └── metadata.json  # Future: store worktree metadata
 ├── feature-y/
@@ -730,9 +730,9 @@ pub fn run(opts: PruneOpts) -> Result<()> {
 ```bash
 hn prune
 # Found 3 orphaned state directories:
-#   .wt-state/old-feature-1/  (1.2 GB)
-#   .wt-state/old-feature-2/  (800 MB)
-#   .wt-state/test-branch/    (200 MB)
+#   .hn-state/old-feature-1/  (1.2 GB)
+#   .hn-state/old-feature-2/  (800 MB)
+#   .hn-state/test-branch/    (200 MB)
 #
 # Total: 2.2 GB will be freed
 #
@@ -822,7 +822,7 @@ impl Drop for StateLock {
 ```rust
 pub fn create_worktree(name: &str) -> Result<()> {
     // Acquire lock before modifying shared state
-    let _lock = StateLock::acquire(".wt-state/.lock", Duration::from_secs(5))?;
+    let _lock = StateLock::acquire(".hn-state/.lock", Duration::from_secs(5))?;
 
     // Critical section: create worktree, update state
     // Lock automatically released when _lock drops
@@ -899,13 +899,13 @@ fn test_concurrent_create() {
 fn test_lock_timeout() {
     // Thread 1: Hold lock for 10 seconds
     let handle = thread::spawn(|| {
-        let _lock = StateLock::acquire(".wt-state/.lock", Duration::from_secs(10)).unwrap();
+        let _lock = StateLock::acquire(".hn-state/.lock", Duration::from_secs(10)).unwrap();
         thread::sleep(Duration::from_secs(10));
     });
 
     // Thread 2: Try to acquire with 1 second timeout
     thread::sleep(Duration::from_millis(100));  // Let thread 1 acquire first
-    let result = StateLock::acquire(".wt-state/.lock", Duration::from_secs(1));
+    let result = StateLock::acquire(".hn-state/.lock", Duration::from_secs(1));
 
     // Should timeout
     assert!(matches!(result, Err(LockError::Timeout)));

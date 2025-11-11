@@ -61,7 +61,7 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
     if config.docker.enabled {
         println!("Cleaning up Docker resources...");
 
-        let state_dir_path = repo_root.join(".wt-state");
+        let state_dir_path = repo_root.join(".hn-state");
 
         // Stop containers
         let container_mgr = ContainerManager::new(&config.docker, &state_dir_path)?;

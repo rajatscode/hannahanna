@@ -362,7 +362,7 @@ build:
 # State management
 state:
   enabled: true
-  location: ".wt-state"  # Gitignored in main repo
+  location: ".hn-state"  # Gitignored in main repo
   per_worktree:
     - logs/
     - temp-uploads/
@@ -530,7 +530,7 @@ volumes:
 
 ### 5.1 State Directory
 
-**Location:** `.wt-state/<worktree-name>/` (gitignored)
+**Location:** `.hn-state/<worktree-name>/` (gitignored)
 
 **Contents:**
 - `docker-compose.override.yml`

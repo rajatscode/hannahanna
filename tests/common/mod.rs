@@ -112,7 +112,7 @@ impl TestRepo {
     /// Check if state directory exists
     #[allow(dead_code)]
     pub fn state_exists(&self, name: &str) -> bool {
-        self.repo_path.join(".wt-state").join(name).exists()
+        self.repo_path.join(".hn-state").join(name).exists()
     }
 
     /// Create a config file

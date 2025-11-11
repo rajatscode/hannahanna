@@ -39,7 +39,7 @@ pub fn run(
         let config = crate::config::Config::load(&repo_root)?;
 
         if config.docker.enabled {
-            let state_dir = repo_root.join(".wt-state");
+            let state_dir = repo_root.join(".hn-state");
             let docker_manager =
                 crate::docker::container::ContainerManager::new(&config.docker, &state_dir)?;
 

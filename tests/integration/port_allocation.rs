@@ -10,7 +10,7 @@ fn test_allocate_sequential_ports() {
     // feature-z: app=3002, postgres=5434
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let mut allocator = PortAllocator::new(&state_dir).unwrap();
@@ -60,7 +60,7 @@ fn test_port_conflict_detection() {
     // Goal: If port 3000 is occupied externally, allocator should skip to 3001
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let mut allocator = PortAllocator::new(&state_dir).unwrap();
@@ -77,7 +77,7 @@ fn test_port_registry_persistence() {
     // Goal: Allocate ports, save registry, reload, verify ports preserved
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     // First allocator instance
@@ -104,7 +104,7 @@ fn test_port_release_on_remove() {
     // Goal: Remove worktree, verify ports can be reallocated
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let mut allocator = PortAllocator::new(&state_dir).unwrap();
@@ -160,7 +160,7 @@ fn test_port_exhaustion() {
     // Goal: Range 3000-3005, create 7 worktrees, 7th should fail gracefully
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let mut allocator = PortAllocator::with_range(&state_dir, 3000, 3005).unwrap();

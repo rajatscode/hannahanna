@@ -131,7 +131,7 @@ pub fn run(
         eprintln!("\nSetting up Docker...");
 
         // Allocate ports
-        let state_dir_path = repo_root.join(".wt-state");
+        let state_dir_path = repo_root.join(".hn-state");
         let mut port_allocator = PortAllocator::new(&state_dir_path)?;
 
         // Get services from config or use defaults
