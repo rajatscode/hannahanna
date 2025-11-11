@@ -76,6 +76,19 @@ pub struct HooksConfig {
     /// Hook execution timeout in seconds (default: 300 = 5 minutes)
     #[serde(default = "default_hook_timeout")]
     pub timeout_seconds: u64,
+    /// Conditional hooks that run based on branch name patterns
+    #[serde(default)]
+    pub post_create_conditions: Vec<ConditionalHook>,
+    #[serde(default)]
+    pub pre_remove_conditions: Vec<ConditionalHook>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ConditionalHook {
+    /// Condition to evaluate (e.g., "branch.startsWith('feature/')")
+    pub condition: String,
+    /// Command to run if condition matches
+    pub command: String,
 }
 
 impl Default for HooksConfig {
@@ -84,6 +97,8 @@ impl Default for HooksConfig {
             post_create: None,
             pre_remove: None,
             timeout_seconds: default_hook_timeout(),
+            post_create_conditions: Vec::new(),
+            pre_remove_conditions: Vec::new(),
         }
     }
 }
@@ -295,7 +310,7 @@ impl Config {
             }
         }
 
-        // Merge hooks (override primitives)
+        // Merge hooks (override primitives, append conditional arrays)
         if other.hooks.post_create.is_some() {
             self.hooks.post_create = other.hooks.post_create;
         }
@@ -306,6 +321,9 @@ impl Config {
         if other.hooks.timeout_seconds != default_hook_timeout() {
             self.hooks.timeout_seconds = other.hooks.timeout_seconds;
         }
+        // Append conditional hooks (arrays append)
+        self.hooks.post_create_conditions.extend(other.hooks.post_create_conditions);
+        self.hooks.pre_remove_conditions.extend(other.hooks.pre_remove_conditions);
 
         // Merge docker config (override primitives, append arrays)
         if other.docker.enabled {

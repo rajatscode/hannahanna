@@ -1,5 +1,5 @@
 use crate::clock::{Clock, SystemClock};
-use crate::config::HooksConfig;
+use crate::config::{ConditionalHook, HooksConfig};
 use crate::errors::{HnError, Result};
 use crate::vcs::Worktree;
 use std::collections::HashMap;
@@ -64,6 +64,7 @@ impl HookExecutor {
             return Ok(());
         }
 
+        // First, run the regular (unconditional) hook if configured
         let script = match hook_type {
             HookType::PostCreate => &self.config.post_create,
             HookType::PreRemove => &self.config.pre_remove,
@@ -73,7 +74,90 @@ impl HookExecutor {
             self.execute_hook(hook_type, script, worktree, state_dir)?;
         }
 
+        // Then, evaluate and run any conditional hooks that match
+        let conditional_hooks = match hook_type {
+            HookType::PostCreate => &self.config.post_create_conditions,
+            HookType::PreRemove => &self.config.pre_remove_conditions,
+        };
+
+        for conditional_hook in conditional_hooks {
+            if self.evaluate_condition(&conditional_hook.condition, &worktree.branch)? {
+                self.execute_hook(hook_type, &conditional_hook.command, worktree, state_dir)?;
+            }
+        }
+
         Ok(())
+    }
+
+    /// Evaluate a condition against a branch name
+    /// Supports: branch.startsWith('prefix'), branch.endsWith('suffix'), branch.contains('substring')
+    fn evaluate_condition(&self, condition: &str, branch: &str) -> Result<bool> {
+        let condition = condition.trim();
+
+        // Parse: branch.startsWith('...')
+        if let Some(prefix) = Self::parse_starts_with(condition) {
+            return Ok(branch.starts_with(&prefix));
+        }
+
+        // Parse: branch.endsWith('...')
+        if let Some(suffix) = Self::parse_ends_with(condition) {
+            return Ok(branch.ends_with(&suffix));
+        }
+
+        // Parse: branch.contains('...')
+        if let Some(substring) = Self::parse_contains(condition) {
+            return Ok(branch.contains(&substring));
+        }
+
+        // Unsupported condition format
+        Err(HnError::ConfigError(format!(
+            "Invalid hook condition: '{}'. Supported formats: branch.startsWith('...'), branch.endsWith('...'), branch.contains('...')",
+            condition
+        )))
+    }
+
+    /// Parse branch.startsWith('prefix') and return the prefix
+    fn parse_starts_with(condition: &str) -> Option<String> {
+        Self::parse_branch_method(condition, "startsWith")
+    }
+
+    /// Parse branch.endsWith('suffix') and return the suffix
+    fn parse_ends_with(condition: &str) -> Option<String> {
+        Self::parse_branch_method(condition, "endsWith")
+    }
+
+    /// Parse branch.contains('substring') and return the substring
+    fn parse_contains(condition: &str) -> Option<String> {
+        Self::parse_branch_method(condition, "contains")
+    }
+
+    /// Generic parser for branch.method('value') patterns
+    fn parse_branch_method(condition: &str, method: &str) -> Option<String> {
+        let pattern = format!("branch.{}(", method);
+
+        if !condition.starts_with(&pattern) {
+            return None;
+        }
+
+        // Find the quoted string inside the parentheses
+        let start_idx = pattern.len();
+        let rest = &condition[start_idx..];
+
+        // Support both single and double quotes
+        for quote in &['\'', '"'] {
+            if rest.starts_with(*quote) {
+                // Find the closing quote
+                if let Some(end_idx) = rest[1..].find(*quote) {
+                    let value = rest[1..=end_idx].to_string();
+                    // Check that it ends with ')' after the quote
+                    if rest[end_idx + 2..].trim_start().starts_with(')') {
+                        return Some(value);
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     /// Execute the hook script with timeout
@@ -295,11 +379,9 @@ mod tests {
         let state_dir = temp.path().join("state");
         std::fs::create_dir_all(&state_dir).unwrap();
 
-        let config = HooksConfig {
-            post_create: Some("echo 'Hello from hook'".to_string()),
-            pre_remove: None,
-            timeout_seconds: 30,
-        };
+        let mut config = HooksConfig::default();
+        config.post_create = Some("echo 'Hello from hook'".to_string());
+        config.timeout_seconds = 30;
 
         let executor = HookExecutor::new(config, false);
         let result = executor.run_hook(HookType::PostCreate, &worktree, &state_dir);
@@ -314,11 +396,9 @@ mod tests {
         let state_dir = temp.path().join("state");
         std::fs::create_dir_all(&state_dir).unwrap();
 
-        let config = HooksConfig {
-            post_create: Some("exit 1".to_string()),
-            pre_remove: None,
-            timeout_seconds: 30,
-        };
+        let mut config = HooksConfig::default();
+        config.post_create = Some("exit 1".to_string());
+        config.timeout_seconds = 30;
 
         let executor = HookExecutor::new(config, false);
         let result = executor.run_hook(HookType::PostCreate, &worktree, &state_dir);
@@ -338,11 +418,7 @@ mod tests {
         let state_dir = temp.path().join("state");
         std::fs::create_dir_all(&state_dir).unwrap();
 
-        let config = HooksConfig {
-            post_create: None,
-            pre_remove: None,
-            timeout_seconds: 30,
-        };
+        let config = HooksConfig::default();
 
         let executor = HookExecutor::new(config, false);
         let result = executor.run_hook(HookType::PostCreate, &worktree, &state_dir);
@@ -369,11 +445,9 @@ echo "WT_COMMIT=$WT_COMMIT" >> {}"#,
             output_file.display()
         );
 
-        let config = HooksConfig {
-            post_create: Some(hook_script),
-            pre_remove: None,
-            timeout_seconds: 30,
-        };
+        let mut config = HooksConfig::default();
+        config.post_create = Some(hook_script);
+        config.timeout_seconds = 30;
 
         let executor = HookExecutor::new(config, false);
         executor
@@ -395,11 +469,9 @@ echo "WT_COMMIT=$WT_COMMIT" >> {}"#,
         std::fs::create_dir_all(&state_dir).unwrap();
 
         // Create a hook that would fail
-        let config = HooksConfig {
-            post_create: Some("exit 1".to_string()),
-            pre_remove: None,
-            timeout_seconds: 30,
-        };
+        let mut config = HooksConfig::default();
+        config.post_create = Some("exit 1".to_string());
+        config.timeout_seconds = 30;
 
         // With skip_hooks=true, should succeed even though hook would fail
         let executor = HookExecutor::new(config, true);
@@ -414,4 +486,87 @@ echo "WT_COMMIT=$WT_COMMIT" >> {}"#,
     // To properly test timeouts without real-time delays would require mocking
     // process execution itself, which adds significant complexity.
     // The timeout implementation has been verified through manual testing.
+
+    #[test]
+    fn test_parse_starts_with_single_quotes() {
+        let result = HookExecutor::parse_starts_with("branch.startsWith('feature/')");
+        assert_eq!(result, Some("feature/".to_string()));
+    }
+
+    #[test]
+    fn test_parse_starts_with_double_quotes() {
+        let result = HookExecutor::parse_starts_with("branch.startsWith(\"hotfix/\")");
+        assert_eq!(result, Some("hotfix/".to_string()));
+    }
+
+    #[test]
+    fn test_parse_ends_with() {
+        let result = HookExecutor::parse_ends_with("branch.endsWith('-prod')");
+        assert_eq!(result, Some("-prod".to_string()));
+    }
+
+    #[test]
+    fn test_parse_contains() {
+        let result = HookExecutor::parse_contains("branch.contains('bugfix')");
+        assert_eq!(result, Some("bugfix".to_string()));
+    }
+
+    #[test]
+    fn test_parse_invalid_condition() {
+        let result = HookExecutor::parse_starts_with("branch.invalid('test')");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_evaluate_condition_starts_with_match() {
+        let config = HooksConfig::default();
+        let executor = HookExecutor::new(config, false);
+
+        let result = executor
+            .evaluate_condition("branch.startsWith('feature/')", "feature/new-api")
+            .unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_evaluate_condition_starts_with_no_match() {
+        let config = HooksConfig::default();
+        let executor = HookExecutor::new(config, false);
+
+        let result = executor
+            .evaluate_condition("branch.startsWith('feature/')", "hotfix/bug-123")
+            .unwrap();
+        assert!(!result);
+    }
+
+    #[test]
+    fn test_evaluate_condition_ends_with_match() {
+        let config = HooksConfig::default();
+        let executor = HookExecutor::new(config, false);
+
+        let result = executor
+            .evaluate_condition("branch.endsWith('-prod')", "release-prod")
+            .unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_evaluate_condition_contains_match() {
+        let config = HooksConfig::default();
+        let executor = HookExecutor::new(config, false);
+
+        let result = executor
+            .evaluate_condition("branch.contains('bugfix')", "feature/bugfix-auth")
+            .unwrap();
+        assert!(result);
+    }
+
+    #[test]
+    fn test_evaluate_condition_invalid() {
+        let config = HooksConfig::default();
+        let executor = HookExecutor::new(config, false);
+
+        let result = executor.evaluate_condition("invalid.condition()", "main");
+        assert!(result.is_err());
+    }
 }

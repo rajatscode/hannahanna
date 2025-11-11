@@ -43,7 +43,7 @@
 - ✅ Jujutsu backend fully integrated and production-ready
 - ✅ Comprehensive multi-VCS test suite (23 tests)
 
-### v0.2 Features (In Progress)
+### v0.2 Features (COMPLETED! 🎉)
 - ✅ Sparse checkout for Git and Jujutsu (monorepo support - COMPLETED)
 - ✅ Config hierarchy (multi-level config merging - COMPLETED)
   - System: `/etc/hannahanna/config.yml`
@@ -53,7 +53,13 @@
   - Deep merge strategy: arrays append, primitives override
   - `hn config show` displays merged result with sources
   - 13 comprehensive tests covering all merge scenarios
-- ⏸️ Advanced hooks with conditions (v0.2+ - next priority)
+- ✅ Advanced hooks with conditions (COMPLETED)
+  - Simple string matching: `startsWith()`, `endsWith()`, `contains()`
+  - Conditional hooks for both `post_create` and `pre_remove`
+  - Supports both single and double quotes
+  - Conditional hooks merge across config hierarchy
+  - 9 comprehensive tests for all condition types
+  - Maintains full backwards compatibility with regular hooks
 
 ### What's Deferred to v0.3+
 - ⏸️ Sparse checkout for Mercurial (deferred to v0.3)
@@ -154,8 +160,14 @@ hannahanna/
 │   └── vision.md               # Long-term comprehensive plan
 └── Cargo.toml
 
-Total: ~5,600 lines (v0.1.0 + Phase 2 + Phase 3 + Phase 4 + v0.2 features)
-Test count: 211 tests (all passing - 186 v0.1.0 + 12 sparse checkout + 13 config hierarchy)
+Total: ~5,800 lines (v0.1.0 + Phase 2 + Phase 3 + Phase 4 + v0.2 features)
+Test count: 236 tests (all passing):
+  - 186 v0.1.0 core tests
+  - 12 sparse checkout tests
+  - 13 config hierarchy tests
+  - 10 unit tests for condition parsing/evaluation (hooks.rs)
+  - 9 integration tests for conditional hooks
+  - 6 enhanced integration tests for config+hooks merging
 ```
 
 ---
@@ -1161,7 +1173,7 @@ hooks:
 
 ## What's Next: Future Development
 
-### v0.2: Monorepo & Advanced Features (In Progress)
+### v0.2: Monorepo & Advanced Features (COMPLETED! 🎉)
 - ✅ Sparse checkout for large monorepos (Git and Jujutsu - COMPLETED)
   - Git: Full support via `git sparse-checkout` (cone mode)
   - Jujutsu: Full support via `jj sparse set`
@@ -1173,8 +1185,12 @@ hooks:
   - Deep merge strategy with intelligent array appending
   - Enhanced `hn config show` with source tracking
   - 13 comprehensive tests for merge behavior
-- ⏸️ Advanced hooks with conditions (NEXT PRIORITY)
-- ⏸️ Performance optimizations for 100+ worktrees
+- ✅ Advanced hooks with conditions (COMPLETED)
+  - Conditional execution based on branch patterns
+  - Three condition types: startsWith, endsWith, contains
+  - Full config hierarchy support (conditional hooks append across levels)
+  - 19 comprehensive tests (10 unit + 9 integration)
+  - Production-ready with graceful error handling
 
 ### v0.3: Extended VCS Support & Performance
 - ⏸️ Sparse checkout for Mercurial

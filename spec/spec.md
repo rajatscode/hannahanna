@@ -630,6 +630,42 @@ hooks:
     echo "App port: $WT_PORTS_APP"
 ```
 
+**Conditional Hooks:** (✅ v0.2)
+
+Run different hooks based on branch name patterns:
+
+```yaml
+hooks:
+  # Regular hook runs for all worktrees
+  post_create: "npm install"
+
+  # Conditional hooks run only when conditions match
+  post_create_conditions:
+    - condition: "branch.startsWith('feature-')"
+      command: "make setup-dev"
+    - condition: "branch.startsWith('hotfix-')"
+      command: "make setup-prod"
+    - condition: "branch.endsWith('-staging')"
+      command: "echo 'Staging environment' > .env"
+    - condition: "branch.contains('api')"
+      command: "docker compose up -d api-deps"
+
+  pre_remove_conditions:
+    - condition: "branch.startsWith('temp-')"
+      command: "echo 'Cleaning temporary resources...'"
+```
+
+**Supported Conditions:**
+- `branch.startsWith('prefix')` - Branch starts with prefix
+- `branch.endsWith('suffix')` - Branch ends with suffix
+- `branch.contains('substring')` - Branch contains substring
+
+**Features:**
+- Both regular and conditional hooks run (regular first, then matching conditionals)
+- Multiple conditional hooks can match and run
+- Conditional hooks merge across config hierarchy (system → user → repo → local)
+- Uses same timeout and environment variables as regular hooks
+
 ### 7.3 Aliases
 
 **Config:**
