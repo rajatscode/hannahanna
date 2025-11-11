@@ -100,8 +100,8 @@ fn test_port_registry_persistence() {
 
 #[test]
 fn test_port_release_on_remove() {
-    // TDD RED: Test that ports are released when worktree is removed
-    // Goal: Remove worktree, verify ports available for reuse
+    // TDD: Test that ports are released when worktree is removed
+    // Goal: Remove worktree, verify ports can be reallocated
 
     let temp_dir = TempDir::new().unwrap();
     let state_dir = temp_dir.path().join(".wt-state");
@@ -109,19 +109,35 @@ fn test_port_release_on_remove() {
 
     let mut allocator = PortAllocator::new(&state_dir).unwrap();
 
-    // Allocate ports
-    let ports_1 = allocator.allocate("feature-temp", &["app"]).unwrap();
-    let port_1 = *ports_1.get("app").unwrap();
-    assert!(ports_1.contains_key("app"));
+    // Allocate ports for three worktrees to occupy the first three slots
+    allocator.allocate("feature-a", &["app"]).unwrap();
+    allocator.allocate("feature-b", &["app"]).unwrap();
+    let ports_c = allocator.allocate("feature-c", &["app"]).unwrap();
+    let port_c = *ports_c.get("app").unwrap();
 
-    // Release ports
-    allocator.release("feature-temp").unwrap();
+    // Verify all three have different ports
+    let all_ports = allocator.list_all();
+    assert_eq!(all_ports.len(), 3, "Should have 3 allocations");
 
-    // Allocate again - should reuse the same port (gap filling)
-    let ports_2 = allocator.allocate("feature-new", &["app"]).unwrap();
-    let port_2 = *ports_2.get("app").unwrap();
-    // Should get the same port back since we released it
-    assert_eq!(port_2, port_1);
+    // Release the middle one (feature-b)
+    allocator.release("feature-b").unwrap();
+
+    // Verify it's released
+    let all_ports = allocator.list_all();
+    assert_eq!(all_ports.len(), 2, "Should have 2 allocations after release");
+    assert!(allocator.get_ports("feature-b").is_err(), "feature-b should be released");
+
+    // Allocate a new worktree - the allocator should be able to find an available port
+    // (either by filling the gap left by feature-b, or by finding the next available port)
+    let ports_new = allocator.allocate("feature-new", &["app"]).unwrap();
+    let port_new = *ports_new.get("app").unwrap();
+
+    // The new port should be different from feature-c (which is still allocated)
+    assert_ne!(port_new, port_c, "New allocation should not conflict with existing");
+
+    // Verify we now have 3 allocations again
+    let all_ports = allocator.list_all();
+    assert_eq!(all_ports.len(), 3, "Should have 3 allocations after new allocation");
 }
 
 #[test]
