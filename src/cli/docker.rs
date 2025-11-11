@@ -114,16 +114,18 @@ pub fn logs(name: String, service: Option<String>) -> Result<()> {
         return Err(crate::errors::HnError::WorktreeNotFound(name));
     }
 
-    // Allow deprecated - this is CLI display code, actual container operations use safe methods
-    #[allow(deprecated)]
-    let cmd = manager.build_logs_command(&name, &worktree_path, service.as_deref())?;
-    println!("Running: {}", cmd);
+    // Get safe command arguments (no shell injection)
+    let (program, args) = manager.get_logs_command(&name, service.as_deref())?;
+
+    println!("Following logs for '{}'...", name);
+    if let Some(svc) = &service {
+        println!("Service: {}", svc);
+    }
     println!("(Press Ctrl+C to exit)\n");
 
-    // Execute the logs command
-    std::process::Command::new("sh")
-        .arg("-c")
-        .arg(&cmd)
+    // Execute directly without shell - no injection risk
+    std::process::Command::new(&program)
+        .args(&args)
         .current_dir(&worktree_path)
         .status()?;
 

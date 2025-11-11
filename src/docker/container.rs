@@ -99,6 +99,9 @@ impl<'a> ContainerManager<'a> {
 
     /// Start containers for a worktree (secure, no command injection)
     pub fn start(&self, worktree_name: &str, worktree_path: &Path) -> Result<()> {
+        // Validate inputs
+        Self::validate_worktree_name(worktree_name)?;
+
         if !self.is_docker_available() {
             return Err(HnError::DockerError(
                 "Docker is not available. Please install Docker.".to_string(),
@@ -119,6 +122,9 @@ impl<'a> ContainerManager<'a> {
 
     /// Stop containers for a worktree (secure, no command injection)
     pub fn stop(&self, worktree_name: &str, worktree_path: &Path) -> Result<()> {
+        // Validate inputs
+        Self::validate_worktree_name(worktree_name)?;
+
         if !self.is_docker_available() {
             return Ok(()); // Silent success if Docker not available
         }
@@ -208,36 +214,66 @@ impl<'a> ContainerManager<'a> {
         Ok(args)
     }
 
-    /// Legacy: Build docker-compose up command string (for backward compatibility)
-    #[deprecated(note = "Use build_start_command_args for security")]
-    #[allow(dead_code)]
-    pub fn build_start_command(
+    /// Get logs command with variant detection (safe from injection)
+    /// Returns (program, args) tuple ready for direct execution
+    pub fn get_logs_command(
         &self,
         worktree_name: &str,
-        _worktree_path: &Path,
-    ) -> Result<String> {
-        let args = self.build_start_command_args(worktree_name)?;
-        Ok(format!("docker-compose {}", args.join(" ")))
-    }
-
-    /// Legacy: Build docker-compose down command string (for backward compatibility)
-    #[deprecated(note = "Use build_stop_command_args for security")]
-    #[allow(dead_code)]
-    pub fn build_stop_command(&self, worktree_name: &str, _worktree_path: &Path) -> Result<String> {
-        let args = self.build_stop_command_args(worktree_name)?;
-        Ok(format!("docker-compose {}", args.join(" ")))
-    }
-
-    /// Legacy: Build docker-compose logs command string (for backward compatibility)
-    #[deprecated(note = "Use build_logs_command_args for security")]
-    pub fn build_logs_command(
-        &self,
-        worktree_name: &str,
-        _worktree_path: &Path,
         service: Option<&str>,
-    ) -> Result<String> {
+    ) -> Result<(String, Vec<String>)> {
+        // Validate inputs
+        Self::validate_worktree_name(worktree_name)?;
+        if let Some(svc) = service {
+            Self::validate_service_name(svc)?;
+        }
+
         let args = self.build_logs_command_args(worktree_name, service)?;
-        Ok(format!("docker-compose {}", args.join(" ")))
+        Ok(self.get_compose_command(&args))
+    }
+
+    /// Validate worktree name for security
+    fn validate_worktree_name(name: &str) -> Result<()> {
+        // Check length
+        if name.is_empty() || name.len() > 255 {
+            return Err(HnError::DockerError(
+                "Worktree name must be between 1 and 255 characters".to_string(),
+            ));
+        }
+
+        // Check for dangerous characters
+        let dangerous_chars = [
+            '$', '`', '\\', '\n', '\r', ';', '|', '&', '<', '>', '(', ')', '{', '}',
+        ];
+        if name.chars().any(|c| dangerous_chars.contains(&c)) {
+            return Err(HnError::DockerError(
+                "Worktree name contains invalid characters".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Validate service name for security
+    fn validate_service_name(name: &str) -> Result<()> {
+        // Check length
+        if name.is_empty() || name.len() > 255 {
+            return Err(HnError::DockerError(
+                "Service name must be between 1 and 255 characters".to_string(),
+            ));
+        }
+
+        // Service names should be alphanumeric with hyphens and underscores only
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(HnError::DockerError(
+                "Service name must contain only alphanumeric characters, hyphens, and underscores"
+                    .to_string(),
+            ));
+        }
+
+        Ok(())
     }
 
     /// Clean up orphaned containers (for removed worktrees)
@@ -454,7 +490,7 @@ impl<'a> ContainerManager<'a> {
         }
     }
 
-    /// Execute a command safely without shell injection (recommended)
+    /// Execute a command safely without shell injection
     fn execute_command_safe(
         &self,
         program: &str,
@@ -463,25 +499,6 @@ impl<'a> ContainerManager<'a> {
     ) -> Result<()> {
         let output = Command::new(program)
             .args(args)
-            .current_dir(worktree_path)
-            .output()?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(HnError::DockerError(format!("Command failed: {}", stderr)));
-        }
-
-        Ok(())
-    }
-
-    /// Legacy: Execute a shell command in the worktree directory
-    /// WARNING: This is vulnerable to command injection, use execute_command_safe instead
-    #[deprecated(note = "Use execute_command_safe to prevent command injection")]
-    #[allow(dead_code)]
-    fn execute_command(&self, cmd: &str, worktree_path: &Path) -> Result<()> {
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(cmd)
             .current_dir(worktree_path)
             .output()?;
 
@@ -508,28 +525,5 @@ mod tests {
         assert_eq!(manager.get_project_name("feature-x"), "feature-x");
         assert_eq!(manager.get_project_name("feature/test"), "feature-test");
         assert_eq!(manager.get_project_name("my_feature"), "my-feature");
-    }
-
-    #[test]
-    #[allow(deprecated)] // Testing deprecated methods for backward compatibility
-    fn test_build_commands() {
-        let temp_dir = TempDir::new().unwrap();
-        let worktree_dir = temp_dir.path().join("feature-test");
-        std::fs::create_dir_all(&worktree_dir).unwrap();
-
-        let config = DockerConfig::default();
-        let manager = ContainerManager::new(&config, temp_dir.path()).unwrap();
-
-        let start_cmd = manager
-            .build_start_command("feature-test", &worktree_dir)
-            .unwrap();
-        assert!(start_cmd.contains("docker-compose"));
-        assert!(start_cmd.contains("up -d"));
-
-        let stop_cmd = manager
-            .build_stop_command("feature-test", &worktree_dir)
-            .unwrap();
-        assert!(stop_cmd.contains("docker-compose"));
-        assert!(stop_cmd.contains("down"));
     }
 }

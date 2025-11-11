@@ -55,61 +55,6 @@ fn test_get_container_status() {
 }
 
 #[test]
-#[allow(deprecated)] // Testing deprecated method for backward compatibility
-fn test_start_command_generation() {
-    // TDD RED: Test that we can generate docker-compose commands
-    // Goal: Build correct docker-compose up command
-
-    let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
-    let worktree_dir = temp_dir.path().join("worktrees").join("feature-cmd");
-    std::fs::create_dir_all(&worktree_dir).unwrap();
-    std::fs::create_dir_all(&state_dir).unwrap();
-
-    let config = DockerConfig::default();
-    let manager = ContainerManager::new(&config, &state_dir).unwrap();
-
-    // Generate start command
-    let cmd = manager.build_start_command("feature-cmd", &worktree_dir);
-    assert!(cmd.is_ok());
-
-    let command = cmd.unwrap();
-    assert!(
-        command.contains("docker-compose")
-            || command.contains("docker")
-            || command.contains("compose")
-    );
-}
-
-#[test]
-#[allow(deprecated)] // Testing deprecated method for backward compatibility
-fn test_stop_command_generation() {
-    // TDD RED: Test stop command generation
-    // Goal: Build correct docker-compose down command
-
-    let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
-    let worktree_dir = temp_dir.path().join("worktrees").join("feature-stop");
-    std::fs::create_dir_all(&worktree_dir).unwrap();
-    std::fs::create_dir_all(&state_dir).unwrap();
-
-    let config = DockerConfig::default();
-    let manager = ContainerManager::new(&config, &state_dir).unwrap();
-
-    // Generate stop command
-    let cmd = manager.build_stop_command("feature-stop", &worktree_dir);
-    assert!(cmd.is_ok());
-
-    let command = cmd.unwrap();
-    assert!(
-        command.contains("docker-compose")
-            || command.contains("docker")
-            || command.contains("compose")
-    );
-    assert!(command.contains("down") || command.contains("stop"));
-}
-
-#[test]
 fn test_project_name_generation() {
     // TDD: Test Docker Compose project name generation
     // Goal: Generate valid, unique project names for worktrees
@@ -158,24 +103,25 @@ fn test_cleanup_orphaned() {
 }
 
 #[test]
-#[allow(deprecated)] // Testing deprecated method for backward compatibility
-fn test_container_logs() {
-    // TDD RED: Test retrieving container logs
-    // Goal: Get logs for a specific worktree's containers
+fn test_get_logs_command() {
+    // Test safe logs command generation
+    // Goal: Get secure command arguments for viewing logs
 
     let temp_dir = TempDir::new().unwrap();
     let state_dir = temp_dir.path().join(".wt-state");
-    let worktree_dir = temp_dir.path().join("worktrees").join("feature-logs");
-    std::fs::create_dir_all(&worktree_dir).unwrap();
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let config = DockerConfig::default();
     let manager = ContainerManager::new(&config, &state_dir).unwrap();
 
-    // Build logs command
-    let cmd = manager.build_logs_command("feature-logs", &worktree_dir, None);
-    assert!(cmd.is_ok());
+    // Get logs command (safe from injection)
+    let result = manager.get_logs_command("feature-logs", None);
+    assert!(result.is_ok());
 
-    let command = cmd.unwrap();
-    assert!(command.contains("logs") || command.contains("docker"));
+    let (program, args) = result.unwrap();
+    // Should be either "docker" or "docker-compose"
+    assert!(program == "docker" || program == "docker-compose");
+    // Args should contain logs and project name
+    assert!(args.iter().any(|a| a == "logs"));
+    assert!(args.iter().any(|a| a.contains("feature-logs")));
 }
