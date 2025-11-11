@@ -1,7 +1,7 @@
 use crate::config::SharedResource;
 use crate::env::compatibility::CompatibilityChecker;
 use crate::env::validation;
-use crate::errors::{HnError, Result};
+use crate::errors::Result;
 use std::fs;
 use std::os::unix::fs as unix_fs;
 use std::path::{Path, PathBuf};
