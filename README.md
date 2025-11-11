@@ -109,6 +109,38 @@ Supports fuzzy matching:
 hn switch feat     # Matches "feature-x" if unique
 ```
 
+### `hn return [options]`
+
+Return to parent worktree with optional merge (requires shell integration).
+
+```bash
+# Switch back to parent worktree
+hn return
+
+# Merge current branch into parent before returning
+hn return --merge
+
+# Merge, return, and delete current worktree
+hn return --merge --delete
+
+# Force merge commit (no fast-forward)
+hn return --merge --no-ff
+```
+
+**Perfect for nested workflows:**
+```bash
+hn add feature-payment
+hn add fix-validation-bug    # Child of feature-payment
+# ... fix bug, commit ...
+hn return --merge             # Merge into feature-payment
+# ... continue feature work
+```
+
+**Options:**
+- `--merge` - Merge current branch into parent before returning
+- `--delete` - Delete current worktree after merging (requires `--merge`)
+- `--no-ff` - Force merge commit (no fast-forward)
+
 ### `hn info [name]`
 
 Show detailed information about a worktree.
@@ -151,6 +183,30 @@ Clean up orphaned state directories from deleted worktrees.
 ```bash
 hn prune
 ```
+
+### `hn config <subcommand>`
+
+Manage configuration files.
+
+```bash
+# Create a new configuration file with template
+hn config init
+
+# Validate configuration syntax
+hn config validate
+
+# Show current configuration
+hn config show
+
+# Edit configuration in $EDITOR
+hn config edit
+```
+
+**Subcommands:**
+- `init` - Create `.hannahanna.yml` with comprehensive template
+- `validate` - Check configuration syntax and show summary
+- `show` - Display current configuration as YAML
+- `edit` - Open config in `$EDITOR` and validate after saving
 
 ## Configuration
 
@@ -323,6 +379,28 @@ hn remove review-pr-123
 
 ## Advanced Features
 
+### Helpful Error Messages
+
+hannahanna provides context-aware error messages with actionable suggestions:
+
+```bash
+$ hn add feature-x
+Error: Worktree 'feature-x' already exists
+
+Suggestions:
+  • Remove existing: hn remove feature-x
+  • Use different name: hn add feature-x-v2
+  • Switch to existing: hn switch feature-x
+```
+
+Error suggestions cover common scenarios:
+- Worktree already exists → Remove, rename, or switch options
+- Worktree not found → List all, check spelling, create new
+- Uncommitted changes → Commit, stash, or force remove
+- No parent → Explains parent tracking, suggests alternatives
+- Port conflicts → Port management commands
+- Docker issues → Installation and permission fixes
+
 ### Fuzzy Matching
 
 Most commands support fuzzy name matching:
@@ -392,23 +470,32 @@ my-project/              # Main repository
 
 ## Development Status
 
-**Current Version:** 0.1 (MVP)
+**Current Version:** 0.1+ (MVP + Enhancements)
 
-**Implemented (Phase 1-2):**
-- ✅ Git worktree management
-- ✅ Parent/child tracking
+**Implemented:**
+- ✅ Git worktree management (add, list, remove, switch, info, prune)
+- ✅ Parent/child tracking with nested workflow support
+- ✅ `return` command for merging back to parent
 - ✅ Fuzzy name matching
 - ✅ Shared resource symlinks with compatibility checking
 - ✅ File copying for templates
-- ✅ Lifecycle hooks
-- ✅ State management
+- ✅ Lifecycle hooks (post_create, pre_remove)
+- ✅ State management with file locking
+- ✅ **Docker integration** (ahead of schedule!)
+  - Port allocation system
+  - Container lifecycle management
+  - Docker Compose override generation
+- ✅ **Config management commands** (init/validate/show/edit)
+- ✅ **Helpful error messages with actionable suggestions**
+
+**Test Coverage:** 193 tests passing, ~80% coverage
 
 **Planned for v0.2:**
-- Docker integration
-- Port allocation system
 - Advanced hook conditions
+- Multi-VCS support (Mercurial, Jujutsu)
+- Sparse checkout for monorepos
 
-**See:** [`spec/plan.md`](spec/plan.md) for detailed roadmap
+**See:** [`spec/plan.md`](spec/plan.md) and [`spec/spec.md`](spec/spec.md) for detailed roadmap
 
 ## Contributing
 
