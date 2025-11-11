@@ -210,15 +210,14 @@ fn test_parse_timeout_invalid_format() {
     let manager = ContainerManager::new(&config, &state_dir).unwrap();
 
     let invalid_timeouts = vec![
-        "invalid",
-        "30x",        // Invalid unit
-        "abc",        // Not a number
-        "",           // Empty string
-        "30h",        // Hours not supported
-        "1.5m",       // Decimals not supported (if applicable)
-        "30 s",       // Space not allowed
-        "-30s",       // Negative not allowed
-        "s30",        // Unit before number
+        "invalid", "30x",  // Invalid unit
+        "abc",  // Not a number
+        "",     // Empty string
+        "30h",  // Hours not supported
+        "1.5m", // Decimals not supported (if applicable)
+        "30 s", // Space not allowed
+        "-30s", // Negative not allowed
+        "s30",  // Unit before number
     ];
 
     for timeout_str in invalid_timeouts {
@@ -265,7 +264,10 @@ fn test_health_check_manager_creation() {
     let config = DockerConfig::default();
     let manager = ContainerManager::new(&config, &state_dir);
 
-    assert!(manager.is_ok(), "Manager should be created with default health check config");
+    assert!(
+        manager.is_ok(),
+        "Manager should be created with default health check config"
+    );
 }
 
 // ============================================================================

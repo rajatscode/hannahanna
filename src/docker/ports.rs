@@ -149,16 +149,19 @@ impl PortAllocator {
         // Ensure directory exists
         fs::create_dir_all(&self.state_dir)?;
 
-        // Open file for writing with exclusive lock
+        // Open file WITHOUT truncate first (we'll truncate after acquiring lock)
         let file = OpenOptions::new()
             .write(true)
             .create(true)
-            .truncate(true)
+            .truncate(false)
             .open(&registry_path)?;
 
         // Acquire exclusive lock (blocks until lock is available)
         file.lock_exclusive()
             .map_err(|e| HnError::DockerError(format!("Failed to lock registry file: {}", e)))?;
+
+        // Now that we have the lock, truncate the file
+        file.set_len(0)?;
 
         let yaml = serde_yml::to_string(&self.registry)
             .map_err(|e| HnError::DockerError(format!("Failed to serialize registry: {}", e)))?;
@@ -318,7 +321,10 @@ mod tests {
         }
 
         // All allocations should succeed (no panics or errors)
-        assert_eq!(success_count, 5, "All concurrent allocations should succeed");
+        assert_eq!(
+            success_count, 5,
+            "All concurrent allocations should succeed"
+        );
 
         // Verify registry file is valid (not corrupted by concurrent writes)
         let final_allocator = PortAllocator::new(&state_dir).unwrap();
@@ -355,7 +361,10 @@ mod tests {
 
         // Verify registry file exists
         let registry_path = temp_dir.path().join("port-registry.yaml");
-        assert!(registry_path.exists(), "Registry file should exist after save");
+        assert!(
+            registry_path.exists(),
+            "Registry file should exist after save"
+        );
 
         // Verify we can load it back
         let loaded_allocator = PortAllocator::new(temp_dir.path()).unwrap();
@@ -454,7 +463,10 @@ mod tests {
             .expect("Registry should be valid YAML (not corrupted) after concurrent writes");
 
         // Verify structure
-        assert!(parsed.get("allocations").is_some(), "Registry should have allocations field");
+        assert!(
+            parsed.get("allocations").is_some(),
+            "Registry should have allocations field"
+        );
 
         // Verify we have at least one allocation (file locking prevented total corruption)
         let final_allocator = PortAllocator::new(&state_dir).unwrap();
@@ -544,7 +556,8 @@ mod tests {
         let final_allocator = PortAllocator::new(&state_dir).unwrap();
         let allocations = final_allocator.list_all();
 
-        let allocation_names: Vec<String> = allocations.iter().map(|(name, _)| name.clone()).collect();
+        let allocation_names: Vec<String> =
+            allocations.iter().map(|(name, _)| name.clone()).collect();
         assert!(
             allocation_names.contains(&"thread1".to_string()),
             "First allocation should be present"

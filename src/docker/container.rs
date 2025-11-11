@@ -542,7 +542,7 @@ mod tests {
             "my.branch",
             "test_branch",
             "Feature-Branch",
-            "a", // minimum length
+            "a",                      // minimum length
             max_length_name.as_str(), // maximum length
         ];
 
@@ -629,18 +629,18 @@ mod tests {
     fn test_validate_worktree_name_command_injection_attempts() {
         // Test specific command injection attack vectors
         let attack_vectors = vec![
-            "test$(rm -rf /)",           // Command substitution
-            "test`whoami`",               // Backtick execution
-            "test; rm -rf /",             // Command chaining
-            "test | sh",                  // Pipe to shell
-            "test & malicious",           // Background execution
-            "test > /etc/passwd",         // Output redirection
-            "test < /etc/passwd",         // Input redirection
-            "(malicious)",                // Subshell
-            "{malicious; commands}",      // Command grouping
-            "test\nrm -rf /",             // Newline injection
-            "test\rmalicious",            // Carriage return injection
-            "test\\ninjection",           // Escape sequence
+            "test$(rm -rf /)",       // Command substitution
+            "test`whoami`",          // Backtick execution
+            "test; rm -rf /",        // Command chaining
+            "test | sh",             // Pipe to shell
+            "test & malicious",      // Background execution
+            "test > /etc/passwd",    // Output redirection
+            "test < /etc/passwd",    // Input redirection
+            "(malicious)",           // Subshell
+            "{malicious; commands}", // Command grouping
+            "test\nrm -rf /",        // Newline injection
+            "test\rmalicious",       // Carriage return injection
+            "test\\ninjection",      // Escape sequence
         ];
 
         for attack in attack_vectors {
@@ -666,7 +666,7 @@ mod tests {
             "worker_2",
             "MyService",
             "Service-Name_123",
-            "a", // minimum length
+            "a",                      // minimum length
             max_length_name.as_str(), // maximum length
         ];
 
