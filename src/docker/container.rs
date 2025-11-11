@@ -86,9 +86,25 @@ impl<'a> ContainerManager<'a> {
     }
 
     /// Get Docker Compose project name for a worktree
+    /// Docker project names must be lowercase alphanumeric with hyphens only
     pub fn get_project_name(&self, worktree_name: &str) -> String {
-        // Sanitize name for Docker (replace invalid characters)
-        worktree_name.replace('/', "-").replace('_', "-")
+        // Sanitize name for Docker Compose project name requirements:
+        // - Lowercase only
+        // - Alphanumeric and hyphens
+        // - Cannot start/end with hyphen
+        let sanitized = worktree_name
+            .to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '-' })
+            .collect::<String>();
+
+        // Remove leading/trailing hyphens and collapse multiple hyphens
+        sanitized
+            .trim_matches('-')
+            .split('-')
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+            .join("-")
     }
 
     /// Build docker-compose up command

@@ -69,7 +69,7 @@ impl<'a> ComposeGenerator<'a> {
             for volume in &self.config.isolated.volumes {
                 let volume_name = format!("{}-{}", worktree_name, volume);
                 output.push_str(&format!("  {}:\n", volume_name));
-                output.push_str("    name: {}\n");
+                output.push_str(&format!("    name: {}\n", volume_name));
             }
         }
 

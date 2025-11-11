@@ -3,7 +3,7 @@
 
 use crate::errors::{HnError, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -23,6 +23,8 @@ pub struct PortAllocator {
     base_ports: HashMap<String, u16>,
     port_range_start: u16,
     port_range_end: u16,
+    /// Cached set of used ports for O(1) lookup
+    used_ports: HashSet<u16>,
 }
 
 impl PortAllocator {
@@ -35,12 +37,20 @@ impl PortAllocator {
 
         let registry = Self::load_registry(state_dir).unwrap_or_default();
 
+        // Build inverse index of used ports for O(1) lookup
+        let used_ports = registry
+            .allocations
+            .values()
+            .flat_map(|services| services.values().copied())
+            .collect();
+
         Ok(Self {
             state_dir: state_dir.to_path_buf(),
             registry,
             base_ports,
             port_range_start: 3000,
             port_range_end: 9999,
+            used_ports,
         })
     }
 
@@ -53,6 +63,7 @@ impl PortAllocator {
     }
 
     /// Allocate ports for a worktree's services
+    /// Uses transaction-like semantics: all services get ports or none do
     pub fn allocate(&mut self, worktree_name: &str, services: &[&str]) -> Result<HashMap<String, u16>> {
         // Check if already allocated
         if let Some(existing) = self.registry.allocations.get(worktree_name) {
@@ -60,13 +71,26 @@ impl PortAllocator {
         }
 
         let mut allocated_ports = HashMap::new();
+        let mut temp_used_ports = Vec::new();
 
+        // Allocate all ports first (transaction phase)
         for service in services {
-            let port = self.allocate_port_for_service(service)?;
-            allocated_ports.insert(service.to_string(), port);
+            match self.allocate_port_for_service(service) {
+                Ok(port) => {
+                    allocated_ports.insert(service.to_string(), port);
+                    temp_used_ports.push(port);
+                }
+                Err(e) => {
+                    // Rollback: remove temporarily allocated ports from cache
+                    for port in temp_used_ports {
+                        self.used_ports.remove(&port);
+                    }
+                    return Err(e);
+                }
+            }
         }
 
-        // Store allocation
+        // All allocations successful - commit the transaction
         self.registry.allocations.insert(worktree_name.to_string(), allocated_ports.clone());
 
         // Auto-save after allocation
@@ -86,7 +110,11 @@ impl PortAllocator {
 
     /// Release ports when a worktree is removed
     pub fn release(&mut self, worktree_name: &str) -> Result<()> {
-        if self.registry.allocations.remove(worktree_name).is_some() {
+        if let Some(ports) = self.registry.allocations.remove(worktree_name) {
+            // Remove ports from used_ports cache
+            for port in ports.values() {
+                self.used_ports.remove(port);
+            }
             self.save()?;
         }
         Ok(())
@@ -135,7 +163,8 @@ impl PortAllocator {
         // Get base port for this service
         let base_port = self.base_ports.get(service).copied().unwrap_or(3000);
 
-        // Start from base port to find any gaps from released ports
+        // Always start from base port to fill gaps (released ports)
+        // The HashSet lookup is O(1) so this is still efficient
         let mut port = base_port;
 
         loop {
@@ -146,13 +175,10 @@ impl PortAllocator {
                 )));
             }
 
-            // Check if this port is already allocated
-            let port_used = self.registry.allocations.values().any(|services| {
-                services.values().any(|&p| p == port)
-            });
-
-            if !port_used {
-                // Found an available port
+            // O(1) lookup using HashSet instead of O(n) iteration
+            if !self.used_ports.contains(&port) {
+                // Found an available port - add to cache and update next_available
+                self.used_ports.insert(port);
                 self.registry.next_available.insert(service.to_string(), port + 1);
                 return Ok(port);
             }

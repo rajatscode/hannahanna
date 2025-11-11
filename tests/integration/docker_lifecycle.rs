@@ -21,8 +21,8 @@ fn test_container_manager_creation() {
 
 #[test]
 fn test_check_docker_available() {
-    // TDD RED: Test Docker availability check
-    // Goal: Detect if Docker is installed and running
+    // TDD: Test Docker availability check
+    // Goal: Verify method returns bool and doesn't crash
 
     let temp_dir = TempDir::new().unwrap();
     let state_dir = temp_dir.path().join(".wt-state");
@@ -31,11 +31,10 @@ fn test_check_docker_available() {
     let config = DockerConfig::default();
     let manager = ContainerManager::new(&config, &state_dir).unwrap();
 
-    // Check if Docker is available (may be false in test environment)
-    let is_available = manager.is_docker_available();
-    // Don't assert specific value as Docker may not be installed in test env
-    // Just verify the method exists and returns bool
-    assert!(is_available == true || is_available == false);
+    // Verify method executes successfully
+    // Value depends on test environment (Docker installed or not)
+    let _is_available = manager.is_docker_available();
+    // No assertion - just verify no crash
 }
 
 #[test]
@@ -104,7 +103,7 @@ fn test_stop_command_generation() {
 
 #[test]
 fn test_list_all_containers() {
-    // TDD RED: Test listing all containers across worktrees
+    // TDD: Test listing all containers across worktrees
     // Goal: Get status of all worktree containers
 
     let temp_dir = TempDir::new().unwrap();
@@ -114,19 +113,19 @@ fn test_list_all_containers() {
     let config = DockerConfig::default();
     let manager = ContainerManager::new(&config, &state_dir).unwrap();
 
-    // List all containers
+    // List all containers (currently stub returns empty list)
     let containers = manager.list_all();
     assert!(containers.is_ok());
 
-    // Should return a list (may be empty)
+    // Verify returns Vec (currently empty - stub implementation)
     let list = containers.unwrap();
-    assert!(list.len() >= 0);
+    assert_eq!(list.len(), 0, "Stub implementation should return empty list");
 }
 
 #[test]
 fn test_project_name_generation() {
-    // TDD RED: Test Docker Compose project name generation
-    // Goal: Generate unique project names for worktrees
+    // TDD: Test Docker Compose project name generation
+    // Goal: Generate valid, unique project names for worktrees
 
     let temp_dir = TempDir::new().unwrap();
     let state_dir = temp_dir.path().join(".wt-state");
@@ -141,8 +140,15 @@ fn test_project_name_generation() {
 
     // Names should be different and based on worktree name
     assert_ne!(name1, name2);
-    assert!(name1.contains("feature-one") || name1.contains("feature_one"));
-    assert!(name2.contains("feature-two") || name2.contains("feature_two"));
+    assert_eq!(name1, "feature-one"); // Should preserve simple names
+    assert_eq!(name2, "feature-two");
+
+    // Test special character sanitization
+    let name_special = manager.get_project_name("Feature_Test/Branch");
+    assert_eq!(name_special, "feature-test-branch"); // lowercase, no underscores/slashes
+    assert!(name_special.chars().all(|c| c.is_alphanumeric() || c == '-'));
+    assert!(!name_special.starts_with('-'));
+    assert!(!name_special.ends_with('-'));
 }
 
 #[test]
