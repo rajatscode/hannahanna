@@ -1,6 +1,10 @@
 #!/bin/sh
 # Pre-commit hook for hannahanna
 # Runs rustfmt and clippy to ensure code quality
+#
+# Note: Tests are not run in pre-commit hooks to avoid conflicts
+# with git operations and to keep commits fast. Tests should be run
+# manually before pushing and will be validated in CI.
 
 set -e
 
@@ -24,4 +28,6 @@ if ! cargo clippy --all-targets --all-features -- -D warnings; then
 fi
 echo "✓ Clippy checks passed"
 
+echo ""
+echo "💡 Tip: Run 'cargo test' before pushing to ensure all tests pass"
 echo "✅ All pre-commit checks passed!"

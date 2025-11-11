@@ -1,0 +1,21 @@
+#!/bin/sh
+# Pre-push hook for hannahanna
+# Runs the full test suite before pushing to ensure nothing breaks
+
+set -e
+
+echo ""
+echo "🧪 Running tests before push..."
+echo ""
+
+# Run all tests
+if ! cargo test; then
+    echo ""
+    echo "❌ Tests failed!"
+    echo "   Fix failing tests before pushing."
+    echo "   Use 'cargo test' to run tests manually."
+    exit 1
+fi
+
+echo ""
+echo "✅ All tests passed! Pushing to remote..."

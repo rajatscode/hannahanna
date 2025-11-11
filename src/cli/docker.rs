@@ -95,6 +95,32 @@ pub fn stop(name: String) -> Result<()> {
     Ok(())
 }
 
+/// Restart Docker containers for a worktree
+pub fn restart(name: String) -> Result<()> {
+    let repo_root = Config::find_repo_root(&env::current_dir()?)?;
+    let config = Config::load(&repo_root)?;
+    let state_dir = repo_root.join(".wt-state");
+
+    if !config.docker.enabled {
+        return Err(crate::errors::HnError::DockerError(
+            "Docker support is not enabled in .hannahanna.yml".to_string(),
+        ));
+    }
+
+    let manager = ContainerManager::new(&config.docker, &state_dir)?;
+    let worktree_path = repo_root.join("worktrees").join(&name);
+
+    if !worktree_path.exists() {
+        return Err(crate::errors::HnError::WorktreeNotFound(name));
+    }
+
+    println!("Restarting containers for '{}'...", name);
+    manager.restart(&name, &worktree_path)?;
+    println!("✓ Containers restarted for '{}'", name);
+
+    Ok(())
+}
+
 /// View logs for a worktree's containers
 pub fn logs(name: String, service: Option<String>) -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;

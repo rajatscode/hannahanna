@@ -48,6 +48,15 @@ impl GitBackend {
         Ok(Self { repo })
     }
 
+    /// Get the repository root path
+    pub fn repo_root(&self) -> Result<std::path::PathBuf> {
+        Ok(self
+            .repo
+            .workdir()
+            .ok_or_else(|| HnError::Git(git2::Error::from_str("Could not get repo workdir")))?
+            .to_path_buf())
+    }
+
     /// Create a new git worktree
     pub fn create_worktree(
         &self,

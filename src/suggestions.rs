@@ -176,6 +176,58 @@ pub fn display_error_with_suggestions(error: &HnError) {
             );
         }
 
+        HnError::CommandFailed(msg) => {
+            eprintln!("\n{}:", "Suggestions".bright_yellow());
+            if msg.contains("each") {
+                eprintln!("  • Check command syntax");
+                eprintln!(
+                    "  • Run command manually in worktree to debug: {}",
+                    "cd <worktree-path> && <command>".bright_cyan()
+                );
+                eprintln!(
+                    "  • Use {} to stop on first error",
+                    "--stop-on-error".bright_cyan()
+                );
+                eprintln!(
+                    "  • Use {} to filter worktrees",
+                    "--filter=<pattern>".bright_cyan()
+                );
+            } else {
+                eprintln!("  • Check command output for details");
+                eprintln!("  • Ensure command is available in PATH");
+            }
+        }
+
+        HnError::SymlinkError(msg) => {
+            eprintln!("\n{}:", "Suggestions".bright_yellow());
+            eprintln!(
+                "  • Check {} configuration",
+                ".hannahanna.yml".bright_cyan()
+            );
+            if msg.contains("permission") {
+                eprintln!("  • Check file permissions on source directory");
+                eprintln!("  • Ensure you have write access to worktree directory");
+            } else if msg.contains("exists") {
+                eprintln!("  • Remove existing file/directory before creating symlink");
+                eprintln!("  • Or disable symlink in configuration");
+            }
+        }
+
+        HnError::CopyError(msg) => {
+            eprintln!("\n{}:", "Suggestions".bright_yellow());
+            eprintln!(
+                "  • Check {} configuration",
+                ".hannahanna.yml".bright_cyan()
+            );
+            if msg.contains("permission") {
+                eprintln!("  • Check file permissions");
+                eprintln!("  • Ensure source file exists and is readable");
+            } else if msg.contains("not found") {
+                eprintln!("  • Verify source file path in configuration");
+                eprintln!("  • Use absolute paths or paths relative to repo root");
+            }
+        }
+
         _ => {
             // No specific suggestions for this error type
         }
