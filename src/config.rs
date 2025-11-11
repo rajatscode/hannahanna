@@ -8,6 +8,8 @@ pub struct Config {
     #[serde(default)]
     pub shared_resources: Vec<SharedResource>,
     #[serde(default)]
+    pub shared: Option<SharedConfig>,
+    #[serde(default)]
     pub hooks: HooksConfig,
 }
 
@@ -17,6 +19,49 @@ pub struct SharedResource {
     pub target: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compatibility: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct SharedConfig {
+    #[serde(default, deserialize_with = "deserialize_copy_list")]
+    pub copy: Vec<CopyResource>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CopyResource {
+    pub source: String,
+    pub target: String,
+}
+
+/// Custom deserializer for copy list that handles "source -> target" format
+fn deserialize_copy_list<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Vec<CopyResource>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+
+    let items: Vec<String> = Vec::deserialize(deserializer)?;
+    let mut resources = Vec::new();
+
+    for item in items {
+        // Parse "source -> target" format
+        let parts: Vec<&str> = item.split("->").map(|s| s.trim()).collect();
+        if parts.len() != 2 {
+            return Err(D::Error::custom(format!(
+                "Invalid copy format '{}'. Expected 'source -> target'",
+                item
+            )));
+        }
+
+        resources.push(CopyResource {
+            source: parts[0].to_string(),
+            target: parts[1].to_string(),
+        });
+    }
+
+    Ok(resources)
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]

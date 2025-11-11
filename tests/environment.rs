@@ -183,11 +183,7 @@ fn test_no_symlinks_without_config() {
     }
 }
 
-// TODO: Implement file copying from config
-// The file copy feature needs to be implemented in src/cli/add.rs
-// to read the config and copy files as specified in shared.copy
 #[test]
-#[ignore = "Feature not implemented: file copying from config"]
 fn test_file_copying() {
     let repo = TestRepo::new();
 
