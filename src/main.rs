@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 
 mod cli;
+mod clock;
 mod config;
 mod docker;
 mod env;
