@@ -67,7 +67,7 @@ where
     Ok(resources)
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct HooksConfig {
     pub post_create: Option<String>,
     pub pre_remove: Option<String>,

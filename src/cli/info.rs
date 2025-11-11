@@ -1,3 +1,6 @@
+use crate::config::Config;
+use crate::docker::container::ContainerManager;
+use crate::docker::ports::PortAllocator;
 use crate::errors::Result;
 use crate::fuzzy;
 use crate::vcs::git::GitBackend;
@@ -75,6 +78,49 @@ pub fn run(name: Option<String>) -> Result<()> {
                 status.untracked,
                 if status.untracked == 1 { "" } else { "s" }
             );
+        }
+    }
+
+    // Docker information
+    let repo_root = Config::find_repo_root(&env::current_dir()?)?;
+    let config = Config::load(&repo_root)?;
+
+    if config.docker.enabled {
+        println!();
+        println!("Docker:");
+
+        let state_dir = repo_root.join(".wt-state");
+
+        // Port allocations
+        match PortAllocator::new(&state_dir) {
+            Ok(allocator) => {
+                if let Ok(ports) = allocator.get_ports(&worktree.name) {
+                    println!("  Ports:");
+                    for (service, port) in ports {
+                        println!("    {}: {}", service, port);
+                    }
+                } else {
+                    println!("  Ports: Not allocated");
+                }
+            }
+            Err(_) => {
+                println!("  Ports: Error reading port allocations");
+            }
+        }
+
+        // Container status
+        match ContainerManager::new(&config.docker, &state_dir) {
+            Ok(manager) => {
+                if let Ok(status) = manager.get_status(&worktree.name, &worktree.path) {
+                    let status_str = if status.running { "Running" } else { "Stopped" };
+                    println!("  Containers: {}", status_str);
+                } else {
+                    println!("  Containers: Unknown");
+                }
+            }
+            Err(_) => {
+                println!("  Containers: Error");
+            }
         }
     }
 

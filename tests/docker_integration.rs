@@ -3,4 +3,6 @@
 
 mod integration {
     pub mod port_allocation;
+    pub mod docker_compose;
+    pub mod docker_lifecycle;
 }

@@ -1,4 +1,7 @@
 use crate::config::Config;
+use crate::docker::compose::ComposeGenerator;
+use crate::docker::container::ContainerManager;
+use crate::docker::ports::PortAllocator;
 use crate::env::validation;
 use crate::errors::Result;
 use crate::fuzzy;
@@ -39,9 +42,33 @@ pub fn run(name: String, force: bool) -> Result<()> {
 
     if config.hooks.pre_remove.is_some() {
         println!("Running pre_remove hook...");
-        let hook_executor = HookExecutor::new(config.hooks);
+        let hook_executor = HookExecutor::new(config.hooks.clone());
         hook_executor.run_hook(HookType::PreRemove, &worktree, &state_dir)?;
         println!("✓ Hook completed successfully");
+    }
+
+    // Docker cleanup
+    if config.docker.enabled {
+        println!("Cleaning up Docker resources...");
+
+        let state_dir_path = repo_root.join(".wt-state");
+
+        // Stop containers
+        let container_mgr = ContainerManager::new(&config.docker, &state_dir_path)?;
+        match container_mgr.stop(&matched_name, &worktree.path) {
+            Ok(_) => println!("✓ Containers stopped"),
+            Err(e) => println!("⚠ Failed to stop containers: {}", e),
+        }
+
+        // Release ports
+        let mut port_allocator = PortAllocator::new(&state_dir_path)?;
+        port_allocator.release(&matched_name)?;
+        println!("✓ Ports released");
+
+        // Remove override file
+        let compose_gen = ComposeGenerator::new(&config.docker, &state_dir_path);
+        compose_gen.delete(&matched_name)?;
+        println!("✓ Docker configuration removed");
     }
 
     // Remove the worktree

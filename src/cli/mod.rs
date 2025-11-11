@@ -1,4 +1,5 @@
 pub mod add;
+pub mod docker;
 pub mod info;
 pub mod init_shell;
 pub mod list;
