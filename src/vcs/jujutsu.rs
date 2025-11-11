@@ -2,7 +2,7 @@
 /// Uses native `jj workspace` commands
 use crate::errors::{HnError, Result};
 use crate::vcs::traits::{VcsBackend, VcsType};
-use crate::vcs::{git::WorktreeStatus, Worktree};
+use crate::vcs::{WorkspaceStatus, Worktree};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -244,7 +244,7 @@ impl VcsBackend for JujutsuBackend {
         Err(HnError::NotInRepository)
     }
 
-    fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorktreeStatus> {
+    fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorkspaceStatus> {
         let output = Command::new("jj")
             .args(["status"])
             .current_dir(worktree_path)
@@ -257,7 +257,7 @@ impl VcsBackend for JujutsuBackend {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let mut status = WorktreeStatus {
+        let mut status = WorkspaceStatus {
             modified: 0,
             added: 0,
             deleted: 0,

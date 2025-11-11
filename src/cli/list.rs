@@ -1,11 +1,14 @@
 use crate::errors::Result;
-use crate::vcs::git::GitBackend;
-use crate::vcs::{short_commit, Worktree};
+use crate::vcs::{init_backend_from_current_dir, short_commit, VcsType, Worktree};
 use std::collections::HashMap;
 
-pub fn run(tree: bool) -> Result<()> {
-    let git = GitBackend::open_from_current_dir()?;
-    let worktrees = git.list_worktrees()?;
+pub fn run(tree: bool, vcs_type: Option<VcsType>) -> Result<()> {
+    let backend = if let Some(vcs) = vcs_type {
+        crate::vcs::init_backend_with_detection(&std::env::current_dir()?, Some(vcs))?
+    } else {
+        init_backend_from_current_dir()?
+    };
+    let worktrees = backend.list_workspaces()?;
 
     if tree {
         // Tree view with parent/child relationships

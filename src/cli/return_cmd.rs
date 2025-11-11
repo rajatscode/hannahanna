@@ -1,10 +1,16 @@
 // Return command: Switch back to parent worktree with optional merge
 use crate::errors::{HnError, Result};
-use crate::vcs::git::GitBackend;
+use crate::vcs::{init_backend_from_current_dir, VcsType};
 use std::env;
 use std::process::Command;
 
-pub fn run(merge: bool, delete: bool, no_ff: bool, no_hooks: bool) -> Result<()> {
+pub fn run(
+    merge: bool,
+    delete: bool,
+    no_ff: bool,
+    no_hooks: bool,
+    vcs_type: Option<VcsType>,
+) -> Result<()> {
     // Validate flag combinations
     if delete && !merge {
         return Err(HnError::ConfigError(
@@ -18,10 +24,14 @@ pub fn run(merge: bool, delete: bool, no_ff: bool, no_hooks: bool) -> Result<()>
         ));
     }
 
-    let git = GitBackend::open_from_current_dir()?;
+    let backend = if let Some(vcs) = vcs_type {
+        crate::vcs::init_backend_with_detection(&env::current_dir()?, Some(vcs))?
+    } else {
+        init_backend_from_current_dir()?
+    };
 
     // Get current worktree
-    let current_worktree = git.get_current_worktree()?;
+    let current_worktree = backend.get_current_workspace()?;
 
     // Check if current worktree has a parent
     let parent_name = current_worktree
@@ -29,7 +39,7 @@ pub fn run(merge: bool, delete: bool, no_ff: bool, no_hooks: bool) -> Result<()>
         .ok_or_else(|| HnError::NoParent(current_worktree.name.clone()))?;
 
     // Get parent worktree info
-    let worktrees = git.list_worktrees()?;
+    let worktrees = backend.list_workspaces()?;
     let parent = worktrees
         .iter()
         .find(|wt| wt.name == parent_name)
@@ -84,7 +94,7 @@ pub fn run(merge: bool, delete: bool, no_ff: bool, no_hooks: bool) -> Result<()>
         env::set_current_dir(&parent.path)?;
 
         // Remove the worktree
-        crate::cli::remove::run(current_worktree.name.clone(), false, no_hooks)?;
+        crate::cli::remove::run(current_worktree.name.clone(), false, no_hooks, vcs_type)?;
 
         eprintln!("✓ Worktree deleted");
     }

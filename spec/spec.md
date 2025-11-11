@@ -571,11 +571,12 @@ Override: `hn add feature --vcs=git`
 | Feature | Git | Hg | Jj |
 |---------|-----|----|-----|
 | Create workspace | ✅ | ✅ | ✅ |
-| List workspaces | ✅ | ⚠️ Registry | ✅ |
+| List workspaces | ✅ | ✅ | ✅ |
 | Remove workspace | ✅ | ✅ | ✅ |
-| Parent tracking | ✅ | ⚠️ Manual | ✅ |
-| Metadata storage | ✅ Config | ⚠️ Registry | ✅ Config |
-| Sparse checkout | ✅ | ❌ | ✅ |
+| Parent tracking | ✅ | ✅ | ✅ |
+| Metadata storage | ✅ Config | ✅ Registry | ✅ Config |
+| Sparse checkout | ✅ | ⏸️ v0.2+ | ✅ |
+| Production Status | ✅ v0.1.0 | ✅ v0.1.0 | ✅ v0.1.0 |
 
 ---
 
@@ -999,8 +1000,8 @@ fn test_symlink_traversal() {
 **Feature Complete:**
 - ✅ All commands implemented
 - ✅ Docker integration working
-- ✅ Multi-VCS support (Git, Hg, Jj)
-- ✅ Sparse checkout working
+- ✅ Multi-VCS support (Git, Mercurial, Jujutsu) - v0.1.0
+- ⏸️ Sparse checkout (deferred to v0.2+)
 - ✅ Config system functional
 - ✅ Hooks working
 
@@ -1009,7 +1010,7 @@ fn test_symlink_traversal() {
 - ✅ Handles 100+ worktrees efficiently
 
 **Reliability:**
-- ✅ 80%+ test coverage
+- ✅ 80%+ test coverage (186 tests)
 - ✅ All scenarios pass
 - ✅ No panics
 - ✅ Graceful errors

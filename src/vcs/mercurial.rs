@@ -2,7 +2,7 @@
 /// Uses `hg share` for workspace creation and registry for tracking
 use crate::errors::{HnError, Result};
 use crate::vcs::traits::{VcsBackend, VcsType};
-use crate::vcs::{git::WorktreeStatus, Worktree};
+use crate::vcs::{WorkspaceStatus, Worktree};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -362,7 +362,7 @@ impl VcsBackend for MercurialBackend {
         })
     }
 
-    fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorktreeStatus> {
+    fn get_workspace_status(&self, worktree_path: &Path) -> Result<WorkspaceStatus> {
         let output = Command::new("hg")
             .arg("status")
             .current_dir(worktree_path)
@@ -375,7 +375,7 @@ impl VcsBackend for MercurialBackend {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let mut status = WorktreeStatus {
+        let mut status = WorkspaceStatus {
             modified: 0,
             added: 0,
             deleted: 0,

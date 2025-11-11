@@ -1,13 +1,13 @@
 /// Integration tests for Multi-VCS support
 /// Tests VCS detection, Mercurial backend, and Jujutsu backend
 ///
-/// NOTE: Run with `cargo test --test multi_vcs -- --test-threads=1`
-/// Some tests change current directory and can interfere when run in parallel.
+/// NOTE: Tests that change current directory use #[serial] to avoid race conditions
 mod common;
 
 use common::TestRepo;
 use hannahanna::vcs::git::GitBackend;
 use hannahanna::vcs::traits::{create_backend, detect_vcs_type, VcsBackend, VcsType};
+use serial_test::serial;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
@@ -107,6 +107,7 @@ fn test_get_workspace_by_name_via_trait() {
 }
 
 #[test]
+#[serial]
 fn test_get_current_workspace_via_trait() {
     let test_repo = TestRepo::new();
 
@@ -198,6 +199,7 @@ fn test_detect_vcs_type_no_vcs() {
 }
 
 #[test]
+#[serial]
 fn test_create_backend_git() {
     let test_repo = TestRepo::new();
 
@@ -227,10 +229,7 @@ fn test_vcs_type_parsing() {
     assert_eq!(VcsType::from_str("Git").unwrap(), VcsType::Git);
     assert_eq!(VcsType::from_str("GIT").unwrap(), VcsType::Git);
 
-    assert_eq!(
-        VcsType::from_str("mercurial").unwrap(),
-        VcsType::Mercurial
-    );
+    assert_eq!(VcsType::from_str("mercurial").unwrap(), VcsType::Mercurial);
     assert_eq!(VcsType::from_str("hg").unwrap(), VcsType::Mercurial);
     assert_eq!(VcsType::from_str("Hg").unwrap(), VcsType::Mercurial);
 
@@ -516,7 +515,6 @@ fn test_jujutsu_workspace_list() {
 // ===== INTEGRATION TESTS WITH HN =====
 
 #[test]
-#[ignore] // Phase 4: CLI integration not yet implemented
 fn test_hn_add_with_mercurial() {
     let temp = TempDir::new().expect("Failed to create temp dir");
     let repo_path = temp.path().join("hg-repo");
@@ -555,7 +553,6 @@ fn test_hn_add_with_mercurial() {
 }
 
 #[test]
-#[ignore] // Phase 4: CLI integration not yet implemented
 fn test_hn_add_with_jujutsu() {
     let temp = TempDir::new().expect("Failed to create temp dir");
     let repo_path = temp.path().join("jj-repo");

@@ -1,7 +1,7 @@
 // Integrate command: Merge a source worktree/branch into a target worktree/branch
 use crate::errors::{HnError, Result};
 use crate::fuzzy;
-use crate::vcs::git::GitBackend;
+use crate::vcs::{init_backend_from_current_dir, VcsType};
 use std::env;
 use std::process::Command;
 
@@ -11,6 +11,7 @@ pub fn run(
     no_ff: bool,
     squash: bool,
     strategy: Option<String>,
+    vcs_type: Option<VcsType>,
 ) -> Result<()> {
     // Validate flag combinations
     if squash && no_ff {
@@ -19,8 +20,12 @@ pub fn run(
         ));
     }
 
-    let git = GitBackend::open_from_current_dir()?;
-    let worktrees = git.list_worktrees()?;
+    let backend = if let Some(vcs) = vcs_type {
+        crate::vcs::init_backend_with_detection(&env::current_dir()?, Some(vcs))?
+    } else {
+        init_backend_from_current_dir()?
+    };
+    let worktrees = backend.list_workspaces()?;
 
     // Determine target worktree (defaults to current)
     let target_worktree = if let Some(target_name) = into {
@@ -34,7 +39,7 @@ pub fn run(
             .clone()
     } else {
         // Use current worktree as target
-        git.get_current_worktree()?
+        backend.get_current_workspace()?
     };
 
     // Determine source branch/worktree
@@ -62,7 +67,7 @@ pub fn run(
     eprintln!("→ Source branch: {}", source_branch);
 
     // Check if target has uncommitted changes
-    let status = git.get_worktree_status(&target_worktree.path)?;
+    let status = backend.get_workspace_status(&target_worktree.path)?;
     if !status.is_clean() {
         return Err(HnError::Git(git2::Error::from_str(&format!(
             "Target worktree '{}' has uncommitted changes. Commit or stash them first.",
