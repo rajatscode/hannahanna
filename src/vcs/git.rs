@@ -331,8 +331,14 @@ impl GitBackend {
         self.get_worktree_info(name)
     }
 
-    /// Get the current worktree based on the current directory
-    pub fn get_current_worktree(&self, current_dir: &Path) -> Result<Worktree> {
+    /// Get the current worktree based on the current directory (using env::current_dir())
+    pub fn get_current_worktree(&self) -> Result<Worktree> {
+        let current_dir = std::env::current_dir()?;
+        self.get_current_worktree_from_path(&current_dir)
+    }
+
+    /// Get the current worktree based on a given directory path
+    pub fn get_current_worktree_from_path(&self, current_dir: &Path) -> Result<Worktree> {
         // Get all worktrees and find the one containing current_dir
         let worktrees = self.list_worktrees()?;
 
@@ -445,7 +451,7 @@ impl GitBackend {
         let current_dir = std::env::current_dir()?;
 
         // Check if current directory is in a worktree (not the main repo)
-        if let Ok(current_worktree) = self.get_current_worktree(&current_dir) {
+        if let Ok(current_worktree) = self.get_current_worktree_from_path(&current_dir) {
             // Check if this is the main repo (not a worktree)
             // In the main repo, .git is a directory. In worktrees, .git is a file.
             let git_path = current_worktree.path.join(".git");

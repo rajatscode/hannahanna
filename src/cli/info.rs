@@ -26,7 +26,7 @@ pub fn run(name: Option<String>) -> Result<()> {
     } else {
         // Show info for current worktree
         let current_dir = env::current_dir()?;
-        git.get_current_worktree(&current_dir)?
+        git.get_current_worktree_from_path(&current_dir)?
     };
 
     // Get git status
