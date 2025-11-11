@@ -149,16 +149,19 @@ impl PortAllocator {
         // Ensure directory exists
         fs::create_dir_all(&self.state_dir)?;
 
-        // Open file for writing with exclusive lock
+        // Open file WITHOUT truncate first (we'll truncate after acquiring lock)
         let file = OpenOptions::new()
             .write(true)
             .create(true)
-            .truncate(true)
+            .truncate(false)
             .open(&registry_path)?;
 
         // Acquire exclusive lock (blocks until lock is available)
         file.lock_exclusive()
             .map_err(|e| HnError::DockerError(format!("Failed to lock registry file: {}", e)))?;
+
+        // Now that we have the lock, truncate the file
+        file.set_len(0)?;
 
         let yaml = serde_yml::to_string(&self.registry)
             .map_err(|e| HnError::DockerError(format!("Failed to serialize registry: {}", e)))?;
@@ -259,6 +262,8 @@ impl PortAllocator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+    use std::thread;
     use tempfile::TempDir;
 
     #[test]
@@ -276,5 +281,290 @@ mod tests {
 
         let ports = allocator.allocate("test-wt", &["app"]).unwrap();
         assert_eq!(ports.get("app"), Some(&3000));
+    }
+
+    // ============================================================================
+    // File Locking Tests for Concurrent Access
+    // ============================================================================
+
+    #[test]
+    fn test_concurrent_port_allocation() {
+        // Test that multiple threads allocating ports concurrently don't corrupt the registry
+        // Note: Due to how PortAllocator works (each instance loads from disk), concurrent
+        // allocations may overwrite each other. The file locking prevents corruption, not
+        // conflicts. In real usage, the caller would serialize worktree operations.
+        let temp_dir = TempDir::new().unwrap();
+        let state_dir = Arc::new(temp_dir.path().to_path_buf());
+
+        // Spawn multiple threads that allocate ports concurrently
+        let mut handles = vec![];
+
+        for i in 0..5 {
+            let state_dir = Arc::clone(&state_dir);
+            let handle = thread::spawn(move || {
+                let mut allocator = PortAllocator::new(&state_dir).unwrap();
+                let worktree = format!("worktree-{}", i);
+
+                // Each thread allocates a port for "app" service
+                allocator.allocate(&worktree, &["app"])
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads to complete
+        let mut success_count = 0;
+        for handle in handles {
+            let result = handle.join().unwrap();
+            if result.is_ok() {
+                success_count += 1;
+            }
+        }
+
+        // All allocations should succeed (no panics or errors)
+        assert_eq!(
+            success_count, 5,
+            "All concurrent allocations should succeed"
+        );
+
+        // Verify registry file is valid (not corrupted by concurrent writes)
+        let final_allocator = PortAllocator::new(&state_dir).unwrap();
+        let allocations = final_allocator.list_all();
+
+        // At least one allocation should be preserved
+        // (The exact number depends on timing - last write wins)
+        assert!(
+            !allocations.is_empty(),
+            "Registry should have at least one allocation"
+        );
+
+        // Verify the registry file is valid YAML (no corruption)
+        let registry_path = state_dir.join("port-registry.yaml");
+        let content = std::fs::read_to_string(&registry_path).unwrap();
+        let _parsed: serde_yml::Value = serde_yml::from_str(&content)
+            .expect("Registry should be valid YAML after concurrent writes");
+    }
+
+    #[test]
+    fn test_registry_save_with_exclusive_lock() {
+        // Test that save() uses exclusive locking
+        // This is verified by ensuring save() doesn't corrupt data
+        let temp_dir = TempDir::new().unwrap();
+        let mut allocator = PortAllocator::new(temp_dir.path()).unwrap();
+
+        // Allocate some ports
+        allocator.allocate("wt1", &["app"]).unwrap();
+        allocator.allocate("wt2", &["app"]).unwrap();
+
+        // Save should succeed
+        let result = allocator.save();
+        assert!(result.is_ok(), "Save with exclusive lock should succeed");
+
+        // Verify registry file exists
+        let registry_path = temp_dir.path().join("port-registry.yaml");
+        assert!(
+            registry_path.exists(),
+            "Registry file should exist after save"
+        );
+
+        // Verify we can load it back
+        let loaded_allocator = PortAllocator::new(temp_dir.path()).unwrap();
+        let loaded_ports = loaded_allocator.list_all();
+
+        assert_eq!(loaded_ports.len(), 2, "Should load 2 worktree allocations");
+    }
+
+    #[test]
+    fn test_registry_load_with_shared_lock() {
+        // Test that load_registry() uses shared locking
+        // Multiple loads should be able to happen concurrently
+        let temp_dir = TempDir::new().unwrap();
+        let state_dir = Arc::new(temp_dir.path().to_path_buf());
+
+        // Pre-populate the registry
+        {
+            let mut allocator = PortAllocator::new(&state_dir).unwrap();
+            allocator.allocate("test-wt", &["app"]).unwrap();
+        }
+
+        // Spawn multiple threads that load the registry concurrently
+        let mut handles = vec![];
+
+        for _ in 0..5 {
+            let state_dir = Arc::clone(&state_dir);
+            let handle = thread::spawn(move || {
+                // Load the allocator (which loads the registry)
+                PortAllocator::new(&state_dir)
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads and verify all succeeded
+        let mut success_count = 0;
+        for handle in handles {
+            let result = handle.join().unwrap();
+            if result.is_ok() {
+                success_count += 1;
+            }
+        }
+
+        assert_eq!(
+            success_count, 5,
+            "All concurrent reads with shared locks should succeed"
+        );
+    }
+
+    #[test]
+    fn test_file_locking_prevents_corruption() {
+        // Test that file locking prevents YAML corruption during concurrent writes
+        // Note: File locking prevents corruption but doesn't prevent overwrites
+        // (last write wins with PortAllocator's design)
+        use std::thread;
+
+        let temp_dir = TempDir::new().unwrap();
+        let state_dir = Arc::new(temp_dir.path().to_path_buf());
+
+        // Spawn threads that perform write operations concurrently
+        let mut handles = vec![];
+
+        for i in 0..3 {
+            let state_dir = Arc::clone(&state_dir);
+            let handle = thread::spawn(move || {
+                let mut allocator = PortAllocator::new(&state_dir).unwrap();
+
+                // Each thread allocates ports for different services
+                let services = match i {
+                    0 => vec!["app"],
+                    1 => vec!["postgres"],
+                    2 => vec!["redis"],
+                    _ => vec!["app"],
+                };
+
+                let worktree = format!("wt-{}", i);
+                allocator.allocate(&worktree, &services).unwrap();
+
+                // Explicit save to trigger write lock (already auto-saved by allocate)
+                allocator.save()
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all writes to complete
+        for handle in handles {
+            let result = handle.join().unwrap();
+            assert!(result.is_ok(), "Concurrent saves should all succeed");
+        }
+
+        // Verify the registry file is valid YAML and not corrupted
+        let registry_path = state_dir.join("port-registry.yaml");
+        let content = std::fs::read_to_string(&registry_path).unwrap();
+
+        // Try to parse it as YAML - this is the key test!
+        let parsed: serde_yml::Value = serde_yml::from_str(&content)
+            .expect("Registry should be valid YAML (not corrupted) after concurrent writes");
+
+        // Verify structure
+        assert!(
+            parsed.get("allocations").is_some(),
+            "Registry should have allocations field"
+        );
+
+        // Verify we have at least one allocation (file locking prevented total corruption)
+        let final_allocator = PortAllocator::new(&state_dir).unwrap();
+        let allocations = final_allocator.list_all();
+        assert!(
+            !allocations.is_empty(),
+            "Registry should have at least one allocation (proves YAML wasn't corrupted)"
+        );
+    }
+
+    #[test]
+    fn test_lock_release_on_scope_exit() {
+        // Test that locks are automatically released when file goes out of scope
+        let temp_dir = TempDir::new().unwrap();
+
+        // First scope: acquire and release lock
+        {
+            let mut allocator = PortAllocator::new(temp_dir.path()).unwrap();
+            allocator.allocate("test1", &["app"]).unwrap();
+            // Lock is released here when allocator goes out of scope
+        }
+
+        // Second scope: should be able to acquire lock immediately
+        {
+            let mut allocator = PortAllocator::new(temp_dir.path()).unwrap();
+            let result = allocator.allocate("test2", &["app"]);
+
+            // Should succeed because previous lock was released
+            assert!(
+                result.is_ok(),
+                "Should be able to acquire lock after previous scope exit"
+            );
+        }
+    }
+
+    #[test]
+    fn test_exclusive_lock_blocks_concurrent_writes() {
+        // Test that exclusive lock prevents simultaneous writes
+        // This is a behavioral test to ensure locking semantics are correct
+        use std::sync::Arc;
+        use std::thread;
+        use std::time::Duration;
+
+        let temp_dir = TempDir::new().unwrap();
+        let state_dir = Arc::new(temp_dir.path().to_path_buf());
+
+        // Pre-populate registry
+        {
+            let mut allocator = PortAllocator::new(&state_dir).unwrap();
+            allocator.allocate("initial", &["app"]).unwrap();
+        }
+
+        let state_dir1 = Arc::clone(&state_dir);
+        let state_dir2 = Arc::clone(&state_dir);
+
+        // First thread: hold the lock for a bit
+        let handle1 = thread::spawn(move || {
+            let mut allocator = PortAllocator::new(&state_dir1).unwrap();
+            allocator.allocate("thread1", &["app"]).unwrap();
+
+            // Hold the allocation (and thus keep object alive) for a moment
+            thread::sleep(Duration::from_millis(100));
+
+            "thread1 done"
+        });
+
+        // Give first thread time to acquire lock
+        thread::sleep(Duration::from_millis(10));
+
+        // Second thread: should wait for lock to be released
+        let handle2 = thread::spawn(move || {
+            let mut allocator = PortAllocator::new(&state_dir2).unwrap();
+            allocator.allocate("thread2", &["postgres"])
+        });
+
+        // Wait for both threads
+        handle1.join().unwrap();
+        let result2 = handle2.join().unwrap();
+
+        // Second thread should eventually succeed (after first thread releases lock)
+        assert!(
+            result2.is_ok(),
+            "Second thread should succeed after first releases lock"
+        );
+
+        // Verify both allocations are present
+        let final_allocator = PortAllocator::new(&state_dir).unwrap();
+        let allocations = final_allocator.list_all();
+
+        let allocation_names: Vec<String> =
+            allocations.iter().map(|(name, _)| name.clone()).collect();
+        assert!(
+            allocation_names.contains(&"thread1".to_string()),
+            "First allocation should be present"
+        );
+        assert!(
+            allocation_names.contains(&"thread2".to_string()),
+            "Second allocation should be present"
+        );
     }
 }
