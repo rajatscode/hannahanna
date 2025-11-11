@@ -1,5 +1,4 @@
 use hannahanna::docker::ports::PortAllocator;
-use std::collections::HashMap;
 use tempfile::TempDir;
 
 #[test]
@@ -17,17 +16,23 @@ fn test_allocate_sequential_ports() {
     let mut allocator = PortAllocator::new(&state_dir).unwrap();
 
     // Allocate ports for feature-x
-    let ports_x = allocator.allocate("feature-x", &["app", "postgres"]).unwrap();
+    let ports_x = allocator
+        .allocate("feature-x", &["app", "postgres"])
+        .unwrap();
     assert_eq!(ports_x.get("app"), Some(&3000));
     assert_eq!(ports_x.get("postgres"), Some(&5432));
 
     // Allocate ports for feature-y (should get next sequential ports)
-    let ports_y = allocator.allocate("feature-y", &["app", "postgres"]).unwrap();
+    let ports_y = allocator
+        .allocate("feature-y", &["app", "postgres"])
+        .unwrap();
     assert_eq!(ports_y.get("app"), Some(&3001));
     assert_eq!(ports_y.get("postgres"), Some(&5433));
 
     // Allocate ports for feature-z
-    let ports_z = allocator.allocate("feature-z", &["app", "postgres"]).unwrap();
+    let ports_z = allocator
+        .allocate("feature-z", &["app", "postgres"])
+        .unwrap();
     assert_eq!(ports_z.get("app"), Some(&3002));
     assert_eq!(ports_z.get("postgres"), Some(&5434));
 }

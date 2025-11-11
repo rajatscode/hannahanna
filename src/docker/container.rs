@@ -9,7 +9,6 @@ use std::process::Command;
 /// Container status information
 #[derive(Debug, Clone)]
 pub struct ContainerStatus {
-    pub worktree_name: String,
     pub running: bool,
     pub container_count: usize,
 }
@@ -37,8 +36,6 @@ impl<'a> ContainerManager<'a> {
 
     /// Get container status for a worktree
     pub fn get_status(&self, worktree_name: &str, worktree_path: &Path) -> Result<ContainerStatus> {
-        let project_name = self.get_project_name(worktree_name);
-
         // Check if containers are running using docker-compose
         let running = if self.is_docker_available() {
             self.check_containers_running(worktree_name, worktree_path)
@@ -47,7 +44,6 @@ impl<'a> ContainerManager<'a> {
         };
 
         Ok(ContainerStatus {
-            worktree_name: worktree_name.to_string(),
             running,
             container_count: if running { 1 } else { 0 },
         })
@@ -79,12 +75,6 @@ impl<'a> ContainerManager<'a> {
         Ok(())
     }
 
-    /// List all container statuses
-    pub fn list_all(&self) -> Result<Vec<ContainerStatus>> {
-        // Return empty list for now - would need worktree list to implement fully
-        Ok(Vec::new())
-    }
-
     /// Get Docker Compose project name for a worktree
     /// Docker project names must be lowercase alphanumeric with hyphens only
     pub fn get_project_name(&self, worktree_name: &str) -> String {
@@ -108,7 +98,7 @@ impl<'a> ContainerManager<'a> {
     }
 
     /// Build docker-compose up command
-    pub fn build_start_command(&self, worktree_name: &str, worktree_path: &Path) -> Result<String> {
+    pub fn build_start_command(&self, worktree_name: &str, _worktree_path: &Path) -> Result<String> {
         let project_name = self.get_project_name(worktree_name);
         let override_file = self
             .state_dir
@@ -122,10 +112,7 @@ impl<'a> ContainerManager<'a> {
 
         // Add override file if it exists
         if override_file.exists() {
-            cmd.push_str(&format!(
-                "-f {} ",
-                override_file.to_string_lossy()
-            ));
+            cmd.push_str(&format!("-f {} ", override_file.to_string_lossy()));
         }
 
         cmd.push_str("up -d");
@@ -134,7 +121,7 @@ impl<'a> ContainerManager<'a> {
     }
 
     /// Build docker-compose down command
-    pub fn build_stop_command(&self, worktree_name: &str, worktree_path: &Path) -> Result<String> {
+    pub fn build_stop_command(&self, worktree_name: &str, _worktree_path: &Path) -> Result<String> {
         let project_name = self.get_project_name(worktree_name);
 
         Ok(format!("docker-compose -p {} down", project_name))
@@ -144,7 +131,7 @@ impl<'a> ContainerManager<'a> {
     pub fn build_logs_command(
         &self,
         worktree_name: &str,
-        worktree_path: &Path,
+        _worktree_path: &Path,
         service: Option<&str>,
     ) -> Result<String> {
         let project_name = self.get_project_name(worktree_name);
@@ -159,7 +146,7 @@ impl<'a> ContainerManager<'a> {
     }
 
     /// Clean up orphaned containers (for removed worktrees)
-    pub fn cleanup_orphaned(&self, active_worktrees: &[String]) -> Result<()> {
+    pub fn cleanup_orphaned(&self, _active_worktrees: &[String]) -> Result<()> {
         if !self.is_docker_available() {
             return Ok(());
         }
@@ -174,7 +161,7 @@ impl<'a> ContainerManager<'a> {
     }
 
     /// Check if containers are running for a worktree
-    fn check_containers_running(&self, worktree_name: &str, worktree_path: &Path) -> bool {
+    fn check_containers_running(&self, worktree_name: &str, _worktree_path: &Path) -> bool {
         let project_name = self.get_project_name(worktree_name);
 
         Command::new("docker-compose")
@@ -183,9 +170,7 @@ impl<'a> ContainerManager<'a> {
             .arg("ps")
             .arg("-q")
             .output()
-            .map(|output| {
-                output.status.success() && !output.stdout.is_empty()
-            })
+            .map(|output| output.status.success() && !output.stdout.is_empty())
             .unwrap_or(false)
     }
 
@@ -199,10 +184,7 @@ impl<'a> ContainerManager<'a> {
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(HnError::DockerError(format!(
-                "Command failed: {}",
-                stderr
-            )));
+            return Err(HnError::DockerError(format!("Command failed: {}", stderr)));
         }
 
         Ok(())
@@ -234,11 +216,15 @@ mod tests {
         let config = DockerConfig::default();
         let manager = ContainerManager::new(&config, temp_dir.path()).unwrap();
 
-        let start_cmd = manager.build_start_command("feature-test", &worktree_dir).unwrap();
+        let start_cmd = manager
+            .build_start_command("feature-test", &worktree_dir)
+            .unwrap();
         assert!(start_cmd.contains("docker-compose"));
         assert!(start_cmd.contains("up -d"));
 
-        let stop_cmd = manager.build_stop_command("feature-test", &worktree_dir).unwrap();
+        let stop_cmd = manager
+            .build_stop_command("feature-test", &worktree_dir)
+            .unwrap();
         assert!(stop_cmd.contains("docker-compose"));
         assert!(stop_cmd.contains("down"));
     }

@@ -356,7 +356,10 @@ docker:
             config.docker.env.get("DATABASE_URL"),
             Some(&"postgres://localhost:{{port.postgres}}/myapp_{{worktree_name}}".to_string())
         );
-        assert_eq!(config.docker.env.get("PORT"), Some(&"{{port.app}}".to_string()));
+        assert_eq!(
+            config.docker.env.get("PORT"),
+            Some(&"{{port.app}}".to_string())
+        );
 
         // Verify healthcheck
         assert!(config.docker.healthcheck.enabled);

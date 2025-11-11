@@ -1,7 +1,6 @@
-use hannahanna::config::{Config, DockerConfig};
+use hannahanna::config::DockerConfig;
 use hannahanna::docker::compose::ComposeGenerator;
 use hannahanna::docker::ports::PortAllocator;
-use std::collections::HashMap;
 use std::fs;
 use tempfile::TempDir;
 
@@ -18,7 +17,9 @@ fn test_generate_compose_override() {
 
     // Allocate ports first
     let mut allocator = PortAllocator::new(&state_dir).unwrap();
-    let ports = allocator.allocate("feature-x", &["app", "postgres"]).unwrap();
+    let ports = allocator
+        .allocate("feature-x", &["app", "postgres"])
+        .unwrap();
 
     // Create generator with config
     let config = DockerConfig::default();
@@ -50,7 +51,9 @@ fn test_template_substitution() {
     std::fs::create_dir_all(&state_dir).unwrap();
 
     let mut allocator = PortAllocator::new(&state_dir).unwrap();
-    let ports = allocator.allocate("feature-auth", &["app", "postgres"]).unwrap();
+    let ports = allocator
+        .allocate("feature-auth", &["app", "postgres"])
+        .unwrap();
 
     // Config with environment variable templates
     let mut config = DockerConfig::default();
@@ -137,8 +140,14 @@ fn test_isolated_volumes() {
         .unwrap();
 
     // Verify isolated volumes have worktree-specific names
-    assert!(override_content.contains("feature-cache_app-cache") || override_content.contains("feature-cache-app-cache"));
-    assert!(override_content.contains("feature-cache_logs") || override_content.contains("feature-cache-logs"));
+    assert!(
+        override_content.contains("feature-cache_app-cache")
+            || override_content.contains("feature-cache-app-cache")
+    );
+    assert!(
+        override_content.contains("feature-cache_logs")
+            || override_content.contains("feature-cache-logs")
+    );
 }
 
 #[test]

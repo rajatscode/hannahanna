@@ -94,7 +94,11 @@ pub fn run(
         let mut port_allocator = PortAllocator::new(&state_dir_path)?;
 
         // Get services from config or use defaults
-        let services: Vec<&str> = config.docker.ports.base.keys()
+        let services: Vec<&str> = config
+            .docker
+            .ports
+            .base
+            .keys()
             .map(|s| s.as_str())
             .collect();
 

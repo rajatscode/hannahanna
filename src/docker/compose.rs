@@ -2,7 +2,7 @@
 // Auto-generates per-worktree docker-compose.override.yml files
 
 use crate::config::DockerConfig;
-use crate::errors::{HnError, Result};
+use crate::errors::Result;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -23,7 +23,7 @@ impl<'a> ComposeGenerator<'a> {
     pub fn generate(
         &self,
         worktree_name: &str,
-        worktree_path: &Path,
+        _worktree_path: &Path,
         ports: &HashMap<String, u16>,
     ) -> Result<String> {
         let mut output = String::new();
@@ -42,8 +42,12 @@ impl<'a> ComposeGenerator<'a> {
 
             // Port mappings
             output.push_str("    ports:\n");
-            output.push_str(&format!("      - \"{}:{}\"", port, self.get_internal_port(service_name)));
-            output.push_str("\n");
+            output.push_str(&format!(
+                "      - \"{}:{}\"",
+                port,
+                self.get_internal_port(service_name)
+            ));
+            output.push('\n');
 
             // Environment variables with substitutions
             if !self.config.env.is_empty() {

@@ -29,7 +29,10 @@ pub fn ps() -> Result<()> {
         match manager.get_status(&worktree, &worktree_path) {
             Ok(status) => {
                 let status_str = if status.running { "Running" } else { "Stopped" };
-                println!("{:<20} {:<15} {:<10}", worktree, status_str, status.container_count);
+                println!(
+                    "{:<20} {:<15} {:<10}",
+                    worktree, status_str, status.container_count
+                );
             }
             Err(_) => {
                 println!("{:<20} {:<15} {:<10}", worktree, "Unknown", 0);

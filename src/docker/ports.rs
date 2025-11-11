@@ -55,6 +55,8 @@ impl PortAllocator {
     }
 
     /// Create a port allocator with custom port range
+    /// Used primarily for testing port exhaustion scenarios
+    #[allow(dead_code)]
     pub fn with_range(state_dir: &Path, range_start: u16, range_end: u16) -> Result<Self> {
         let mut allocator = Self::new(state_dir)?;
         allocator.port_range_start = range_start;
@@ -64,7 +66,11 @@ impl PortAllocator {
 
     /// Allocate ports for a worktree's services
     /// Uses transaction-like semantics: all services get ports or none do
-    pub fn allocate(&mut self, worktree_name: &str, services: &[&str]) -> Result<HashMap<String, u16>> {
+    pub fn allocate(
+        &mut self,
+        worktree_name: &str,
+        services: &[&str],
+    ) -> Result<HashMap<String, u16>> {
         // Check if already allocated
         if let Some(existing) = self.registry.allocations.get(worktree_name) {
             return Ok(existing.clone());
@@ -91,7 +97,9 @@ impl PortAllocator {
         }
 
         // All allocations successful - commit the transaction
-        self.registry.allocations.insert(worktree_name.to_string(), allocated_ports.clone());
+        self.registry
+            .allocations
+            .insert(worktree_name.to_string(), allocated_ports.clone());
 
         // Auto-save after allocation
         self.save()?;
@@ -105,7 +113,9 @@ impl PortAllocator {
             .allocations
             .get(worktree_name)
             .cloned()
-            .ok_or_else(|| HnError::PortAllocationError(format!("No ports allocated for '{}'", worktree_name)))
+            .ok_or_else(|| {
+                HnError::PortAllocationError(format!("No ports allocated for '{}'", worktree_name))
+            })
     }
 
     /// Release ports when a worktree is removed
@@ -179,7 +189,9 @@ impl PortAllocator {
             if !self.used_ports.contains(&port) {
                 // Found an available port - add to cache and update next_available
                 self.used_ports.insert(port);
-                self.registry.next_available.insert(service.to_string(), port + 1);
+                self.registry
+                    .next_available
+                    .insert(service.to_string(), port + 1);
                 return Ok(port);
             }
 

@@ -1,7 +1,5 @@
 use hannahanna::config::DockerConfig;
 use hannahanna::docker::container::ContainerManager;
-use hannahanna::docker::ports::PortAllocator;
-use std::collections::HashMap;
 use tempfile::TempDir;
 
 #[test]
@@ -75,7 +73,11 @@ fn test_start_command_generation() {
     assert!(cmd.is_ok());
 
     let command = cmd.unwrap();
-    assert!(command.contains("docker-compose") || command.contains("docker") || command.contains("compose"));
+    assert!(
+        command.contains("docker-compose")
+            || command.contains("docker")
+            || command.contains("compose")
+    );
 }
 
 #[test]
@@ -97,29 +99,12 @@ fn test_stop_command_generation() {
     assert!(cmd.is_ok());
 
     let command = cmd.unwrap();
-    assert!(command.contains("docker-compose") || command.contains("docker") || command.contains("compose"));
+    assert!(
+        command.contains("docker-compose")
+            || command.contains("docker")
+            || command.contains("compose")
+    );
     assert!(command.contains("down") || command.contains("stop"));
-}
-
-#[test]
-fn test_list_all_containers() {
-    // TDD: Test listing all containers across worktrees
-    // Goal: Get status of all worktree containers
-
-    let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
-    std::fs::create_dir_all(&state_dir).unwrap();
-
-    let config = DockerConfig::default();
-    let manager = ContainerManager::new(&config, &state_dir).unwrap();
-
-    // List all containers (currently stub returns empty list)
-    let containers = manager.list_all();
-    assert!(containers.is_ok());
-
-    // Verify returns Vec (currently empty - stub implementation)
-    let list = containers.unwrap();
-    assert_eq!(list.len(), 0, "Stub implementation should return empty list");
 }
 
 #[test]
@@ -146,7 +131,9 @@ fn test_project_name_generation() {
     // Test special character sanitization
     let name_special = manager.get_project_name("Feature_Test/Branch");
     assert_eq!(name_special, "feature-test-branch"); // lowercase, no underscores/slashes
-    assert!(name_special.chars().all(|c| c.is_alphanumeric() || c == '-'));
+    assert!(name_special
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-'));
     assert!(!name_special.starts_with('-'));
     assert!(!name_special.ends_with('-'));
 }
