@@ -20,6 +20,9 @@ pub enum HnError {
     #[error("Ambiguous worktree name '{0}'. Did you mean one of: {}", .1.join(", "))]
     AmbiguousWorktreeName(String, Vec<String>),
 
+    #[error("Worktree '{0}' has no parent. It was not created from another worktree.")]
+    NoParent(String),
+
     #[error("Config error: {0}")]
     ConfigError(String),
 

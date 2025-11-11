@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 
 mod cli;
+mod clock;
 mod config;
 mod docker;
 mod env;
@@ -8,15 +9,18 @@ mod errors;
 mod fuzzy;
 mod hooks;
 mod state;
+mod suggestions;
 mod vcs;
-
-use errors::Result;
 
 #[derive(Parser)]
 #[command(name = "hn")]
 #[command(about = "Git worktree manager with isolated development environments", long_about = None)]
 #[command(version)]
 struct Cli {
+    /// Skip hook execution (for untrusted repositories)
+    #[arg(long, global = true)]
+    no_hooks: bool,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -55,6 +59,18 @@ enum Commands {
         /// Name of the worktree to switch to
         name: String,
     },
+    /// Return to parent worktree with optional merge
+    Return {
+        /// Merge current branch into parent before returning
+        #[arg(long)]
+        merge: bool,
+        /// Delete current worktree after merging (requires --merge)
+        #[arg(long)]
+        delete: bool,
+        /// Force merge commit (no fast-forward)
+        #[arg(long)]
+        no_ff: bool,
+    },
     /// Show detailed information about a worktree
     Info {
         /// Name of the worktree (defaults to current)
@@ -64,6 +80,11 @@ enum Commands {
     InitShell,
     /// Clean up orphaned state directories
     Prune,
+    /// Manage configuration
+    Config {
+        #[command(subcommand)]
+        command: ConfigCommands,
+    },
     /// Manage Docker port allocations
     Ports {
         #[command(subcommand)]
@@ -74,6 +95,18 @@ enum Commands {
         #[command(subcommand)]
         command: DockerCommands,
     },
+}
+
+#[derive(Subcommand)]
+enum ConfigCommands {
+    /// Create a new configuration file
+    Init,
+    /// Validate configuration file
+    Validate,
+    /// Show current configuration
+    Show,
+    /// Edit configuration file in $EDITOR
+    Edit,
 }
 
 #[derive(Subcommand)]
@@ -117,35 +150,50 @@ enum DockerCommands {
     Prune,
 }
 
-fn main() -> Result<()> {
+fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
+    let result = match cli.command {
         Commands::Add {
             name,
             branch,
             from,
             no_branch,
-        } => cli::add::run(name, branch, from, no_branch)?,
-        Commands::List { tree } => cli::list::run(tree)?,
-        Commands::Remove { name, force } => cli::remove::run(name, force)?,
-        Commands::Switch { name } => cli::switch::run(name)?,
-        Commands::Info { name } => cli::info::run(name)?,
-        Commands::InitShell => cli::init_shell::run()?,
-        Commands::Prune => cli::prune::run()?,
+        } => cli::add::run(name, branch, from, no_branch, cli.no_hooks),
+        Commands::List { tree } => cli::list::run(tree),
+        Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks),
+        Commands::Switch { name } => cli::switch::run(name),
+        Commands::Return {
+            merge,
+            delete,
+            no_ff,
+        } => cli::return_cmd::run(merge, delete, no_ff, cli.no_hooks),
+        Commands::Info { name } => cli::info::run(name),
+        Commands::InitShell => cli::init_shell::run(),
+        Commands::Prune => cli::prune::run(),
+        Commands::Config { command } => match command {
+            ConfigCommands::Init => cli::config_cmd::init(),
+            ConfigCommands::Validate => cli::config_cmd::validate(),
+            ConfigCommands::Show => cli::config_cmd::show(),
+            ConfigCommands::Edit => cli::config_cmd::edit(),
+        },
         Commands::Ports { command } => match command {
-            PortsCommands::List => cli::ports::list()?,
-            PortsCommands::Show { name } => cli::ports::show(name)?,
-            PortsCommands::Release { name } => cli::ports::release(name)?,
+            PortsCommands::List => cli::ports::list(),
+            PortsCommands::Show { name } => cli::ports::show(name),
+            PortsCommands::Release { name } => cli::ports::release(name),
         },
         Commands::Docker { command } => match command {
-            DockerCommands::Ps => cli::docker::ps()?,
-            DockerCommands::Start { name } => cli::docker::start(name)?,
-            DockerCommands::Stop { name } => cli::docker::stop(name)?,
-            DockerCommands::Logs { name, service } => cli::docker::logs(name, service)?,
-            DockerCommands::Prune => cli::docker::prune()?,
+            DockerCommands::Ps => cli::docker::ps(),
+            DockerCommands::Start { name } => cli::docker::start(name),
+            DockerCommands::Stop { name } => cli::docker::stop(name),
+            DockerCommands::Logs { name, service } => cli::docker::logs(name, service),
+            DockerCommands::Prune => cli::docker::prune(),
         },
-    }
+    };
 
-    Ok(())
+    // Handle errors with suggestions
+    if let Err(error) = result {
+        suggestions::display_error_with_suggestions(&error);
+        std::process::exit(1);
+    }
 }

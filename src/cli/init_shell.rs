@@ -24,6 +24,16 @@ hn() {
             # Switch failed, show error message
             command hn switch "$2"
         fi
+    elif [ "$1" = "return" ]; then
+        # Capture the parent worktree path from stdout
+        local path=$(command hn return "${@:2}" 2>/dev/null)
+        if [ $? -eq 0 ]; then
+            # Return succeeded, change directory to parent
+            cd "$path"
+        else
+            # Return failed, show error message
+            command hn return "${@:2}"
+        fi
     else
         # Pass through all other commands
         command hn "$@"

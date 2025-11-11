@@ -77,6 +77,7 @@ hn add review-pr --no-branch
 **Options:**
 - `--from <branch>` - Base branch (default: current branch)
 - `--no-branch` - Checkout existing branch instead of creating new one
+- `--no-hooks` - Skip hook execution (for untrusted repositories)
 
 ### `hn list [options]`
 
@@ -109,6 +110,38 @@ Supports fuzzy matching:
 hn switch feat     # Matches "feature-x" if unique
 ```
 
+### `hn return [options]`
+
+Return to parent worktree with optional merge (requires shell integration).
+
+```bash
+# Switch back to parent worktree
+hn return
+
+# Merge current branch into parent before returning
+hn return --merge
+
+# Merge, return, and delete current worktree
+hn return --merge --delete
+
+# Force merge commit (no fast-forward)
+hn return --merge --no-ff
+```
+
+**Perfect for nested workflows:**
+```bash
+hn add feature-payment
+hn add fix-validation-bug    # Child of feature-payment
+# ... fix bug, commit ...
+hn return --merge             # Merge into feature-payment
+# ... continue feature work
+```
+
+**Options:**
+- `--merge` - Merge current branch into parent before returning
+- `--delete` - Delete current worktree after merging (requires `--merge`)
+- `--no-ff` - Force merge commit (no fast-forward)
+
 ### `hn info [name]`
 
 Show detailed information about a worktree.
@@ -139,9 +172,13 @@ hn remove feature-x
 hn remove feature-x --force
 ```
 
+**Options:**
+- `--force` / `-f` - Force removal even if there are uncommitted changes
+- `--no-hooks` - Skip hook execution (for untrusted repositories)
+
 **Safety checks:**
 - Warns about uncommitted changes (unless `--force`)
-- Runs `pre_remove` hook if configured
+- Runs `pre_remove` hook if configured (unless `--no-hooks`)
 - Cleans up state directories
 
 ### `hn prune`
@@ -151,6 +188,30 @@ Clean up orphaned state directories from deleted worktrees.
 ```bash
 hn prune
 ```
+
+### `hn config <subcommand>`
+
+Manage configuration files.
+
+```bash
+# Create a new configuration file with template
+hn config init
+
+# Validate configuration syntax
+hn config validate
+
+# Show current configuration
+hn config show
+
+# Edit configuration in $EDITOR
+hn config edit
+```
+
+**Subcommands:**
+- `init` - Create `.hannahanna.yml` with comprehensive template
+- `validate` - Check configuration syntax and show summary
+- `show` - Display current configuration as YAML
+- `edit` - Open config in `$EDITOR` and validate after saving
 
 ## Configuration
 
@@ -221,9 +282,16 @@ Execute commands at specific lifecycle events:
 hooks:
   post_create: "npm install && npm run setup"
   pre_remove: "npm run cleanup"
+  timeout_seconds: 300  # 5 minutes (default)
 ```
 
 **⚠️ SECURITY WARNING:** Hooks execute arbitrary shell commands from your `.hannahanna.yml` configuration file. Only use hannahanna in repositories you trust. Never clone and run `hn add` in untrusted repositories without first reviewing the `.hannahanna.yml` file for malicious hooks.
+
+**Security Feature:** Use the `--no-hooks` flag to disable hook execution when working with untrusted repositories:
+```bash
+hn add feature-x --no-hooks    # Skip post_create hook
+hn remove feature-x --no-hooks # Skip pre_remove hook
+```
 
 **Available hooks:**
 - `post_create` - Runs after worktree creation
@@ -235,6 +303,16 @@ hooks:
 - `$WT_BRANCH` - Branch name
 - `$WT_PARENT` - Parent worktree (if any)
 - `$WT_STATE_DIR` - State directory path
+
+**Hook Timeout:**
+Hooks automatically timeout after 5 minutes (300 seconds) by default to prevent hanging processes. You can customize this in your config:
+
+```yaml
+hooks:
+  timeout_seconds: 600  # 10 minutes
+```
+
+If a hook times out, the operation will fail with a clear error message. Use `--no-hooks` to skip hooks entirely.
 
 ## Use Cases
 
@@ -323,6 +401,28 @@ hn remove review-pr-123
 
 ## Advanced Features
 
+### Helpful Error Messages
+
+hannahanna provides context-aware error messages with actionable suggestions:
+
+```bash
+$ hn add feature-x
+Error: Worktree 'feature-x' already exists
+
+Suggestions:
+  • Remove existing: hn remove feature-x
+  • Use different name: hn add feature-x-v2
+  • Switch to existing: hn switch feature-x
+```
+
+Error suggestions cover common scenarios:
+- Worktree already exists → Remove, rename, or switch options
+- Worktree not found → List all, check spelling, create new
+- Uncommitted changes → Commit, stash, or force remove
+- No parent → Explains parent tracking, suggests alternatives
+- Port conflicts → Port management commands
+- Docker issues → Installation and permission fixes
+
 ### Fuzzy Matching
 
 Most commands support fuzzy name matching:
@@ -392,27 +492,297 @@ my-project/              # Main repository
 
 ## Development Status
 
-**Current Version:** 0.1 (MVP)
+**Current Version:** 0.1+ (MVP + Enhancements)
 
-**Implemented (Phase 1-2):**
-- ✅ Git worktree management
-- ✅ Parent/child tracking
+**Implemented:**
+- ✅ Git worktree management (add, list, remove, switch, info, prune)
+- ✅ Parent/child tracking with nested workflow support
+- ✅ `return` command for merging back to parent
 - ✅ Fuzzy name matching
 - ✅ Shared resource symlinks with compatibility checking
 - ✅ File copying for templates
-- ✅ Lifecycle hooks
-- ✅ State management
+- ✅ Lifecycle hooks (post_create, pre_remove)
+- ✅ State management with file locking
+- ✅ **Docker integration** (ahead of schedule!)
+  - Port allocation system
+  - Container lifecycle management
+  - Docker Compose override generation
+- ✅ **Config management commands** (init/validate/show/edit)
+- ✅ **Helpful error messages with actionable suggestions**
+
+**Test Coverage:** 193 tests passing, ~80% coverage
 
 **Planned for v0.2:**
-- Docker integration
-- Port allocation system
 - Advanced hook conditions
+- Multi-VCS support (Mercurial, Jujutsu)
+- Sparse checkout for monorepos
 
-**See:** [`spec/plan.md`](spec/plan.md) for detailed roadmap
+**See:** [`spec/plan.md`](spec/plan.md) and [`spec/spec.md`](spec/spec.md) for detailed roadmap
+
+## Troubleshooting
+
+### Shell Integration Not Working
+
+If `hn switch` or `hn return` don't change your directory, check these common issues:
+
+#### 1. Shell Integration Not Loaded
+
+**Symptom:** `hn switch` outputs a path but doesn't change directory
+
+**Diagnosis:**
+```bash
+# Check if shell wrapper is defined
+type hn
+```
+
+**Expected output:**
+```
+hn is a function
+hn ()
+{
+    # ... function code ...
+}
+```
+
+**If it shows `hn is /path/to/hn`:** Shell integration is not loaded.
+
+**Fix:**
+```bash
+# Add to ~/.bashrc or ~/.zshrc
+eval "$(hn init-shell)"
+
+# Then reload your shell
+source ~/.bashrc  # or source ~/.zshrc
+```
+
+#### 2. Wrong Shell Configuration File
+
+**Symptom:** Works in new terminals but not current one
+
+**Common Issues:**
+- Added to `~/.bash_profile` instead of `~/.bashrc` (Linux)
+- Added to `~/.zshrc` but running bash
+- Added to `~/.bashrc` but running zsh
+
+**Fix:**
+```bash
+# Check your shell
+echo $SHELL
+
+# Add eval "$(hn init-shell)" to the correct file:
+# - Bash on Linux: ~/.bashrc
+# - Bash on macOS: ~/.bash_profile or ~/.bashrc
+# - Zsh: ~/.zshrc
+# - Fish: ~/.config/fish/config.fish (not yet supported)
+
+# Then reload
+exec $SHELL -l
+```
+
+#### 3. Shell Integration Conflicts
+
+**Symptom:** Shell wrapper seems loaded but doesn't work correctly
+
+**Possible Causes:**
+- Multiple `eval "$(hn init-shell)"` lines in shell config
+- Conflicting aliases or functions named `hn`
+- PATH issues causing wrong `hn` binary to be called
+
+**Diagnosis:**
+```bash
+# Check for duplicates
+grep -n "hn init-shell" ~/.bashrc ~/.zshrc ~/.bash_profile 2>/dev/null
+
+# Check for conflicts
+alias | grep hn
+type -a hn
+```
+
+**Fix:**
+```bash
+# Remove duplicate eval lines, keep only one
+# Remove conflicting aliases
+unalias hn 2>/dev/null
+
+# Reload shell
+exec $SHELL -l
+```
+
+#### 4. Non-Interactive Shell
+
+**Symptom:** Works in terminal but not in scripts
+
+**Explanation:** Shell integration only works in interactive shells. Scripts should use `cd` with the output of `hn switch`:
+
+```bash
+# In scripts, don't rely on shell wrapper
+cd "$(hn switch feature-x)"
+
+# Or better, use full path operations
+WORKTREE_PATH=$(hn switch feature-x)
+cd "$WORKTREE_PATH"
+./run-tests.sh
+```
+
+### Permission Errors
+
+**Symptom:** `Permission denied` errors when creating worktrees
+
+**Common Causes:**
+- Repository is in read-only location
+- Insufficient permissions for parent directory
+- SELinux or filesystem restrictions
+
+**Fix:**
+```bash
+# Check permissions
+ls -la "$(git rev-parse --show-toplevel)"
+
+# Ensure writable
+chmod u+w path/to/repo
+
+# Check filesystem
+df -T "$(git rev-parse --show-toplevel)"
+```
+
+### Docker Port Conflicts
+
+**Symptom:** Port allocation fails or containers won't start
+
+**Diagnosis:**
+```bash
+# Check port allocations
+hn ports list
+
+# Check what's using a port
+lsof -i :3000
+netstat -tulpn | grep 3000
+```
+
+**Fix:**
+```bash
+# Release ports for a worktree
+hn ports release worktree-name
+
+# Or manually edit port registry
+vi .wt-state/port-registry.json
+
+# Change base port in config
+vi .hannahanna.yml
+# Set docker.ports.base to different range
+```
+
+### Hook Failures
+
+**Symptom:** `hn add` fails with hook errors
+
+**Diagnosis:**
+```bash
+# Validate config
+hn config validate
+
+# Check what hooks would run
+hn config show
+```
+
+**Fix:**
+```bash
+# Skip hooks for untrusted repos
+hn add feature-x --no-hooks
+
+# Debug hook script
+# Hooks run in worktree directory with these variables:
+# - $WT_NAME, $WT_PATH, $WT_BRANCH, $WT_COMMIT, $WT_STATE_DIR
+
+# Test hook manually
+cd path/to/worktree
+export WT_NAME=test
+export WT_PATH=$PWD
+export WT_BRANCH=$(git branch --show-current)
+# ... then run hook commands
+```
+
+### Worktree in Inconsistent State
+
+**Symptom:** Worktree shows in `hn list` but directory doesn't exist
+
+**Fix:**
+```bash
+# Remove git worktree reference
+git worktree prune
+
+# Clean up hannahanna state
+hn prune
+
+# Remove manually if needed
+git worktree remove --force worktree-name
+rm -rf .wt-state/worktree-name
+```
+
+### Performance Issues
+
+**Symptom:** `hn add` is slow, especially with large node_modules
+
+**Solutions:**
+```bash
+# Use shared resources instead of copying
+# In .hannahanna.yml:
+shared_resources:
+  - source: node_modules
+    target: node_modules
+    compatibility: package-lock.json
+
+# Or use Docker isolation
+docker:
+  enabled: true
+```
+
+### Getting More Help
+
+If you're still stuck:
+
+1. **Check verbose output:** Most commands support `-v` or `--verbose` (planned feature)
+2. **Review logs:** Check `.wt-state/` for any state files
+3. **Validate git state:** Run `git worktree list` to see git's view
+4. **File an issue:** [GitHub Issues](https://github.com/yourusername/hannahanna/issues)
+
+**When reporting issues, include:**
+- Output of `hn --version`
+- Your shell: `echo $SHELL`
+- Output of `type hn`
+- Output of `git worktree list`
+- Relevant error messages
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! Please follow these guidelines:
+
+### Development Setup
+
+1. **Fork and clone** the repository
+2. **Install git hooks** to ensure code quality:
+   ```bash
+   ./scripts/install-git-hooks.sh
+   ```
+   This installs a pre-commit hook that runs `rustfmt` and `clippy` automatically.
+
+3. **Make your changes**
+
+4. **Run tests:**
+   ```bash
+   cargo test
+   cargo fmt -- --check
+   cargo clippy --all-targets --all-features -- -D warnings
+   ```
+
+5. **Submit a pull request**
+
+### Code Quality Standards
+
+- All code must pass `rustfmt` formatting
+- All code must pass `clippy` with `-D warnings` (no warnings allowed)
+- All tests must pass
+- New features should include tests
 
 ## License
 

@@ -1,0 +1,27 @@
+#!/bin/sh
+# Pre-commit hook for hannahanna
+# Runs rustfmt and clippy to ensure code quality
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# Run rustfmt
+echo "→ Checking code formatting..."
+if ! cargo fmt -- --check; then
+    echo "❌ Code formatting check failed!"
+    echo "   Run 'cargo fmt' to fix formatting issues."
+    exit 1
+fi
+echo "✓ Code formatting looks good"
+
+# Run clippy
+echo "→ Running clippy lints..."
+if ! cargo clippy --all-targets --all-features -- -D warnings; then
+    echo "❌ Clippy found issues!"
+    echo "   Fix the warnings above before committing."
+    exit 1
+fi
+echo "✓ Clippy checks passed"
+
+echo "✅ All pre-commit checks passed!"
