@@ -13,7 +13,8 @@ pub enum VcsType {
 
 impl VcsType {
     /// Parse VCS type from string (for --vcs flag)
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// Use parse() method: "git".parse::<VcsType>()
+    pub fn parse_vcs(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "git" => Some(VcsType::Git),
             "hg" | "mercurial" => Some(VcsType::Mercurial),
@@ -23,6 +24,7 @@ impl VcsType {
     }
 
     /// Convert to string for display
+    #[allow(dead_code)] // Will be used in v0.3 when --vcs flag is added
     pub fn as_str(&self) -> &'static str {
         match self {
             VcsType::Git => "git",
@@ -32,7 +34,16 @@ impl VcsType {
     }
 }
 
+impl std::str::FromStr for VcsType {
+    type Err = String;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Self::parse_vcs(s).ok_or_else(|| format!("Invalid VCS type: {}", s))
+    }
+}
+
 /// Trait that all VCS backends must implement
+#[allow(unused)] // Will be fully used in v0.3
 pub trait VcsBackend {
     /// Get the VCS type
     fn vcs_type(&self) -> VcsType;
@@ -87,6 +98,7 @@ pub use crate::vcs::git::WorktreeStatus as WorkspaceStatus;
 /// 2. .git/ → Git
 /// 3. .hg/ → Mercurial
 /// 4. None found → Error
+#[allow(dead_code)] // Will be used in v0.3 when --vcs flag is added
 pub fn detect_vcs_type(path: &Path) -> Option<VcsType> {
     // Check for Jujutsu first (newest, most specific)
     if path.join(".jj").exists() {
@@ -107,6 +119,7 @@ pub fn detect_vcs_type(path: &Path) -> Option<VcsType> {
 }
 
 /// Create a VCS backend instance for the given type
+#[allow(dead_code)] // Will be used in v0.3 when --vcs flag is added
 pub fn create_backend(vcs_type: VcsType) -> Result<Box<dyn VcsBackend>> {
     match vcs_type {
         VcsType::Git => {

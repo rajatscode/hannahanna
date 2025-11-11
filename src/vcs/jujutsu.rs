@@ -2,15 +2,17 @@
 /// Uses native `jj workspace` commands
 use crate::errors::{HnError, Result};
 use crate::vcs::traits::{VcsBackend, VcsType};
-use crate::vcs::{Worktree, git::WorktreeStatus};
+use crate::vcs::{git::WorktreeStatus, Worktree};
 use std::path::{Path, PathBuf};
 
+#[allow(dead_code)] // Skeleton implementation - will be used in v0.3
 pub struct JujutsuBackend {
     repo_path: PathBuf,
 }
 
 impl JujutsuBackend {
     /// Open a Jujutsu repository from the current directory
+    #[allow(dead_code)] // Skeleton implementation - will be used in v0.3
     pub fn open_from_current_dir() -> Result<Self> {
         let current_dir = std::env::current_dir()?;
         Self::discover_repo(&current_dir)
@@ -22,9 +24,7 @@ impl JujutsuBackend {
 
         loop {
             if current.join(".jj").exists() {
-                return Ok(Self {
-                    repo_path: current,
-                });
+                return Ok(Self { repo_path: current });
             }
 
             if !current.pop() {

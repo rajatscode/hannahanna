@@ -120,8 +120,7 @@ fn test_integrate_fuzzy_matching() {
     let repo = TestRepo::new();
 
     // Create worktrees with longer names
-    repo.hn(&["add", "feature-authentication"])
-        .assert_success();
+    repo.hn(&["add", "feature-authentication"]).assert_success();
     repo.hn(&["add", "feature-billing"]).assert_success();
 
     // Make a commit in auth

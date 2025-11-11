@@ -2,15 +2,17 @@
 /// Uses `hg share` for workspace creation
 use crate::errors::{HnError, Result};
 use crate::vcs::traits::{VcsBackend, VcsType};
-use crate::vcs::{Worktree, git::WorktreeStatus};
+use crate::vcs::{git::WorktreeStatus, Worktree};
 use std::path::{Path, PathBuf};
 
+#[allow(dead_code)] // Skeleton implementation - will be used in v0.3
 pub struct MercurialBackend {
     repo_path: PathBuf,
 }
 
 impl MercurialBackend {
     /// Open a Mercurial repository from the current directory
+    #[allow(dead_code)] // Skeleton implementation - will be used in v0.3
     pub fn open_from_current_dir() -> Result<Self> {
         let current_dir = std::env::current_dir()?;
         Self::discover_repo(&current_dir)
@@ -22,9 +24,7 @@ impl MercurialBackend {
 
         loop {
             if current.join(".hg").exists() {
-                return Ok(Self {
-                    repo_path: current,
-                });
+                return Ok(Self { repo_path: current });
             }
 
             if !current.pop() {

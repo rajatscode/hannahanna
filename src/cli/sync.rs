@@ -69,7 +69,10 @@ pub fn run(
             .arg("stash")
             .arg("push")
             .arg("-m")
-            .arg(format!("hn sync autostash - {}", chrono::Utc::now().to_rfc3339()))
+            .arg(format!(
+                "hn sync autostash - {}",
+                chrono::Utc::now().to_rfc3339()
+            ))
             .output()?;
 
         if !stash_output.status.success() {
@@ -118,7 +121,9 @@ pub fn run(
                 if !pop_output.status.success() {
                     let stderr = String::from_utf8_lossy(&pop_output.stderr);
                     eprintln!("⚠ Warning: Failed to restore stashed changes: {}", stderr);
-                    eprintln!("  Your changes are still in the stash. Run 'git stash pop' manually.");
+                    eprintln!(
+                        "  Your changes are still in the stash. Run 'git stash pop' manually."
+                    );
                     return Err(HnError::Git(git2::Error::from_str(
                         "Failed to restore stashed changes",
                     )));
@@ -194,7 +199,10 @@ fn sync_rebase(source: &str) -> Result<()> {
         let stdout = String::from_utf8_lossy(&output.stdout);
 
         // Check if it's a conflict
-        if stderr.contains("CONFLICT") || stdout.contains("CONFLICT") || stderr.contains("could not apply") {
+        if stderr.contains("CONFLICT")
+            || stdout.contains("CONFLICT")
+            || stderr.contains("could not apply")
+        {
             eprintln!("\n⚠ Rebase conflicts detected:");
             eprintln!("{}", stdout);
             eprintln!("{}", stderr);

@@ -10,6 +10,7 @@ pub struct TestRepo {
     pub repo_path: PathBuf,
 }
 
+#[allow(dead_code)] // Test utilities - not all used in every test file
 impl TestRepo {
     /// Create a new test repository with git initialized
     pub fn new() -> Self {
@@ -182,6 +183,7 @@ impl TestRepo {
 }
 
 /// Result of running a command
+#[allow(dead_code)] // Test utilities - not all fields used in every test
 pub struct CommandResult {
     pub stdout: String,
     pub stderr: String,
@@ -189,6 +191,7 @@ pub struct CommandResult {
     pub exit_code: Option<i32>,
 }
 
+#[allow(dead_code)] // Test utilities - not all methods used in every test
 impl CommandResult {
     /// Assert the command succeeded
     pub fn assert_success(&self) {

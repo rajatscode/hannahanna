@@ -95,7 +95,10 @@ pub fn run(
     // Add source branch
     cmd.arg(&source_branch);
 
-    eprintln!("\n→ Merging '{}' into '{}'...", source_branch, target_worktree.branch);
+    eprintln!(
+        "\n→ Merging '{}' into '{}'...",
+        source_branch, target_worktree.branch
+    );
 
     let output = cmd.output()?;
 
@@ -108,9 +111,14 @@ pub fn run(
             eprintln!("\n⚠ Merge conflicts detected:");
             eprintln!("{}", stdout);
             eprintln!("{}", stderr);
-            eprintln!("\nResolve conflicts manually in: {}", target_worktree.path.display());
+            eprintln!(
+                "\nResolve conflicts manually in: {}",
+                target_worktree.path.display()
+            );
             eprintln!("Then run: git commit");
-            return Err(HnError::Git(git2::Error::from_str("Merge conflicts need manual resolution")));
+            return Err(HnError::Git(git2::Error::from_str(
+                "Merge conflicts need manual resolution",
+            )));
         }
 
         return Err(HnError::Git(git2::Error::from_str(&format!(
@@ -126,7 +134,10 @@ pub fn run(
 
     if squash {
         eprintln!("✓ Squash merge successful (changes staged but not committed)");
-        eprintln!("  Run 'git commit' in {} to complete the merge", target_worktree.path.display());
+        eprintln!(
+            "  Run 'git commit' in {} to complete the merge",
+            target_worktree.path.display()
+        );
     } else {
         eprintln!("✓ Merge successful");
     }

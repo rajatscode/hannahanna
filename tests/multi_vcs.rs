@@ -119,7 +119,11 @@ fn test_mercurial_share_workspace() {
     // Create a shared workspace
     let share_path = temp.path().join("hg-share");
     let output = Command::new("hg")
-        .args(["share", repo_path.to_str().unwrap(), share_path.to_str().unwrap()])
+        .args([
+            "share",
+            repo_path.to_str().unwrap(),
+            share_path.to_str().unwrap(),
+        ])
         .output();
 
     match output {
@@ -155,12 +159,20 @@ fn test_mercurial_list_shares() {
     let share2 = temp.path().join("share2");
 
     Command::new("hg")
-        .args(["share", repo_path.to_str().unwrap(), share1.to_str().unwrap()])
+        .args([
+            "share",
+            repo_path.to_str().unwrap(),
+            share1.to_str().unwrap(),
+        ])
         .output()
         .ok();
 
     Command::new("hg")
-        .args(["share", repo_path.to_str().unwrap(), share2.to_str().unwrap()])
+        .args([
+            "share",
+            repo_path.to_str().unwrap(),
+            share2.to_str().unwrap(),
+        ])
         .output()
         .ok();
 
@@ -185,7 +197,10 @@ fn test_jujutsu_init_repository() {
 
     match output {
         Ok(o) if o.status.success() => {
-            assert!(repo_path.join(".jj").exists(), "Jujutsu directory should exist");
+            assert!(
+                repo_path.join(".jj").exists(),
+                "Jujutsu directory should exist"
+            );
         }
         _ => {
             eprintln!("Skipping test: Jujutsu not installed or failed to init");
@@ -352,10 +367,7 @@ fn test_hn_add_with_jujutsu() {
 
 fn setup_hg_repo(path: &Path) -> bool {
     // Initialize hg repo with initial commit
-    let init = Command::new("hg")
-        .args(["init"])
-        .current_dir(path)
-        .output();
+    let init = Command::new("hg").args(["init"]).current_dir(path).output();
 
     if init.is_err() || !init.unwrap().status.success() {
         return false;
@@ -363,7 +375,12 @@ fn setup_hg_repo(path: &Path) -> bool {
 
     // Configure hg
     Command::new("hg")
-        .args(["config", "--local", "ui.username", "Test User <test@example.com>"])
+        .args([
+            "config",
+            "--local",
+            "ui.username",
+            "Test User <test@example.com>",
+        ])
         .current_dir(path)
         .output()
         .ok();
