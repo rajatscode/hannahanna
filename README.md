@@ -755,7 +755,34 @@ If you're still stuck:
 
 ## Contributing
 
-Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions welcome! Please follow these guidelines:
+
+### Development Setup
+
+1. **Fork and clone** the repository
+2. **Install git hooks** to ensure code quality:
+   ```bash
+   ./scripts/install-git-hooks.sh
+   ```
+   This installs a pre-commit hook that runs `rustfmt` and `clippy` automatically.
+
+3. **Make your changes**
+
+4. **Run tests:**
+   ```bash
+   cargo test
+   cargo fmt -- --check
+   cargo clippy --all-targets --all-features -- -D warnings
+   ```
+
+5. **Submit a pull request**
+
+### Code Quality Standards
+
+- All code must pass `rustfmt` formatting
+- All code must pass `clippy` with `-D warnings` (no warnings allowed)
+- All tests must pass
+- New features should include tests
 
 ## License
 
