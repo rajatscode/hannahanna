@@ -1,13 +1,6 @@
 /// Fuzzy matching utilities for worktree names
 use crate::errors::{HnError, Result};
 
-/// Match result with score
-#[derive(Debug, Clone)]
-pub struct FuzzyMatch {
-    pub name: String,
-    pub score: i32,
-}
-
 /// Find the best fuzzy match for a query string
 ///
 /// Returns the best match if one exists, or an error if no matches found
@@ -17,50 +10,55 @@ pub fn find_best_match(query: &str, candidates: &[String]) -> Result<String> {
         return Err(HnError::WorktreeNotFound(query.to_string()));
     }
 
-    // First try exact match
-    for candidate in candidates {
-        if candidate == query {
-            return Ok(candidate.clone());
-        }
+    // First try exact match (lazy - returns immediately on first match)
+    if let Some(exact) = candidates.iter().find(|c| c.as_str() == query) {
+        return Ok(exact.clone());
     }
 
-    // Try case-insensitive prefix match
+    // Try case-insensitive prefix match with lazy evaluation
     let query_lower = query.to_lowercase();
-    let prefix_matches: Vec<&String> = candidates
+    let mut prefix_iter = candidates
         .iter()
-        .filter(|c| c.to_lowercase().starts_with(&query_lower))
-        .collect();
+        .filter(|c| c.to_lowercase().starts_with(&query_lower));
 
-    if prefix_matches.len() == 1 {
-        return Ok(prefix_matches[0].clone());
-    } else if prefix_matches.len() > 1 {
-        return Err(HnError::AmbiguousWorktreeName(
-            query.to_string(),
-            prefix_matches.iter().map(|s| s.to_string()).collect(),
-        ));
+    match (prefix_iter.next(), prefix_iter.next()) {
+        (Some(first), None) => {
+            // Exactly one prefix match - return it
+            return Ok(first.clone());
+        }
+        (Some(first), Some(second)) => {
+            // Multiple prefix matches - collect them for error message
+            let mut all_prefix: Vec<&str> = vec![first.as_str(), second.as_str()];
+            all_prefix.extend(prefix_iter.map(|s| s.as_str()));
+            return Err(HnError::AmbiguousWorktreeName(
+                query.to_string(),
+                all_prefix.iter().map(|s| s.to_string()).collect(),
+            ));
+        }
+        _ => { /* No prefix matches, continue */ }
     }
 
-    // Try case-insensitive substring match
-    let substring_matches: Vec<&String> = candidates
+    // Try case-insensitive substring match with lazy evaluation
+    let mut substring_iter = candidates
         .iter()
-        .filter(|c| c.to_lowercase().contains(&query_lower))
-        .collect();
+        .filter(|c| c.to_lowercase().contains(&query_lower));
 
-    if substring_matches.len() == 1 {
-        return Ok(substring_matches[0].clone());
-    } else if substring_matches.len() > 1 {
-        // If multiple substring matches, continue to fuzzy scoring to find best
-        // Don't return error yet, let fuzzy scoring disambiguate
+    match (substring_iter.next(), substring_iter.next()) {
+        (Some(first), None) => {
+            // Exactly one substring match - return it
+            return Ok(first.clone());
+        }
+        (Some(_), Some(_)) => {
+            // Multiple substring matches - continue to fuzzy scoring to disambiguate
+        }
+        _ => { /* No substring matches, continue */ }
     }
 
     // Try fuzzy matching with scoring
-    let mut matches: Vec<FuzzyMatch> = candidates
+    let mut matches: Vec<(&str, i32)> = candidates
         .iter()
         .filter_map(|candidate| {
-            fuzzy_score(query, candidate).map(|score| FuzzyMatch {
-                name: candidate.clone(),
-                score,
-            })
+            fuzzy_score(query, candidate).map(|score| (candidate.as_str(), score))
         })
         .collect();
 
@@ -69,19 +67,19 @@ pub fn find_best_match(query: &str, candidates: &[String]) -> Result<String> {
     }
 
     // Sort by score (highest first)
-    matches.sort_by(|a, b| b.score.cmp(&a.score));
+    matches.sort_by(|a, b| b.1.cmp(&a.1));
 
     // Check if there are multiple matches with the same top score
-    if matches.len() > 1 && matches[0].score == matches[1].score {
+    if matches.len() > 1 && matches[0].1 == matches[1].1 {
         let ambiguous: Vec<String> = matches
             .iter()
-            .filter(|m| m.score == matches[0].score)
-            .map(|m| m.name.clone())
+            .filter(|m| m.1 == matches[0].1)
+            .map(|m| m.0.to_string())
             .collect();
         return Err(HnError::AmbiguousWorktreeName(query.to_string(), ambiguous));
     }
 
-    Ok(matches[0].name.clone())
+    Ok(matches[0].0.to_string())
 }
 
 /// Calculate fuzzy match score

@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::env::copy::{CopyAction, CopyManager};
 use crate::env::symlinks::{SymlinkAction, SymlinkManager};
+use crate::env::validation;
 use crate::errors::Result;
 use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
@@ -12,12 +13,8 @@ pub fn run(
     from: Option<String>,
     no_branch: bool,
 ) -> Result<()> {
-    // Validate name (basic validation for now)
-    if name.is_empty() {
-        return Err(crate::errors::HnError::InvalidWorktreeName(
-            "Worktree name cannot be empty".to_string(),
-        ));
-    }
+    // Validate worktree name
+    validation::validate_worktree_name(&name)?;
 
     // Open git repository
     let git = GitBackend::open_from_current_dir()?;

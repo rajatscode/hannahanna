@@ -1,6 +1,7 @@
 use crate::errors::Result;
 use sha2::{Digest, Sha256};
 use std::fs;
+use std::io::{BufReader, Read};
 use std::path::Path;
 
 pub struct CompatibilityChecker;
@@ -24,11 +25,21 @@ impl CompatibilityChecker {
         Ok(main_hash == worktree_hash)
     }
 
-    /// Compute SHA256 hash of a file
+    /// Compute SHA256 hash of a file using streaming to avoid loading entire file into memory
     fn compute_file_hash(path: &Path) -> Result<String> {
-        let content = fs::read(path)?;
+        let file = fs::File::open(path)?;
+        let mut reader = BufReader::new(file);
         let mut hasher = Sha256::new();
-        hasher.update(&content);
+        let mut buffer = [0u8; 8192];
+
+        loop {
+            let n = reader.read(&mut buffer)?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buffer[..n]);
+        }
+
         let result = hasher.finalize();
         Ok(format!("{:x}", result))
     }
@@ -72,10 +83,14 @@ impl CompatibilityChecker {
         Self::is_compatible(lockfile_name, main_repo, worktree)
     }
 
-    /// Read first 1KB of a file
+    /// Read first 1KB of a file using buffered reading
     fn read_first_kb(path: &Path) -> Result<Vec<u8>> {
-        let content = fs::read(path)?;
-        Ok(content.into_iter().take(1024).collect())
+        let file = fs::File::open(path)?;
+        let mut reader = BufReader::new(file);
+        let mut buffer = vec![0u8; 1024];
+        let n = reader.read(&mut buffer)?;
+        buffer.truncate(n);
+        Ok(buffer)
     }
 }
 

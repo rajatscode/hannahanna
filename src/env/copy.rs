@@ -1,4 +1,5 @@
 use crate::config::CopyResource;
+use crate::env::validation;
 use crate::errors::{HnError, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -42,10 +43,6 @@ impl CopyManager {
         let source_path = main_repo.join(&resource.source);
         let target_path = worktree.join(&resource.target);
 
-        // Validate paths for security
-        Self::validate_copy_target(&source_path, main_repo)?;
-        Self::validate_copy_target(&target_path, worktree)?;
-
         // Check if source exists
         if !source_path.exists() {
             return Ok(CopyAction::Skipped {
@@ -53,6 +50,11 @@ impl CopyManager {
                 reason: "Source does not exist in main repository".to_string(),
             });
         }
+
+        // Validate source is within main repo
+        validation::validate_path_within_repo(&source_path, main_repo).map_err(|_| {
+            HnError::CopyError("Source is outside repository boundaries".to_string())
+        })?;
 
         // Check if source is a file (we only copy files, not directories)
         if !source_path.is_file() {
@@ -71,48 +73,22 @@ impl CopyManager {
         }
 
         // Create parent directory if needed
-        if let Some(parent) = target_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
+        validation::ensure_parent_dir(&target_path)?;
 
         // Copy the file
         fs::copy(&source_path, &target_path)?;
+
+        // Validate the copied file is within repo boundaries (TOCTOU-safe)
+        validation::validate_path_within_repo(&target_path, worktree).map_err(|_| {
+            // Clean up the copied file
+            let _ = fs::remove_file(&target_path);
+            HnError::CopyError("Target is outside repository boundaries".to_string())
+        })?;
 
         Ok(CopyAction::Copied {
             source: source_path,
             target: target_path,
         })
-    }
-
-    /// Validate that a copy target is within the repository boundaries
-    /// Prevents path traversal attacks
-    fn validate_copy_target(target: &Path, repo_root: &Path) -> Result<()> {
-        // Canonicalize paths to resolve any .. or symlinks
-        let canonical_repo = fs::canonicalize(repo_root)
-            .map_err(|e| HnError::SymlinkError(format!("Cannot canonicalize repo root: {}", e)))?;
-
-        // For the target, we need to check the parent directory since the target might not exist yet
-        let target_to_check = if target.exists() {
-            target.to_path_buf()
-        } else {
-            // Check the parent directory
-            target
-                .parent()
-                .ok_or_else(|| HnError::SymlinkError("Invalid target path".to_string()))?
-                .to_path_buf()
-        };
-
-        let canonical_target = fs::canonicalize(&target_to_check)
-            .map_err(|e| HnError::SymlinkError(format!("Cannot canonicalize target: {}", e)))?;
-
-        // Check if target is within repo boundaries
-        if !canonical_target.starts_with(&canonical_repo) {
-            return Err(HnError::SymlinkError(
-                "Copy target is outside repository boundaries".to_string(),
-            ));
-        }
-
-        Ok(())
     }
 }
 

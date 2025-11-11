@@ -2,6 +2,24 @@ use crate::errors::{HnError, Result};
 use crate::vcs::Worktree;
 use git2::Repository;
 use std::path::Path;
+use std::process::Output;
+
+/// Helper to extract meaningful error message from git command output
+fn git_error_from_output(output: &Output, context: &str) -> HnError {
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let exit_code = output.status.code().unwrap_or(-1);
+
+    let error_msg = if !stderr.is_empty() {
+        format!("{}: {}", context, stderr.trim())
+    } else if !stdout.is_empty() {
+        format!("{}: {}", context, stdout.trim())
+    } else {
+        format!("{} (exit code: {})", context, exit_code)
+    };
+
+    HnError::Git(git2::Error::from_str(&error_msg))
+}
 
 /// Git status information for a worktree
 #[derive(Debug, Clone)]
@@ -138,14 +156,16 @@ impl GitBackend {
                     .arg(path)
                     .arg(branch);
 
-                let output = fallback_cmd.output()?;
+                let fallback_output = fallback_cmd.output()?;
 
-                if !output.status.success() {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    return Err(HnError::Git(git2::Error::from_str(&stderr)));
+                if !fallback_output.status.success() {
+                    return Err(git_error_from_output(
+                        &fallback_output,
+                        "Failed to create worktree",
+                    ));
                 }
             } else {
-                return Err(HnError::Git(git2::Error::from_str(&stderr)));
+                return Err(git_error_from_output(&output, "Failed to create worktree"));
             }
         }
 

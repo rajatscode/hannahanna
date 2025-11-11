@@ -223,6 +223,8 @@ hooks:
   pre_remove: "npm run cleanup"
 ```
 
+**⚠️ SECURITY WARNING:** Hooks execute arbitrary shell commands from your `.hannahanna.yml` configuration file. Only use hannahanna in repositories you trust. Never clone and run `hn add` in untrusted repositories without first reviewing the `.hannahanna.yml` file for malicious hooks.
+
 **Available hooks:**
 - `post_create` - Runs after worktree creation
 - `pre_remove` - Runs before worktree deletion

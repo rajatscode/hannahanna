@@ -29,9 +29,9 @@ impl StateManager {
     pub fn create_state_dir(&self, worktree_name: &str) -> Result<PathBuf> {
         let state_dir = self.state_root.join(worktree_name);
 
-        if !state_dir.exists() {
-            fs::create_dir_all(&state_dir)?;
-        }
+        // create_dir_all is idempotent, so no need to check if it exists first
+        // This avoids TOCTOU race condition
+        fs::create_dir_all(&state_dir)?;
 
         Ok(state_dir)
     }
