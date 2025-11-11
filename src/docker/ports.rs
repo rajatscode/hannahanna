@@ -2,9 +2,12 @@
 // Automatically assigns unique ports to each worktree
 
 use crate::errors::{HnError, Result};
+use fs2::FileExt;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::fs;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
+use std::net::{SocketAddr, TcpListener};
 use std::path::{Path, PathBuf};
 
 /// Port registry format persisted to disk
@@ -56,7 +59,7 @@ impl PortAllocator {
 
     /// Create a port allocator with custom port range
     /// Used primarily for testing port exhaustion scenarios
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Used in integration tests
     pub fn with_range(state_dir: &Path, range_start: u16, range_end: u16) -> Result<Self> {
         let mut allocator = Self::new(state_dir)?;
         allocator.port_range_start = range_start;
@@ -139,21 +142,37 @@ impl PortAllocator {
             .collect()
     }
 
-    /// Save registry to disk
+    /// Save registry to disk with file locking to prevent concurrent corruption
     pub fn save(&self) -> Result<()> {
         let registry_path = self.state_dir.join("port-registry.yaml");
 
         // Ensure directory exists
         fs::create_dir_all(&self.state_dir)?;
 
+        // Open file for writing with exclusive lock
+        let file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&registry_path)?;
+
+        // Acquire exclusive lock (blocks until lock is available)
+        file.lock_exclusive()
+            .map_err(|e| HnError::DockerError(format!("Failed to lock registry file: {}", e)))?;
+
         let yaml = serde_yml::to_string(&self.registry)
             .map_err(|e| HnError::DockerError(format!("Failed to serialize registry: {}", e)))?;
 
-        fs::write(&registry_path, yaml)?;
+        // Write to file
+        let mut file_mut = file;
+        file_mut.write_all(yaml.as_bytes())?;
+        file_mut.sync_all()?;
+
+        // Lock is automatically released when file goes out of scope
         Ok(())
     }
 
-    /// Load registry from disk
+    /// Load registry from disk with file locking to prevent reading during writes
     fn load_registry(state_dir: &Path) -> Result<PortRegistry> {
         let registry_path = state_dir.join("port-registry.yaml");
 
@@ -161,11 +180,36 @@ impl PortAllocator {
             return Ok(PortRegistry::default());
         }
 
+        // Open file for reading with shared lock
+        let file = File::open(&registry_path)?;
+
+        // Acquire shared lock (allows multiple readers, blocks writers)
+        file.lock_shared().map_err(|e| {
+            HnError::DockerError(format!("Failed to lock registry file for reading: {}", e))
+        })?;
+
         let content = fs::read_to_string(&registry_path)?;
         let registry: PortRegistry = serde_yml::from_str(&content)
             .map_err(|e| HnError::DockerError(format!("Failed to parse registry: {}", e)))?;
 
+        // Lock is automatically released when file goes out of scope
         Ok(registry)
+    }
+
+    /// Check if a port is available on the system by attempting to bind to it
+    fn is_port_available_on_system(&self, port: u16) -> bool {
+        // Try to bind to both IPv4 and IPv6 addresses
+        let ipv4_addr: SocketAddr = format!("0.0.0.0:{}", port).parse().unwrap();
+        let ipv6_addr: SocketAddr = format!("[::]:{}", port).parse().unwrap();
+
+        // Check IPv4
+        let ipv4_available = TcpListener::bind(ipv4_addr).is_ok();
+
+        // Check IPv6
+        let ipv6_available = TcpListener::bind(ipv6_addr).is_ok();
+
+        // Port is available if we can bind to at least one
+        ipv4_available || ipv6_available
     }
 
     /// Allocate next available port for a service type
@@ -176,9 +220,11 @@ impl PortAllocator {
         // Always start from base port to fill gaps (released ports)
         // The HashSet lookup is O(1) so this is still efficient
         let mut port = base_port;
+        let mut attempts = 0;
+        let max_attempts = (self.port_range_end - self.port_range_start) as usize;
 
         loop {
-            if port > self.port_range_end {
+            if port > self.port_range_end || attempts > max_attempts {
                 return Err(HnError::PortAllocationError(format!(
                     "Port exhausted for service '{}': no available ports in range {}-{}",
                     service, self.port_range_start, self.port_range_end
@@ -187,15 +233,25 @@ impl PortAllocator {
 
             // O(1) lookup using HashSet instead of O(n) iteration
             if !self.used_ports.contains(&port) {
-                // Found an available port - add to cache and update next_available
-                self.used_ports.insert(port);
-                self.registry
-                    .next_available
-                    .insert(service.to_string(), port + 1);
-                return Ok(port);
+                // Check if port is actually available on the system
+                if self.is_port_available_on_system(port) {
+                    // Found an available port - add to cache and update next_available
+                    self.used_ports.insert(port);
+                    self.registry
+                        .next_available
+                        .insert(service.to_string(), port + 1);
+                    return Ok(port);
+                } else {
+                    // Port is in use by another process, skip it
+                    eprintln!(
+                        "Warning: Port {} is in use by another process, trying next port",
+                        port
+                    );
+                }
             }
 
             port += 1;
+            attempts += 1;
         }
     }
 }

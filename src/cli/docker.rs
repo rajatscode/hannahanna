@@ -114,6 +114,8 @@ pub fn logs(name: String, service: Option<String>) -> Result<()> {
         return Err(crate::errors::HnError::WorktreeNotFound(name));
     }
 
+    // Allow deprecated - this is CLI display code, actual container operations use safe methods
+    #[allow(deprecated)]
     let cmd = manager.build_logs_command(&name, &worktree_path, service.as_deref())?;
     println!("Running: {}", cmd);
     println!("(Press Ctrl+C to exit)\n");

@@ -55,6 +55,7 @@ fn test_get_container_status() {
 }
 
 #[test]
+#[allow(deprecated)] // Testing deprecated method for backward compatibility
 fn test_start_command_generation() {
     // TDD RED: Test that we can generate docker-compose commands
     // Goal: Build correct docker-compose up command
@@ -81,6 +82,7 @@ fn test_start_command_generation() {
 }
 
 #[test]
+#[allow(deprecated)] // Testing deprecated method for backward compatibility
 fn test_stop_command_generation() {
     // TDD RED: Test stop command generation
     // Goal: Build correct docker-compose down command
@@ -156,6 +158,7 @@ fn test_cleanup_orphaned() {
 }
 
 #[test]
+#[allow(deprecated)] // Testing deprecated method for backward compatibility
 fn test_container_logs() {
     // TDD RED: Test retrieving container logs
     // Goal: Get logs for a specific worktree's containers
