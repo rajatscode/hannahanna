@@ -1,11 +1,12 @@
+pub mod backend_init;
 pub mod git;
 pub mod jujutsu;
 pub mod mercurial;
 pub mod traits;
 
 // Re-export for convenience
-#[allow(unused_imports)] // Will be used in v0.3 when multi-VCS is fully implemented
-pub use traits::{create_backend, detect_vcs_type, VcsBackend, VcsType, WorkspaceStatus};
+pub use backend_init::{init_backend_from_current_dir, init_backend_with_detection};
+pub use traits::VcsType;
 
 use std::path::PathBuf;
 

@@ -1,6 +1,6 @@
 // Sync command: Sync current worktree with another branch (typically main)
 use crate::errors::{HnError, Result};
-use crate::vcs::git::GitBackend;
+use crate::vcs::{init_backend_from_current_dir, VcsType};
 use std::env;
 use std::process::Command;
 
@@ -28,11 +28,16 @@ pub fn run(
     strategy: Option<String>,
     autostash: bool,
     no_commit: bool,
+    vcs_type: Option<VcsType>,
 ) -> Result<()> {
-    let git = GitBackend::open_from_current_dir()?;
+    let backend = if let Some(vcs) = vcs_type {
+        crate::vcs::init_backend_with_detection(&env::current_dir()?, Some(vcs))?
+    } else {
+        init_backend_from_current_dir()?
+    };
 
     // Get current worktree
-    let current_worktree = git.get_current_worktree()?;
+    let current_worktree = backend.get_current_workspace()?;
 
     // Default source branch to "main"
     let source = source_branch.unwrap_or_else(|| "main".to_string());
@@ -50,7 +55,7 @@ pub fn run(
     eprintln!("→ Strategy: {:?}", sync_strategy);
 
     // Check if current worktree has uncommitted changes
-    let status = git.get_worktree_status(&current_worktree.path)?;
+    let status = backend.get_workspace_status(&current_worktree.path)?;
     if !status.is_clean() && !autostash {
         return Err(HnError::Git(git2::Error::from_str(&format!(
             "Worktree '{}' has uncommitted changes. Use --autostash or commit/stash them first.",

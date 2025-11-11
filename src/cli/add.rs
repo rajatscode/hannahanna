@@ -8,7 +8,7 @@ use crate::env::validation;
 use crate::errors::Result;
 use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
-use crate::vcs::git::GitBackend;
+use crate::vcs::{init_backend_from_current_dir, VcsType};
 
 pub fn run(
     name: String,
@@ -16,12 +16,17 @@ pub fn run(
     from: Option<String>,
     no_branch: bool,
     no_hooks: bool,
+    vcs_type: Option<VcsType>,
 ) -> Result<()> {
     // Validate worktree name
     validation::validate_worktree_name(&name)?;
 
-    // Open git repository
-    let git = GitBackend::open_from_current_dir()?;
+    // Initialize VCS backend (auto-detect or use explicit type)
+    let backend = if let Some(vcs) = vcs_type {
+        crate::vcs::init_backend_with_detection(&std::env::current_dir()?, Some(vcs))?
+    } else {
+        init_backend_from_current_dir()?
+    };
 
     // Find repository root
     let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
@@ -31,8 +36,9 @@ pub fn run(
 
     // Create the worktree
     eprintln!("Creating worktree '{}'...", name);
-    let worktree = git.create_worktree(&name, branch.as_deref(), from.as_deref(), no_branch)?;
-    eprintln!("✓ Git worktree created at {}", worktree.path.display());
+    let worktree =
+        backend.create_workspace(&name, branch.as_deref(), from.as_deref(), no_branch)?;
+    eprintln!("✓ Worktree created at {}", worktree.path.display());
 
     // Create state directory
     let state_manager = StateManager::new(&repo_root)?;

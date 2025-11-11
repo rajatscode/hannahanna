@@ -7,17 +7,21 @@ use crate::errors::Result;
 use crate::fuzzy;
 use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
-use crate::vcs::git::GitBackend;
+use crate::vcs::{init_backend_from_current_dir, VcsType};
 
-pub fn run(name: String, force: bool, no_hooks: bool) -> Result<()> {
+pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>) -> Result<()> {
     // Validate worktree name
     validation::validate_worktree_name(&name)?;
 
-    // Open git repository
-    let git = GitBackend::open_from_current_dir()?;
+    // Initialize VCS backend
+    let backend = if let Some(vcs) = vcs_type {
+        crate::vcs::init_backend_with_detection(&std::env::current_dir()?, Some(vcs))?
+    } else {
+        init_backend_from_current_dir()?
+    };
 
     // Get all worktrees for fuzzy matching
-    let worktrees = git.list_worktrees()?;
+    let worktrees = backend.list_workspaces()?;
     let worktree_names: Vec<String> = worktrees.iter().map(|wt| wt.name.clone()).collect();
 
     // Find the best match using fuzzy matching
@@ -28,7 +32,7 @@ pub fn run(name: String, force: bool, no_hooks: bool) -> Result<()> {
     }
 
     // Get worktree info for hooks
-    let worktree = git.get_worktree_by_name(&matched_name)?;
+    let worktree = backend.get_workspace_by_name(&matched_name)?;
 
     // Find repository root
     let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
@@ -74,7 +78,7 @@ pub fn run(name: String, force: bool, no_hooks: bool) -> Result<()> {
     }
 
     // Remove the worktree
-    git.remove_worktree(&matched_name, force)?;
+    backend.remove_workspace(&matched_name, force)?;
 
     // Clean up state directory
     state_manager.remove_state_dir(&matched_name)?;

@@ -14,12 +14,16 @@ mod vcs;
 
 #[derive(Parser)]
 #[command(name = "hn")]
-#[command(about = "Git worktree manager with isolated development environments", long_about = None)]
+#[command(about = "Multi-VCS worktree manager with isolated development environments", long_about = None)]
 #[command(version)]
 struct Cli {
     /// Skip hook execution (for untrusted repositories)
     #[arg(long, global = true)]
     no_hooks: bool,
+
+    /// Specify VCS type explicitly (git, hg/mercurial, jj/jujutsu). Auto-detects if not specified.
+    #[arg(long, global = true, value_name = "TYPE")]
+    vcs: Option<String>,
 
     #[command(subcommand)]
     command: Commands,
@@ -207,22 +211,36 @@ enum DockerCommands {
 fn main() {
     let cli = Cli::parse();
 
+    // Parse VCS type if provided
+    let vcs_type = if let Some(ref vcs_str) = cli.vcs {
+        match vcs_str.parse::<vcs::VcsType>() {
+            Ok(vcs) => Some(vcs),
+            Err(e) => {
+                eprintln!("Error: {}", e);
+                eprintln!("Supported VCS types: git, hg/mercurial, jj/jujutsu");
+                std::process::exit(1);
+            }
+        }
+    } else {
+        None
+    };
+
     let result = match cli.command {
         Commands::Add {
             name,
             branch,
             from,
             no_branch,
-        } => cli::add::run(name, branch, from, no_branch, cli.no_hooks),
-        Commands::List { tree } => cli::list::run(tree),
-        Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks),
-        Commands::Switch { name } => cli::switch::run(name),
+        } => cli::add::run(name, branch, from, no_branch, cli.no_hooks, vcs_type),
+        Commands::List { tree } => cli::list::run(tree, vcs_type),
+        Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks, vcs_type),
+        Commands::Switch { name } => cli::switch::run(name, vcs_type),
         Commands::Return {
             merge,
             delete,
             no_ff,
-        } => cli::return_cmd::run(merge, delete, no_ff, cli.no_hooks),
-        Commands::Info { name } => cli::info::run(name),
+        } => cli::return_cmd::run(merge, delete, no_ff, cli.no_hooks, vcs_type),
+        Commands::Info { name } => cli::info::run(name, vcs_type),
         Commands::Each {
             command,
             parallel,
@@ -236,13 +254,13 @@ fn main() {
             no_ff,
             squash,
             strategy,
-        } => cli::integrate::run(source, into, no_ff, squash, strategy),
+        } => cli::integrate::run(source, into, no_ff, squash, strategy, vcs_type),
         Commands::Sync {
             source_branch,
             strategy,
             autostash,
             no_commit,
-        } => cli::sync::run(source_branch, strategy, autostash, no_commit),
+        } => cli::sync::run(source_branch, strategy, autostash, no_commit, vcs_type),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
         Commands::Config { command } => match command {

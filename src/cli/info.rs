@@ -3,51 +3,50 @@ use crate::docker::container::ContainerManager;
 use crate::docker::ports::PortAllocator;
 use crate::errors::Result;
 use crate::fuzzy;
-use crate::vcs::git::GitBackend;
+use crate::vcs::{init_backend_from_current_dir, VcsType};
 use std::env;
 
 /// Show detailed information about a worktree
 ///
 /// If no name is provided, shows info for the current worktree
-pub fn run(name: Option<String>) -> Result<()> {
-    let git = GitBackend::open_from_current_dir()?;
+pub fn run(name: Option<String>, vcs_type: Option<VcsType>) -> Result<()> {
+    let backend = if let Some(vcs) = vcs_type {
+        crate::vcs::init_backend_with_detection(&env::current_dir()?, Some(vcs))?
+    } else {
+        init_backend_from_current_dir()?
+    };
 
     // Determine which worktree to show info for
     let worktree = if let Some(name) = name {
         // Get all worktrees for fuzzy matching
-        let worktrees = git.list_worktrees()?;
+        let worktrees = backend.list_workspaces()?;
         let worktree_names: Vec<String> = worktrees.iter().map(|wt| wt.name.clone()).collect();
 
         // Find the best match using fuzzy matching
         let matched_name = fuzzy::find_best_match(&name, &worktree_names)?;
 
         // Show info for named worktree
-        git.get_worktree_by_name(&matched_name)?
+        backend.get_workspace_by_name(&matched_name)?
     } else {
         // Show info for current worktree
-        let current_dir = env::current_dir()?;
-        git.get_current_worktree_from_path(&current_dir)?
+        backend.get_current_workspace()?
     };
 
-    // Get git status
-    let status = git.get_worktree_status(&worktree.path)?;
+    // Get status
+    let status = backend.get_workspace_status(&worktree.path)?;
 
     // Print worktree information
     println!("Worktree: {}", worktree.name);
     println!("Path: {}", worktree.path.display());
     println!("Branch: {}", worktree.branch);
     println!(
-        "Commit: {} {}",
-        &worktree.commit[..7.min(worktree.commit.len())],
-        git.get_commit_message(&worktree.path)?
-            .lines()
-            .next()
-            .unwrap_or("")
+        "Commit: {}",
+        &worktree.commit[..7.min(worktree.commit.len())]
     );
     println!();
 
-    // Print git status
-    println!("Git Status:");
+    // Print status
+    println!("Status:");
     if status.is_clean() {
         println!("  Clean (no changes)");
     } else {

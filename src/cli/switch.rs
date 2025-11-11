@@ -1,8 +1,7 @@
 use crate::env::validation;
 use crate::errors::Result;
 use crate::fuzzy;
-use crate::vcs::git::GitBackend;
-use crate::vcs::short_commit;
+use crate::vcs::{init_backend_from_current_dir, short_commit, VcsType};
 
 /// Switch to a worktree by name
 ///
@@ -26,22 +25,26 @@ use crate::vcs::short_commit;
 ///     fi
 /// }
 /// ```
-pub fn run(name: String) -> Result<()> {
+pub fn run(name: String, vcs_type: Option<VcsType>) -> Result<()> {
     // Validate worktree name
     validation::validate_worktree_name(&name)?;
 
-    // Open git repository
-    let git = GitBackend::open_from_current_dir()?;
+    // Initialize VCS backend
+    let backend = if let Some(vcs) = vcs_type {
+        crate::vcs::init_backend_with_detection(&std::env::current_dir()?, Some(vcs))?
+    } else {
+        init_backend_from_current_dir()?
+    };
 
     // Get all worktrees for fuzzy matching
-    let worktrees = git.list_worktrees()?;
+    let worktrees = backend.list_workspaces()?;
     let worktree_names: Vec<String> = worktrees.iter().map(|wt| wt.name.clone()).collect();
 
     // Find the best match using fuzzy matching
     let matched_name = fuzzy::find_best_match(&name, &worktree_names)?;
 
     // Get the worktree by the matched name
-    let worktree = git.get_worktree_by_name(&matched_name)?;
+    let worktree = backend.get_workspace_by_name(&matched_name)?;
 
     // Verify the worktree path exists
     if !worktree.path.exists() {

@@ -49,6 +49,7 @@ impl GitBackend {
     }
 
     /// Open a git repository from a specific path
+    #[allow(dead_code)] // Public API, may be used by external crates
     pub fn open<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
         let repo = Repository::discover(path.as_ref()).map_err(|_| HnError::NotInRepository)?;
         Ok(Self { repo })
@@ -432,6 +433,7 @@ impl GitBackend {
     }
 
     /// Get the commit message for a worktree
+    #[allow(dead_code)] // Public API, may be used by external crates
     pub fn get_commit_message(&self, worktree_path: &Path) -> Result<String> {
         let wt_repo = Repository::open(worktree_path)?;
 
