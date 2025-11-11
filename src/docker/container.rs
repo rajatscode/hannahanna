@@ -232,7 +232,7 @@ impl<'a> ContainerManager<'a> {
     }
 
     /// Validate worktree name for security
-    fn validate_worktree_name(name: &str) -> Result<()> {
+    pub fn validate_worktree_name(name: &str) -> Result<()> {
         // Check length
         if name.is_empty() || name.len() > 255 {
             return Err(HnError::DockerError(
@@ -254,7 +254,7 @@ impl<'a> ContainerManager<'a> {
     }
 
     /// Validate service name for security
-    fn validate_service_name(name: &str) -> Result<()> {
+    pub fn validate_service_name(name: &str) -> Result<()> {
         // Check length
         if name.is_empty() || name.len() > 255 {
             return Err(HnError::DockerError(
@@ -470,7 +470,7 @@ impl<'a> ContainerManager<'a> {
     }
 
     /// Parse timeout string (e.g., "30s", "1m") into seconds
-    fn parse_timeout(&self, timeout_str: &str) -> Result<u64> {
+    pub fn parse_timeout(&self, timeout_str: &str) -> Result<u64> {
         let timeout_str = timeout_str.trim();
 
         if let Some(num_str) = timeout_str.strip_suffix('s') {
@@ -525,5 +525,339 @@ mod tests {
         assert_eq!(manager.get_project_name("feature-x"), "feature-x");
         assert_eq!(manager.get_project_name("feature/test"), "feature-test");
         assert_eq!(manager.get_project_name("my_feature"), "my-feature");
+    }
+
+    // ============================================================================
+    // Unit Tests for Validation Functions
+    // ============================================================================
+
+    #[test]
+    fn test_validate_worktree_name_valid() {
+        // Test that valid names pass validation
+        let max_length_name = "x".repeat(255);
+        let valid_names = vec![
+            "feature",
+            "feature-123",
+            "fix-bug",
+            "my.branch",
+            "test_branch",
+            "Feature-Branch",
+            "a", // minimum length
+            max_length_name.as_str(), // maximum length
+        ];
+
+        for name in valid_names {
+            let result = ContainerManager::validate_worktree_name(name);
+            assert!(
+                result.is_ok(),
+                "Valid name '{}' should pass validation",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_worktree_name_dangerous_characters() {
+        // Test that dangerous shell metacharacters are rejected
+        let dangerous_inputs = vec![
+            ("test$var", '$', "dollar sign"),
+            ("test`cmd`", '`', "backtick"),
+            ("test\\escape", '\\', "backslash"),
+            ("test\nline", '\n', "newline"),
+            ("test\rreturn", '\r', "carriage return"),
+            ("test;cmd", ';', "semicolon"),
+            ("test|pipe", '|', "pipe"),
+            ("test&bg", '&', "ampersand"),
+            ("test<input", '<', "less than"),
+            ("test>output", '>', "greater than"),
+            ("test(sub)", '(', "left paren"),
+            ("test)sub", ')', "right paren"),
+            ("test{group}", '{', "left brace"),
+            ("test}group", '}', "right brace"),
+        ];
+
+        for (input, dangerous_char, description) in dangerous_inputs {
+            let result = ContainerManager::validate_worktree_name(input);
+            assert!(
+                result.is_err(),
+                "Should reject worktree name with {} ({}): '{}'",
+                description,
+                dangerous_char,
+                input
+            );
+
+            let err = result.unwrap_err();
+            let err_msg = format!("{}", err);
+            assert!(
+                err_msg.contains("invalid characters") || err_msg.contains("Invalid"),
+                "Error message should mention invalid characters for '{}', got: {}",
+                input,
+                err_msg
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_worktree_name_empty() {
+        let result = ContainerManager::validate_worktree_name("");
+        assert!(result.is_err(), "Should reject empty worktree name");
+
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("between 1 and 255") || err_msg.contains("empty"),
+            "Error should mention length requirement"
+        );
+    }
+
+    #[test]
+    fn test_validate_worktree_name_too_long() {
+        let long_name = "a".repeat(256);
+        let result = ContainerManager::validate_worktree_name(&long_name);
+        assert!(
+            result.is_err(),
+            "Should reject worktree name longer than 255 characters"
+        );
+
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("255") || err_msg.contains("length"),
+            "Error should mention length limit"
+        );
+    }
+
+    #[test]
+    fn test_validate_worktree_name_command_injection_attempts() {
+        // Test specific command injection attack vectors
+        let attack_vectors = vec![
+            "test$(rm -rf /)",           // Command substitution
+            "test`whoami`",               // Backtick execution
+            "test; rm -rf /",             // Command chaining
+            "test | sh",                  // Pipe to shell
+            "test & malicious",           // Background execution
+            "test > /etc/passwd",         // Output redirection
+            "test < /etc/passwd",         // Input redirection
+            "(malicious)",                // Subshell
+            "{malicious; commands}",      // Command grouping
+            "test\nrm -rf /",             // Newline injection
+            "test\rmalicious",            // Carriage return injection
+            "test\\ninjection",           // Escape sequence
+        ];
+
+        for attack in attack_vectors {
+            let result = ContainerManager::validate_worktree_name(attack);
+            assert!(
+                result.is_err(),
+                "Should reject command injection attempt: '{}'",
+                attack
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_service_name_valid() {
+        // Test that valid service names pass validation
+        let max_length_name = "x".repeat(255);
+        let valid_names = vec![
+            "app",
+            "web",
+            "api-server",
+            "db_service",
+            "cache-1",
+            "worker_2",
+            "MyService",
+            "Service-Name_123",
+            "a", // minimum length
+            max_length_name.as_str(), // maximum length
+        ];
+
+        for name in valid_names {
+            let result = ContainerManager::validate_service_name(name);
+            assert!(
+                result.is_ok(),
+                "Valid service name '{}' should pass validation",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_service_name_invalid_characters() {
+        // Test that non-alphanumeric characters (except - and _) are rejected
+        let invalid_names = vec![
+            "app@service",
+            "web.server",
+            "api#service",
+            "db!service",
+            "cache service", // space
+            "worker$1",
+            "service;cmd",
+            "app|pipe",
+            "test&bg",
+            "app>out",
+            "app<in",
+            "app(sub)",
+            "app{group}",
+            "app`cmd`",
+            "app\\escape",
+            "app\nnewline",
+            "app\rreturn",
+        ];
+
+        for name in invalid_names {
+            let result = ContainerManager::validate_service_name(name);
+            assert!(
+                result.is_err(),
+                "Should reject invalid service name: '{}'",
+                name
+            );
+
+            let err_msg = format!("{}", result.unwrap_err());
+            assert!(
+                err_msg.contains("alphanumeric") || err_msg.contains("Invalid"),
+                "Error should mention alphanumeric requirement for '{}', got: {}",
+                name,
+                err_msg
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_service_name_empty() {
+        let result = ContainerManager::validate_service_name("");
+        assert!(result.is_err(), "Should reject empty service name");
+
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("between 1 and 255") || err_msg.contains("empty"),
+            "Error should mention length requirement"
+        );
+    }
+
+    #[test]
+    fn test_validate_service_name_too_long() {
+        let long_name = "a".repeat(256);
+        let result = ContainerManager::validate_service_name(&long_name);
+        assert!(
+            result.is_err(),
+            "Should reject service name longer than 255 characters"
+        );
+
+        let err_msg = format!("{}", result.unwrap_err());
+        assert!(
+            err_msg.contains("255") || err_msg.contains("length"),
+            "Error should mention length limit"
+        );
+    }
+
+    // ============================================================================
+    // Unit Tests for Docker Compose Variant Detection
+    // ============================================================================
+
+    #[test]
+    fn test_detect_compose_variant() {
+        // Test that variant detection doesn't crash
+        // Actual variant depends on system Docker installation
+        let result = ContainerManager::detect_compose_variant();
+
+        // Should return either Subcommand or Hyphenated
+        // We can't assert which one without knowing the system state,
+        // but we can verify the function executes
+        match result {
+            DockerComposeVariant::Subcommand => {
+                // Modern "docker compose" is available
+            }
+            DockerComposeVariant::Hyphenated => {
+                // Legacy "docker-compose" is available
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_compose_command_uses_variant() {
+        // Test that get_compose_command uses the detected variant
+        let temp_dir = TempDir::new().unwrap();
+        let config = DockerConfig::default();
+        let manager = ContainerManager::new(&config, temp_dir.path()).unwrap();
+
+        // Test with sample args
+        let args = vec!["up".to_string(), "-d".to_string()];
+        let (program, cmd_args) = manager.get_compose_command(&args);
+
+        // Should use either modern "docker" or legacy "docker-compose"
+        assert!(
+            program == "docker" || program == "docker-compose",
+            "Program should be 'docker' or 'docker-compose', got: {}",
+            program
+        );
+
+        // Verify args are included
+        assert!(
+            cmd_args.iter().any(|a| a == "up"),
+            "Command args should contain 'up'"
+        );
+        assert!(
+            cmd_args.iter().any(|a| a == "-d"),
+            "Command args should contain '-d'"
+        );
+
+        // If using modern variant, args should contain "compose" subcommand
+        if program == "docker" {
+            assert!(
+                cmd_args.iter().any(|a| a == "compose"),
+                "Modern variant should have 'compose' subcommand"
+            );
+        }
+    }
+
+    // ============================================================================
+    // Unit Tests for Parse Timeout
+    // ============================================================================
+
+    #[test]
+    fn test_parse_timeout_seconds_unit() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = DockerConfig::default();
+        let manager = ContainerManager::new(&config, temp_dir.path()).unwrap();
+
+        assert_eq!(manager.parse_timeout("30s").unwrap(), 30);
+        assert_eq!(manager.parse_timeout("1s").unwrap(), 1);
+        assert_eq!(manager.parse_timeout("120s").unwrap(), 120);
+    }
+
+    #[test]
+    fn test_parse_timeout_minutes_unit() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = DockerConfig::default();
+        let manager = ContainerManager::new(&config, temp_dir.path()).unwrap();
+
+        assert_eq!(manager.parse_timeout("1m").unwrap(), 60);
+        assert_eq!(manager.parse_timeout("2m").unwrap(), 120);
+        assert_eq!(manager.parse_timeout("5m").unwrap(), 300);
+    }
+
+    #[test]
+    fn test_parse_timeout_no_unit() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = DockerConfig::default();
+        let manager = ContainerManager::new(&config, temp_dir.path()).unwrap();
+
+        // Plain numbers default to seconds
+        assert_eq!(manager.parse_timeout("30").unwrap(), 30);
+        assert_eq!(manager.parse_timeout("90").unwrap(), 90);
+        assert_eq!(manager.parse_timeout("300").unwrap(), 300);
+    }
+
+    #[test]
+    fn test_parse_timeout_invalid() {
+        let temp_dir = TempDir::new().unwrap();
+        let config = DockerConfig::default();
+        let manager = ContainerManager::new(&config, temp_dir.path()).unwrap();
+
+        // Invalid formats should error
+        assert!(manager.parse_timeout("invalid").is_err());
+        assert!(manager.parse_timeout("30x").is_err());
+        assert!(manager.parse_timeout("").is_err());
+        assert!(manager.parse_timeout("abc").is_err());
+        assert!(manager.parse_timeout("-30").is_err());
     }
 }
