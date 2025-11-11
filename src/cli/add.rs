@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::env::copy::{CopyAction, CopyManager};
 use crate::env::symlinks::{SymlinkAction, SymlinkManager};
 use crate::errors::Result;
 use crate::hooks::{HookExecutor, HookType};
@@ -50,6 +51,27 @@ pub fn run(
                 }
                 SymlinkAction::Skipped { resource, reason } => {
                     eprintln!("⚠ Skipped {} ({})", resource, reason);
+                }
+            }
+        }
+    }
+
+    // Setup file copies from shared.copy configuration
+    if let Some(ref shared) = config.shared {
+        if !shared.copy.is_empty() {
+            let actions = CopyManager::setup(&shared.copy, &repo_root, &worktree.path)?;
+
+            for action in actions {
+                match action {
+                    CopyAction::Copied { source, target: _ } => {
+                        eprintln!(
+                            "✓ Copied {} to worktree",
+                            source.file_name().unwrap().to_string_lossy()
+                        );
+                    }
+                    CopyAction::Skipped { resource, reason } => {
+                        eprintln!("⚠ Skipped copying {} ({})", resource, reason);
+                    }
                 }
             }
         }
