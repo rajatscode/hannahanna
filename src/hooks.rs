@@ -399,9 +399,11 @@ mod tests {
         let state_dir = temp.path().join("state");
         std::fs::create_dir_all(&state_dir).unwrap();
 
-        let mut config = HooksConfig::default();
-        config.post_create = Some("echo 'Hello from hook'".to_string());
-        config.timeout_seconds = 30;
+        let config = HooksConfig {
+            post_create: Some("echo 'Hello from hook'".to_string()),
+            timeout_seconds: 30,
+            ..Default::default()
+        };
 
         let executor = HookExecutor::new(config, false);
         let result = executor.run_hook(HookType::PostCreate, &worktree, &state_dir);
@@ -416,9 +418,11 @@ mod tests {
         let state_dir = temp.path().join("state");
         std::fs::create_dir_all(&state_dir).unwrap();
 
-        let mut config = HooksConfig::default();
-        config.post_create = Some("exit 1".to_string());
-        config.timeout_seconds = 30;
+        let config = HooksConfig {
+            post_create: Some("exit 1".to_string()),
+            timeout_seconds: 30,
+            ..Default::default()
+        };
 
         let executor = HookExecutor::new(config, false);
         let result = executor.run_hook(HookType::PostCreate, &worktree, &state_dir);
@@ -465,9 +469,11 @@ echo "WT_COMMIT=$WT_COMMIT" >> {}"#,
             output_file.display()
         );
 
-        let mut config = HooksConfig::default();
-        config.post_create = Some(hook_script);
-        config.timeout_seconds = 30;
+        let config = HooksConfig {
+            post_create: Some(hook_script),
+            timeout_seconds: 30,
+            ..Default::default()
+        };
 
         let executor = HookExecutor::new(config, false);
         executor
@@ -489,9 +495,11 @@ echo "WT_COMMIT=$WT_COMMIT" >> {}"#,
         std::fs::create_dir_all(&state_dir).unwrap();
 
         // Create a hook that would fail
-        let mut config = HooksConfig::default();
-        config.post_create = Some("exit 1".to_string());
-        config.timeout_seconds = 30;
+        let config = HooksConfig {
+            post_create: Some("exit 1".to_string()),
+            timeout_seconds: 30,
+            ..Default::default()
+        };
 
         // With skip_hooks=true, should succeed even though hook would fail
         let executor = HookExecutor::new(config, true);

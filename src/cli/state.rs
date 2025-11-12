@@ -67,9 +67,9 @@ pub fn list() -> Result<()> {
     let orphaned_count = state_dirs.iter().filter(|n| !active_names.contains(n)).count();
     if orphaned_count > 0 {
         println!(
-            "\n{}: {}",
+            "\n{}: Clean orphaned state with: {}",
             "Tip".bright_yellow(),
-            format!("Clean orphaned state with: {}", "hn state clean".bright_cyan())
+            "hn state clean".bright_cyan()
         );
     }
 

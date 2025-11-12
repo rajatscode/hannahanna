@@ -284,3 +284,98 @@ hooks:
     assert!(!result.success, "Should fail when hook fails");
     result.assert_stderr_contains("hook failed");
 }
+
+#[test]
+fn test_state_list() {
+    let repo = TestRepo::new();
+
+    // Create some worktrees
+    repo.hn(&["add", "feature-1"]).assert_success();
+    repo.hn(&["add", "feature-2"]).assert_success();
+
+    // Run state list
+    let result = repo.hn(&["state", "list"]);
+    result.assert_success();
+
+    // Should show both state directories
+    result.assert_stdout_contains("feature-1");
+    result.assert_stdout_contains("feature-2");
+    result.assert_stdout_contains("State Directories");
+
+    // Clean up
+    repo.hn(&["remove", "feature-1"]).assert_success();
+    repo.hn(&["remove", "feature-2"]).assert_success();
+}
+
+#[test]
+fn test_state_list_with_orphaned() {
+    let repo = TestRepo::new();
+
+    // Create a worktree
+    repo.hn(&["add", "feature-orphan"]).assert_success();
+
+    // Manually remove the worktree directory but leave state
+    let worktree_path = repo.worktree_path("feature-orphan");
+    std::fs::remove_dir_all(&worktree_path).expect("Failed to remove worktree");
+
+    // Also remove git worktree reference
+    repo.git(&["worktree", "prune"]).assert_success();
+
+    // State list should show it as orphaned
+    let result = repo.hn(&["state", "list"]);
+    result.assert_success();
+    result.assert_stdout_contains("feature-orphan");
+    result.assert_stdout_contains("orphaned");
+}
+
+#[test]
+fn test_state_clean() {
+    let repo = TestRepo::new();
+
+    // Create worktrees
+    repo.hn(&["add", "feature-temp1"]).assert_success();
+    repo.hn(&["add", "feature-temp2"]).assert_success();
+
+    // Manually remove one worktree to make its state orphaned
+    let worktree_path = repo.worktree_path("feature-temp1");
+    std::fs::remove_dir_all(&worktree_path).expect("Failed to remove worktree");
+    repo.git(&["worktree", "prune"]).assert_success();
+
+    // Verify orphaned state exists
+    assert!(repo.state_exists("feature-temp1"));
+
+    // Run state clean
+    let result = repo.hn(&["state", "clean"]);
+    result.assert_success();
+    result.assert_stdout_contains("feature-temp1");
+
+    // Orphaned state should be removed
+    assert!(!repo.state_exists("feature-temp1"));
+    // Active state should remain
+    assert!(repo.state_exists("feature-temp2"));
+
+    // Clean up
+    repo.hn(&["remove", "feature-temp2"]).assert_success();
+}
+
+#[test]
+fn test_state_size() {
+    let repo = TestRepo::new();
+
+    // Create a worktree
+    repo.hn(&["add", "feature-size"]).assert_success();
+
+    // Run state size for specific worktree
+    let result = repo.hn(&["state", "size", "feature-size"]);
+    result.assert_success();
+    result.assert_stdout_contains("feature-size");
+    result.assert_stdout_contains("State directory");
+
+    // Run state size for all worktrees
+    let result = repo.hn(&["state", "size"]);
+    result.assert_success();
+    result.assert_stdout_contains("Total state size:");
+
+    // Clean up
+    repo.hn(&["remove", "feature-size"]).assert_success();
+}
