@@ -78,9 +78,13 @@ pub fn save(name: &str, description: Option<&str>, vcs_type: Option<VcsType>) ->
     let worktrees = vcs_backend.list_workspaces()?;
 
     // Convert to WorktreeInfo (filter out main repo directory)
+    // Main repo has .git as a directory, worktrees have .git as a file
     let worktree_infos: Vec<WorktreeInfo> = worktrees
         .iter()
-        .filter(|wt| wt.parent.is_some()) // Only non-main worktrees have parents
+        .filter(|wt| {
+            let git_path = wt.path.join(".git");
+            git_path.is_file() // Only include actual worktrees (not main repo)
+        })
         .map(|wt| WorktreeInfo {
             name: wt.name.clone(),
             branch: wt.branch.clone(),
@@ -181,8 +185,8 @@ pub fn restore(name: &str, force: bool, vcs_type: Option<VcsType>) -> Result<()>
         }
 
         // Try to create/restore the worktree
-        // For now, we'll use the branch name to recreate
-        match vcs_backend.create_workspace(&wt_info.name, Some(&wt_info.branch), None, false) {
+        // Use no_branch=true to checkout existing branch instead of creating new one
+        match vcs_backend.create_workspace(&wt_info.name, Some(&wt_info.branch), None, true) {
             Ok(_) => restored += 1,
             Err(e) => {
                 println!("    {} Failed: {}", "✗".red(), e);
