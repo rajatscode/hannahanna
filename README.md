@@ -631,11 +631,11 @@ hn remove feature-x --no-hooks # Skip pre_remove hook
 All hooks support conditional execution via branch patterns (v0.3+)
 
 **Environment variables available in hooks:**
-- `$WT_NAME` - Worktree name
-- `$WT_PATH` - Worktree path
-- `$WT_BRANCH` - Branch name
-- `$WT_PARENT` - Parent worktree (if any)
-- `$WT_STATE_DIR` - State directory path
+- `$HNHN_NAME` - Worktree name
+- `$HNHN_PATH` - Worktree path
+- `$HNHN_BRANCH` - Branch name
+- `$HNHN_COMMIT` - Commit hash
+- `$HNHN_STATE_DIR` - State directory path
 
 **Hook Timeout:**
 Hooks automatically timeout after 5 minutes (300 seconds) by default to prevent hanging processes. You can customize this in your config:
@@ -1131,13 +1131,15 @@ hn add feature-x --no-hooks
 
 # Debug hook script
 # Hooks run in worktree directory with these variables:
-# - $WT_NAME, $WT_PATH, $WT_BRANCH, $WT_COMMIT, $WT_STATE_DIR
+# - $HNHN_NAME, $HNHN_PATH, $HNHN_BRANCH, $HNHN_COMMIT, $HNHN_STATE_DIR
 
 # Test hook manually
 cd path/to/worktree
-export WT_NAME=test
-export WT_PATH=$PWD
-export WT_BRANCH=$(git branch --show-current)
+export HNHN_NAME=test
+export HNHN_PATH=$PWD
+export HNHN_BRANCH=$(git branch --show-current)
+export HNHN_COMMIT=$(git rev-parse --short HEAD)
+export HNHN_STATE_DIR=$PWD/.hn-state
 # ... then run hook commands
 ```
 

@@ -312,18 +312,19 @@ impl HookExecutor {
     }
 
     /// Build environment variables for hook execution
+    /// v0.5: Changed from WT_* to HNHN_* prefix to avoid collision with Hacker News CLI tools
     fn build_env(&self, worktree: &Worktree, state_dir: &Path) -> HashMap<String, String> {
         let mut env = HashMap::new();
 
-        env.insert("WT_NAME".to_string(), worktree.name.clone());
+        env.insert("HNHN_NAME".to_string(), worktree.name.clone());
         env.insert(
-            "WT_PATH".to_string(),
+            "HNHN_PATH".to_string(),
             worktree.path.to_string_lossy().to_string(),
         );
-        env.insert("WT_BRANCH".to_string(), worktree.branch.clone());
-        env.insert("WT_COMMIT".to_string(), worktree.commit.clone());
+        env.insert("HNHN_BRANCH".to_string(), worktree.branch.clone());
+        env.insert("HNHN_COMMIT".to_string(), worktree.commit.clone());
         env.insert(
-            "WT_STATE_DIR".to_string(),
+            "HNHN_STATE_DIR".to_string(),
             state_dir.to_string_lossy().to_string(),
         );
 
@@ -452,7 +453,7 @@ mod tests {
     }
 
     #[test]
-    fn test_environment_variables() {
+    fn test_environment_variables_hnhn_prefix() {
         let temp = TempDir::new().unwrap();
         let worktree = create_test_worktree(&temp);
         let state_dir = temp.path().join("state");
@@ -461,9 +462,13 @@ mod tests {
         // Create a hook that writes environment variables to a file
         let output_file = temp.path().join("env_output.txt");
         let hook_script = format!(
-            r#"echo "WT_NAME=$WT_NAME" > {}
-echo "WT_BRANCH=$WT_BRANCH" >> {}
-echo "WT_COMMIT=$WT_COMMIT" >> {}"#,
+            r#"echo "HNHN_NAME=$HNHN_NAME" > {}
+echo "HNHN_PATH=$HNHN_PATH" >> {}
+echo "HNHN_BRANCH=$HNHN_BRANCH" >> {}
+echo "HNHN_COMMIT=$HNHN_COMMIT" >> {}
+echo "HNHN_STATE_DIR=$HNHN_STATE_DIR" >> {}"#,
+            output_file.display(),
+            output_file.display(),
             output_file.display(),
             output_file.display(),
             output_file.display()
@@ -480,11 +485,96 @@ echo "WT_COMMIT=$WT_COMMIT" >> {}"#,
             .run_hook(HookType::PostCreate, &worktree, &state_dir)
             .unwrap();
 
-        // Verify environment variables were passed
+        // Verify NEW HNHN_* environment variables are passed
         let content = std::fs::read_to_string(&output_file).unwrap();
-        assert!(content.contains("WT_NAME=test-worktree"));
-        assert!(content.contains("WT_BRANCH=main"));
-        assert!(content.contains("WT_COMMIT=abc123"));
+        assert!(content.contains("HNHN_NAME=test-worktree"), "HNHN_NAME should be set");
+        assert!(content.contains("HNHN_BRANCH=main"), "HNHN_BRANCH should be set");
+        assert!(content.contains("HNHN_COMMIT=abc123"), "HNHN_COMMIT should be set");
+        assert!(content.contains("HNHN_PATH="), "HNHN_PATH should be set");
+        assert!(content.contains("HNHN_STATE_DIR="), "HNHN_STATE_DIR should be set");
+    }
+
+    #[test]
+    fn test_old_wt_variables_not_set() {
+        // v0.5 BREAKING CHANGE: Old WT_* variables are no longer set
+        let temp = TempDir::new().unwrap();
+        let worktree = create_test_worktree(&temp);
+        let state_dir = temp.path().join("state");
+        std::fs::create_dir_all(&state_dir).unwrap();
+
+        // Create a hook that checks for absence of old variables
+        let output_file = temp.path().join("env_output.txt");
+        let hook_script = format!(
+            r#"echo "WT_NAME=${{WT_NAME:-NOT_SET}}" > {}
+echo "WT_BRANCH=${{WT_BRANCH:-NOT_SET}}" >> {}"#,
+            output_file.display(),
+            output_file.display()
+        );
+
+        let config = HooksConfig {
+            post_create: Some(hook_script),
+            timeout_seconds: 30,
+            ..Default::default()
+        };
+
+        let executor = HookExecutor::new(config, false);
+        executor
+            .run_hook(HookType::PostCreate, &worktree, &state_dir)
+            .unwrap();
+
+        // Verify OLD WT_* variables are NOT set (breaking change in v0.5)
+        let content = std::fs::read_to_string(&output_file).unwrap();
+        assert!(content.contains("WT_NAME=NOT_SET"), "Old WT_NAME should not be set");
+        assert!(content.contains("WT_BRANCH=NOT_SET"), "Old WT_BRANCH should not be set");
+    }
+
+    #[test]
+    fn test_all_hook_types_use_hnhn_variables() {
+        // Verify all hook types receive HNHN_* variables
+        let temp = TempDir::new().unwrap();
+        let worktree = create_test_worktree(&temp);
+        let state_dir = temp.path().join("state");
+        std::fs::create_dir_all(&state_dir).unwrap();
+
+        let hook_types = vec![
+            (HookType::PreCreate, "pre_create"),
+            (HookType::PostCreate, "post_create"),
+            (HookType::PreRemove, "pre_remove"),
+            (HookType::PostRemove, "post_remove"),
+            (HookType::PostSwitch, "post_switch"),
+            (HookType::PreIntegrate, "pre_integrate"),
+            (HookType::PostIntegrate, "post_integrate"),
+        ];
+
+        for (hook_type, hook_name) in hook_types {
+            let output_file = temp.path().join(format!("env_{}.txt", hook_name));
+            let hook_script = format!(
+                r#"echo "HNHN_NAME=$HNHN_NAME" > {}"#,
+                output_file.display()
+            );
+
+            let mut config = HooksConfig::default();
+            match hook_type {
+                HookType::PreCreate => config.pre_create = Some(hook_script),
+                HookType::PostCreate => config.post_create = Some(hook_script),
+                HookType::PreRemove => config.pre_remove = Some(hook_script),
+                HookType::PostRemove => config.post_remove = Some(hook_script),
+                HookType::PostSwitch => config.post_switch = Some(hook_script),
+                HookType::PreIntegrate => config.pre_integrate = Some(hook_script),
+                HookType::PostIntegrate => config.post_integrate = Some(hook_script),
+            }
+
+            let executor = HookExecutor::new(config, false);
+            executor.run_hook(hook_type, &worktree, &state_dir).unwrap();
+
+            // Verify HNHN_NAME is set for this hook type
+            let content = std::fs::read_to_string(&output_file).unwrap();
+            assert!(
+                content.contains("HNHN_NAME=test-worktree"),
+                "Hook {} should receive HNHN_NAME",
+                hook_name
+            );
+        }
     }
 
     #[test]

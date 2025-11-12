@@ -614,20 +614,20 @@ hn switch bug       # Error: ambiguous (bugfix-123, debug-tool)
 - `pre_integrate`, `post_integrate`
 
 **Context Variables:**
-- `$WT_NAME` - worktree name
-- `$WT_PATH` - worktree path
-- `$WT_BRANCH` - branch name
-- `$WT_PARENT` - parent worktree
-- `$WT_PORTS_*` - allocated ports
-- `$WT_STATE_DIR` - state directory
+- `$HNHN_NAME` - worktree name
+- `$HNHN_PATH` - worktree path
+- `$HNHN_BRANCH` - branch name
+- `$HNHN_PARENT` - parent worktree
+- `$HNHN_PORTS_*` - allocated ports
+- `$HNHN_STATE_DIR` - state directory
 
 **Example:**
 ```yaml
 hooks:
   post_create: |
-    echo "Created worktree: $WT_NAME"
-    echo "Branch: $WT_BRANCH"
-    echo "App port: $WT_PORTS_APP"
+    echo "Created worktree: $HNHN_NAME"
+    echo "Branch: $HNHN_BRANCH"
+    echo "App port: $HNHN_PORTS_APP"
 ```
 
 **Conditional Hooks:** (✅ v0.2)
