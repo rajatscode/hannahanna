@@ -7,7 +7,7 @@ use crate::errors::Result;
 use crate::fuzzy;
 use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
-use crate::vcs::{init_backend_from_current_dir, VcsType};
+use crate::vcs::{init_backend_from_current_dir, RegistryCache, VcsType};
 
 pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>) -> Result<()> {
     // Validate worktree name
@@ -83,6 +83,12 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
 
     // Remove the worktree
     backend.remove_workspace(&matched_name, force)?;
+
+    // Invalidate cache after removing worktree
+    let state_dir_path = repo_root.join(".hn-state");
+    if let Ok(cache) = RegistryCache::new(&state_dir_path, None) {
+        let _ = cache.invalidate(); // Ignore cache invalidation errors
+    }
 
     // Clean up state directory
     state_manager.remove_state_dir(&matched_name)?;

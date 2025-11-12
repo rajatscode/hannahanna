@@ -8,7 +8,7 @@ use crate::env::validation;
 use crate::errors::Result;
 use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
-use crate::vcs::{init_backend_from_current_dir, VcsType};
+use crate::vcs::{init_backend_from_current_dir, RegistryCache, VcsType};
 
 pub fn run(
     name: String,
@@ -74,6 +74,12 @@ pub fn run(
     let worktree =
         backend.create_workspace(&name, branch.as_deref(), from.as_deref(), no_branch)?;
     eprintln!("✓ Worktree created at {}", worktree.path.display());
+
+    // Invalidate cache after creating worktree
+    let state_dir_path = repo_root.join(".hn-state");
+    if let Ok(cache) = RegistryCache::new(&state_dir_path, None) {
+        let _ = cache.invalidate(); // Ignore cache invalidation errors
+    }
 
     // Setup sparse checkout if requested
     // Priority: CLI flag > config default

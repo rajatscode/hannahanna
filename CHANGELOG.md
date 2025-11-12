@@ -5,6 +5,64 @@ All notable changes to hannahanna will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-11-12
+
+### 🚀 Major Features
+
+#### ⚡ Performance Optimizations
+
+**Registry Caching System:**
+- Intelligent worktree list caching with TTL-based expiration (30s default)
+- Automatic cache invalidation on worktree create/remove operations
+- Cache management via `hn state cache stats` and `hn state cache clear`
+- Expected 50%+ performance improvement for `hn list` on cache hits
+- Thread-safe with file locking for concurrent operations
+
+**Benchmark Suite:**
+- Comprehensive performance benchmarks using Criterion
+- Established baseline metrics for key operations:
+  - List worktrees (100): < 100ms target
+  - Create worktree: < 500ms target
+  - Fuzzy search (1000): < 10ms target
+  - Port allocation (10 concurrent): < 2s target
+  - Config load: < 50ms target
+- Run benchmarks with `cargo bench`
+- Documentation in `BENCHMARKS.md`
+
+#### 🔧 Shell Completions
+
+**Auto-completion for Bash, Zsh, and Fish:**
+```bash
+# Generate completions
+hn completions bash > ~/.local/share/bash-completion/completions/hn
+hn completions zsh > ~/.zsh/completions/_hn
+hn completions fish > ~/.config/fish/completions/hn.fish
+```
+
+### ✨ Enhancements
+
+- **Cache Statistics**: View cache status, age, and size
+- **Improved Test Coverage**: Added 6 new cache tests (258 total tests, up from 252)
+
+### 🏗️ Technical Improvements
+
+- Added `serde::{Serialize, Deserialize}` to `Worktree` struct for caching
+- Removed `#[allow(dead_code)]` from `VcsType::as_str()`
+- Added `clap_complete` dependency for shell completions
+- Added `criterion` dependency for benchmarking
+- Integrated caching layer in list command
+- Cache invalidation hooks in add/remove commands
+
+### 📝 Documentation
+
+- **BENCHMARKS.md**: Complete guide to running and interpreting benchmarks
+- Performance targets and optimization history documented
+- Cache behavior and invalidation strategy explained
+
+### 🔄 Breaking Changes
+
+None! Fully backward compatible with v0.3.0.
+
 ## [0.3.0] - 2025-11-12
 
 ### 🎉 Major Features

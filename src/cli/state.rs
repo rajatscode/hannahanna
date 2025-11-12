@@ -2,7 +2,7 @@
 use crate::config::Config;
 use crate::errors::Result;
 use crate::state::StateManager;
-use crate::vcs::init_backend_from_current_dir;
+use crate::vcs::{init_backend_from_current_dir, RegistryCache};
 use colored::Colorize;
 use std::fs;
 
@@ -217,4 +217,65 @@ fn format_size(bytes: u64) -> String {
     } else {
         format!("{} bytes", bytes)
     }
+}
+
+/// Show cache statistics
+pub fn cache_stats() -> Result<()> {
+    let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
+    let state_dir = repo_root.join(".hn-state");
+
+    let cache = RegistryCache::new(&state_dir, None)?;
+
+    match cache.stats()? {
+        Some(stats) => {
+            println!("{}", "Worktree Registry Cache".bright_cyan().bold());
+            println!("{}", "=".repeat(50));
+            println!(
+                "Status: {}",
+                if stats.valid {
+                    "Valid".bright_green()
+                } else {
+                    "Expired".bright_red()
+                }
+            );
+            println!("Age: {:.1}s", stats.age.as_secs_f64());
+            println!("Worktrees: {}", stats.worktree_count);
+            println!("Size: {}", format_size(stats.size_bytes));
+            println!("{}", "=".repeat(50));
+
+            if !stats.valid {
+                println!(
+                    "\n{}: Cache is expired. Run {} to refresh.",
+                    "Note".bright_yellow(),
+                    "hn list".bright_cyan()
+                );
+            }
+        }
+        None => {
+            println!("{}", "No cache found.".bright_yellow());
+            println!(
+                "\nThe cache will be created automatically when you run: {}",
+                "hn list".bright_cyan()
+            );
+        }
+    }
+
+    Ok(())
+}
+
+/// Clear the cache
+pub fn cache_clear() -> Result<()> {
+    let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
+    let state_dir = repo_root.join(".hn-state");
+
+    let cache = RegistryCache::new(&state_dir, None)?;
+    cache.invalidate()?;
+
+    println!("{}", "✓ Cache cleared successfully.".bright_green());
+    println!(
+        "\nThe cache will be rebuilt automatically on next: {}",
+        "hn list".bright_cyan()
+    );
+
+    Ok(())
 }

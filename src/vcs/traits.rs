@@ -24,7 +24,6 @@ impl VcsType {
     }
 
     /// Convert to string for display
-    #[allow(dead_code)] // Will be used in v0.3 when --vcs flag is added
     pub fn as_str(&self) -> &'static str {
         match self {
             VcsType::Git => "git",

@@ -1,4 +1,5 @@
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
 
 mod cli;
 mod clock;
@@ -137,6 +138,11 @@ enum Commands {
     InitShell,
     /// Clean up orphaned state directories
     Prune,
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        shell: Shell,
+    },
     /// Manage state directories
     State {
         #[command(subcommand)]
@@ -170,6 +176,19 @@ enum StateCommands {
         /// Name of specific worktree (optional)
         name: Option<String>,
     },
+    /// Manage worktree registry cache
+    Cache {
+        #[command(subcommand)]
+        command: CacheCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum CacheCommands {
+    /// Show cache statistics
+    Stats,
+    /// Clear the cache
+    Clear,
 }
 
 #[derive(Subcommand)]
@@ -414,10 +433,18 @@ fn main() {
         } => cli::sync::run(source_branch, strategy, autostash, no_commit, vcs_type),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
+        Commands::Completions { shell } => {
+            clap_complete::generate(shell, &mut Cli::command(), "hn", &mut std::io::stdout());
+            Ok(())
+        }
         Commands::State { command } => match command {
             StateCommands::List => cli::state::list(),
             StateCommands::Clean => cli::state::clean(),
             StateCommands::Size { name } => cli::state::size(name),
+            StateCommands::Cache { command } => match command {
+                CacheCommands::Stats => cli::state::cache_stats(),
+                CacheCommands::Clear => cli::state::cache_clear(),
+            },
         },
         Commands::Config { command } => match command {
             ConfigCommands::Init => cli::config_cmd::init(),
