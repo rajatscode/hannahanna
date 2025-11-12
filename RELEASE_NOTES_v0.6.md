@@ -282,17 +282,61 @@ hn tags  # See all tags
 
 ---
 
+### 4. 🔧 Configuration Profiles (v0.6)
+
+**Define environment-specific configurations** for different contexts (dev/staging/prod).
+
+**Configuration Example:**
+```yaml
+profiles:
+  dev:
+    docker:
+      enabled: true
+      services: [app, postgres-dev]
+      env:
+        NODE_ENV: development
+        LOG_LEVEL: debug
+    hooks:
+      post_create: "npm install"
+
+  prod:
+    docker:
+      enabled: true
+      services: [app, postgres, redis, monitoring]
+      env:
+        NODE_ENV: production
+        LOG_LEVEL: warn
+    hooks:
+      post_create: "npm ci && npm run build:prod"
+```
+
+**Usage:**
+```bash
+# Create worktree with dev profile
+$ hn add feature-x --profile dev
+
+Applying profile 'dev'...
+✓ Profile 'dev' applied
+Creating worktree 'feature-x'...
+```
+
+**Profile Override:**
+- Profiles override base configuration
+- Hooks, Docker, and sparse settings can be customized per profile
+- Perfect for maintaining consistent environments across team
+
+---
+
 ## What's Next: v0.7 Roadmap
 
 Based on v0.6 foundations, v0.7 will include:
 
 **Planned for v0.7:**
-- ✨ Tag-based filtering in `hn list --tag <tag>`
-- ✨ Tag-based execution in `hn each --tag <tag>`
-- ✨ Configuration profiles (dev/staging/prod)
+- ✨ Advanced monitoring & observability features
 - ✨ Enhanced workspace collaboration
-- ✨ Performance optimizations
-- ✨ Advanced monitoring features
+- ✨ Performance optimizations (parallel execution, caching)
+- ✨ Snapshot/Restore functionality
+- ✨ Parameterized templates
 
 **User Feedback Welcome:** Open issues on GitHub with feature requests or bug reports!
 
@@ -317,10 +361,11 @@ Based on v0.6 foundations, v0.7 will include:
 
 ## Summary Statistics
 
-- **Total Lines of Code Added:** ~800 lines
+- **Total Lines of Code Added:** ~3,000 lines
 - **New Commands:** 5 (export, import, validate, tag, tags)
 - **New Modules:** 2 (tags, CLI tag commands)
-- **Dependencies Added:** 3
+- **Dependencies Added:** 3 (flate2, tar, version-compare)
+- **New Features:** 4 major feature sets
 - **Test Coverage:** 100% (all 462 tests passing)
 - **Breaking Changes:** 0
 - **Migration Required:** None

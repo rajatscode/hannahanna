@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Config {
     #[serde(default)]
     pub shared_resources: Vec<SharedResource>,
@@ -18,6 +18,18 @@ pub struct Config {
     pub sparse: SparseConfig,
     #[serde(default)]
     pub aliases: HashMap<String, String>,
+    #[serde(default)]
+    pub profiles: HashMap<String, ConfigProfile>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+pub struct ConfigProfile {
+    #[serde(default)]
+    pub hooks: Option<HooksConfig>,
+    #[serde(default)]
+    pub docker: Option<DockerConfig>,
+    #[serde(default)]
+    pub sparse: Option<SparseConfig>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -28,7 +40,7 @@ pub struct SharedResource {
     pub compatibility: Option<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct SharedConfig {
     #[serde(default, deserialize_with = "deserialize_copy_list")]
     pub copy: Vec<CopyResource>,
@@ -150,7 +162,7 @@ pub struct SparseConfig {
     pub paths: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct DockerConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -191,7 +203,7 @@ impl Default for DockerConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PortsConfig {
     #[serde(default = "default_port_strategy")]
     pub strategy: String,
@@ -216,7 +228,7 @@ impl Default for PortsConfig {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct DockerSharedConfig {
     #[serde(default)]
     pub volumes: Vec<String>,
@@ -224,13 +236,13 @@ pub struct DockerSharedConfig {
     pub networks: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct DockerIsolatedConfig {
     #[serde(default)]
     pub volumes: Vec<String>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct HealthCheckConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -488,6 +500,38 @@ impl Config {
                 None => return Err(crate::errors::HnError::NotInRepository),
             }
         }
+    }
+
+    /// Apply a named profile to this config (v0.6)
+    pub fn apply_profile(&mut self, profile_name: &str) -> Result<()> {
+        let profile = self.profiles.get(profile_name).ok_or_else(|| {
+            crate::errors::HnError::ConfigError(format!(
+                "Profile '{}' not found in configuration",
+                profile_name
+            ))
+        })?;
+
+        // Apply profile hooks if specified
+        if let Some(ref profile_hooks) = profile.hooks {
+            self.hooks = profile_hooks.clone();
+        }
+
+        // Apply profile docker if specified
+        if let Some(ref profile_docker) = profile.docker {
+            self.docker = profile_docker.clone();
+        }
+
+        // Apply profile sparse if specified
+        if let Some(ref profile_sparse) = profile.sparse {
+            self.sparse = profile_sparse.clone();
+        }
+
+        Ok(())
+    }
+
+    /// Get available profile names (v0.6)
+    pub fn list_profiles(&self) -> Vec<String> {
+        self.profiles.keys().cloned().collect()
     }
 }
 

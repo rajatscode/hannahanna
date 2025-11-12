@@ -20,6 +20,7 @@ pub fn run(
     no_branch: bool,
     sparse_paths: Option<Vec<String>>,
     template: Option<String>,
+    profile: Option<String>,
     no_hooks: bool,
     vcs_type: Option<VcsType>,
 ) -> Result<()> {
@@ -51,7 +52,14 @@ pub fn run(
     let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
 
     // Load configuration
-    let config = Config::load(&repo_root)?;
+    let mut config = Config::load(&repo_root)?;
+
+    // Apply profile if specified (v0.6)
+    if let Some(ref profile_name) = profile {
+        eprintln!("Applying profile '{}'...", profile_name);
+        config.apply_profile(profile_name)?;
+        eprintln!("✓ Profile '{}' applied", profile_name);
+    }
 
     // Run pre_create hook if configured
     let has_pre_create_hooks = config.hooks.pre_create.is_some()

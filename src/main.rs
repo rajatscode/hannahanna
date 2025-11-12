@@ -53,6 +53,9 @@ enum Commands {
         /// Apply a template from .hn-templates/
         #[arg(long)]
         template: Option<String>,
+        /// Apply a configuration profile (dev/staging/prod)
+        #[arg(long)]
+        profile: Option<String>,
     },
     /// List all worktrees
     List {
@@ -543,7 +546,8 @@ fn main() {
             no_branch,
             sparse,
             template,
-        } => cli::add::run(name, branch, from, no_branch, sparse, template, cli.no_hooks, vcs_type),
+            profile,
+        } => cli::add::run(name, branch, from, no_branch, sparse, template, profile, cli.no_hooks, vcs_type),
         Commands::List { tree, tag } => cli::list::run(tree, tag, vcs_type),
         Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks, vcs_type),
         Commands::Switch { name } => cli::switch::run(name, vcs_type),
