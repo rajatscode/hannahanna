@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::errors::Result;
+use crate::snapshot;
 use crate::state::StateManager;
 use crate::vcs::git::GitBackend;
 
@@ -42,6 +43,37 @@ pub fn run() -> Result<()> {
         cleaned.len(),
         if cleaned.len() == 1 { "y" } else { "ies" }
     );
+
+    // Clean up orphaned snapshot stashes
+    println!("\nScanning for orphaned snapshot stashes...");
+    let state_dir = repo_root.join(".hn-state");
+    let mut total_orphaned_stashes = 0;
+
+    for worktree in &worktrees {
+        match snapshot::cleanup_orphaned_stashes(&state_dir, &worktree.path) {
+            Ok(count) if count > 0 => {
+                println!("  Cleaned {} orphaned stash{} from '{}'",
+                    count,
+                    if count == 1 { "" } else { "es" },
+                    worktree.name
+                );
+                total_orphaned_stashes += count;
+            }
+            Ok(_) => {} // No orphaned stashes for this worktree
+            Err(e) => {
+                eprintln!("  ⚠ Warning: Failed to clean stashes for '{}': {}", worktree.name, e);
+            }
+        }
+    }
+
+    if total_orphaned_stashes > 0 {
+        println!("\nTotal: Cleaned {} orphaned snapshot stash{}.",
+            total_orphaned_stashes,
+            if total_orphaned_stashes == 1 { "" } else { "es" }
+        );
+    } else {
+        println!("No orphaned snapshot stashes found.");
+    }
 
     Ok(())
 }

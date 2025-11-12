@@ -22,7 +22,46 @@ impl StateManager {
             writeln!(gitignore, "*")?;
         }
 
+        // Ensure .hn-state is in the root .gitignore
+        Self::ensure_in_root_gitignore(repo_root)?;
+
         Ok(Self { state_root })
+    }
+
+    /// Ensure .hn-state is in the root .gitignore file
+    fn ensure_in_root_gitignore(repo_root: &Path) -> Result<()> {
+        let gitignore_path = repo_root.join(".gitignore");
+
+        // Read existing .gitignore or create new one
+        let content = if gitignore_path.exists() {
+            fs::read_to_string(&gitignore_path)?
+        } else {
+            String::new()
+        };
+
+        // Check if .hn-state is already ignored
+        let needs_entry = !content.lines().any(|line| {
+            let trimmed = line.trim();
+            trimmed == ".hn-state" || trimmed == ".hn-state/" || trimmed == "/.hn-state"
+        });
+
+        if needs_entry {
+            // Append .hn-state to .gitignore
+            let mut file = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&gitignore_path)?;
+
+            // Add newline if file doesn't end with one
+            if !content.is_empty() && !content.ends_with('\n') {
+                writeln!(file)?;
+            }
+
+            writeln!(file, "# Hannahanna state directory")?;
+            writeln!(file, ".hn-state/")?;
+        }
+
+        Ok(())
     }
 
     /// Create state directory for a worktree
