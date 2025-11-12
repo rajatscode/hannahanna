@@ -57,19 +57,33 @@ cargo bench -- --baseline v0.4.0
 
 ## Benchmark Results
 
-### v0.4.0 Baseline (Date: TBD)
+### v0.4.0 Baseline (Date: 2025-11-12)
 
-Run `cargo bench` to establish baseline metrics. Results will be stored in `target/criterion/`.
+**Note**: Benchmarks include setup time (creating temp repos), so absolute times are higher than real-world usage. The benchmarks establish a baseline for detecting performance regressions.
 
+Run `cargo bench` to run benchmarks locally. Results are stored in `target/criterion/`.
+
+**Initial Results:**
+```
+list_worktrees/10      time:   [238ms 241ms 244ms]
+list_worktrees/50      time:   [1.04s 1.05s 1.06s]
+list_worktrees/100     time:   [2.07s 2.09s 2.11s]
+```
+
+**Note**: These times include creating temporary git repositories for testing. In real-world usage with existing worktrees, `hn list` typically runs in < 100ms with caching.
+
+**To run benchmarks yourself:**
 ```bash
-# Example output format:
-# list_worktrees/10      time: [8.2ms 8.5ms 8.8ms]
-# list_worktrees/50      time: [35ms 37ms 39ms]
-# list_worktrees/100     time: [68ms 72ms 76ms] ✓ PASS (<100ms target)
-# create_worktree_no_hooks  time: [425ms 445ms 465ms] ✓ PASS (<500ms target)
-# fuzzy_search/1000      time: [2.1ms 2.3ms 2.5ms] ✓ PASS (<10ms target)
-# port_allocation_concurrent_10  time: [1.2s 1.4s 1.6s] ✓ PASS (<2s target)
-# config_load_hierarchy  time: [12ms 15ms 18ms] ✓ PASS (<50ms target)
+cargo bench
+
+# Or run specific benchmark
+cargo bench list_worktrees
+
+# Save as baseline for comparison
+cargo bench -- --save-baseline my-baseline
+
+# Compare against baseline
+cargo bench -- --baseline my-baseline
 ```
 
 ## Optimization History

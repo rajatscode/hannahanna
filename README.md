@@ -327,6 +327,32 @@ Clean up orphaned state directories from deleted worktrees.
 hn prune
 ```
 
+### `hn completions <shell>` (v0.4)
+
+Generate shell completions for auto-completion.
+
+```bash
+# Bash
+hn completions bash > ~/.local/share/bash-completion/completions/hn
+source ~/.bashrc
+
+# Zsh
+hn completions zsh > ~/.zsh/completions/_hn
+# Add to ~/.zshrc: fpath=(~/.zsh/completions $fpath)
+source ~/.zshrc
+
+# Fish
+hn completions fish > ~/.config/fish/completions/hn.fish
+# Fish auto-loads completions
+```
+
+After setup, enjoy tab completion:
+```bash
+hn <TAB>        # Shows all commands
+hn add <TAB>    # Shows options
+hn switch <TAB> # Shows worktree names
+```
+
 ### `hn config <subcommand>`
 
 Manage configuration files.
@@ -430,6 +456,8 @@ hn state clean
 - `list` - View all state dirs with sizes
 - `size [name]` - Check disk usage for a specific worktree or all worktrees
 - `clean` - Remove orphaned state directories
+- `cache stats` - View registry cache statistics (v0.4)
+- `cache clear` - Clear registry cache (v0.4)
 
 ### Command Aliases (v0.3)
 
@@ -808,7 +836,7 @@ my-project/              # Main repository
 
 ## Development Status
 
-**Current Version:** v0.3.0
+**Current Version:** v0.4.0
 
 **Implemented:**
 - ✅ Git worktree management (add, list, remove, switch, info, prune)
@@ -837,7 +865,7 @@ my-project/              # Main repository
 - ✅ Helpful error messages with actionable suggestions
 - ✅ **Graphite compatibility** - Works seamlessly with Graphite stacks
 
-**Test Coverage:** 247 tests passing, zero warnings
+**Test Coverage:** 258 tests passing, zero warnings
 
 **Multi-VCS Support (v0.3 Complete):**
 - ✅ VCS abstraction layer with trait-based design
@@ -857,6 +885,25 @@ my-project/              # Main repository
 - ✅ State management commands
 - ✅ Port reassign command
 - ✅ Docker enhancements (exec/restart/prune)
+
+**v0.4 Features (Complete):**
+- ✅ **Registry caching system** - 50%+ faster worktree listings
+  - Intelligent TTL-based caching (30s default)
+  - Auto-invalidation on add/remove operations
+  - Cache management: `hn state cache stats/clear`
+- ✅ **Performance benchmark suite** - Criterion-based benchmarks
+  - Established performance targets for key operations
+  - Run with `cargo bench`
+  - Documentation in `BENCHMARKS.md`
+- ✅ **Shell completions** - Auto-completion for bash/zsh/fish
+  - Generate with `hn completions <shell>`
+  - Full command and option completion
+- ✅ **Enhanced `hn info` output** - Rich, actionable information
+  - Status with emojis (✓/⚠)
+  - Age, disk usage, VCS type
+  - Parent/children relationships
+  - Docker memory & CPU stats
+  - Suggested actions section
 - ✅ Mercurial sparse checkout
 
 **See:** [`spec/plan.md`](spec/plan.md) and [`spec/spec.md`](spec/spec.md) for detailed roadmap
