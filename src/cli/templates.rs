@@ -6,7 +6,6 @@ use crate::templates;
 use colored::*;
 use std::env;
 use std::fs;
-use std::path::Path;
 
 /// List all available templates
 pub fn list(json: bool) -> Result<()> {

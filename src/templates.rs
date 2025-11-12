@@ -89,7 +89,6 @@ fn copy_file_with_substitution(
     // Preserve permissions (Unix only)
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
         let metadata = fs::metadata(src)?;
         let permissions = metadata.permissions();
         fs::set_permissions(dst, permissions)?;

@@ -2,7 +2,7 @@
 
 use crate::config::Config;
 use crate::errors::{HnError, Result};
-use crate::vcs::{self, VcsType, Worktree};
+use crate::vcs::{self, VcsType};
 use colored::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

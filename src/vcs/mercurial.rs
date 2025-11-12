@@ -79,6 +79,11 @@ impl MercurialBackend {
         Self::discover_repo(&current_dir)
     }
 
+    /// Open a Mercurial repository from a specific path
+    pub fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Self::discover_repo(path.as_ref())
+    }
+
     /// Discover a Mercurial repository starting from the given path
     fn discover_repo(path: &Path) -> Result<Self> {
         let mut current = path.to_path_buf();
