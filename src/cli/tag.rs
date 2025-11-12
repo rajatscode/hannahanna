@@ -28,6 +28,7 @@ pub fn add(worktree: &str, new_tags: &[String]) -> Result<()> {
 }
 
 /// Remove tags from a worktree
+#[allow(dead_code)]
 pub fn remove(worktree: &str, tags_to_remove: &[String]) -> Result<()> {
     let cwd = env::current_dir()?;
     let repo_root = Config::find_repo_root(&cwd)?;

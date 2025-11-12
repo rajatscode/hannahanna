@@ -5,6 +5,8 @@
 
 use crate::config::Config;
 use crate::errors::{HnError, Result};
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
@@ -17,7 +19,51 @@ pub struct Template {
     pub config_path: PathBuf,
 }
 
+/// Template parameter types (v0.6)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum ParameterType {
+    String {
+        default: Option<String>,
+        #[serde(default)]
+        required: bool,
+    },
+    Integer {
+        default: Option<i64>,
+        #[serde(default)]
+        required: bool,
+        min: Option<i64>,
+        max: Option<i64>,
+    },
+    Boolean {
+        default: bool,
+    },
+    Choice {
+        choices: Vec<String>,
+        default: Option<String>,
+    },
+}
+
+/// Template parameter definition (v0.6)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateParameter {
+    pub name: String,
+    pub description: Option<String>,
+    #[serde(flatten)]
+    pub param_type: ParameterType,
+}
+
+/// Template configuration with parameters (v0.6)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemplateConfig {
+    pub name: String,
+    pub description: Option<String>,
+    #[serde(default)]
+    pub parameters: Vec<TemplateParameter>,
+}
+
 /// Copy template files to worktree with variable substitution (v0.5)
+#[allow(dead_code)]
 pub fn copy_template_files(
     template_name: &str,
     repo_root: &Path,
@@ -39,6 +85,7 @@ pub fn copy_template_files(
 }
 
 /// Recursively copy directory with variable substitution
+#[allow(dead_code)]
 fn copy_dir_recursive(
     src: &Path,
     dst: &Path,
@@ -65,6 +112,7 @@ fn copy_dir_recursive(
 }
 
 /// Copy a single file with variable substitution
+#[allow(dead_code)]
 fn copy_file_with_substitution(
     src: &Path,
     dst: &Path,
@@ -488,6 +536,241 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
         } else {
             fs::copy(&src_path, &dst_path)?;
         }
+    }
+
+    Ok(())
+}
+
+/// Parse CLI parameters in the format key=value
+pub fn parse_cli_parameters(params: &[String]) -> Result<HashMap<String, String>> {
+    let mut map = HashMap::new();
+
+    for param in params {
+        let parts: Vec<&str> = param.splitn(2, '=').collect();
+        if parts.len() != 2 {
+            return Err(HnError::ConfigError(format!(
+                "Invalid parameter format: '{}'. Expected 'key=value'",
+                param
+            )));
+        }
+
+        map.insert(parts[0].to_string(), parts[1].to_string());
+    }
+
+    Ok(map)
+}
+
+/// Collect parameter values interactively or from CLI
+pub fn collect_template_parameters(
+    template_config: &TemplateConfig,
+    cli_params: &HashMap<String, String>,
+) -> Result<HashMap<String, String>> {
+    let theme = ColorfulTheme::default();
+    let mut values = HashMap::new();
+
+    for param in &template_config.parameters {
+        // Check if provided via CLI
+        if let Some(value) = cli_params.get(&param.name) {
+            values.insert(param.name.clone(), value.clone());
+            continue;
+        }
+
+        // Prompt based on type
+        let prompt_text = if let Some(ref desc) = param.description {
+            format!("{} ({})", param.name, desc)
+        } else {
+            param.name.clone()
+        };
+
+        match &param.param_type {
+            ParameterType::String { default, required } => {
+                let mut input = Input::<String>::with_theme(&theme).with_prompt(&prompt_text);
+
+                if let Some(def) = default {
+                    input = input.default(def.clone());
+                }
+
+                if !required {
+                    input = input.allow_empty(true);
+                }
+
+                let value = input.interact_text()?;
+                if !value.is_empty() {
+                    values.insert(param.name.clone(), value);
+                }
+            }
+            ParameterType::Integer {
+                default,
+                min,
+                max,
+                required: _,
+            } => {
+                let mut input = Input::<i64>::with_theme(&theme).with_prompt(&prompt_text);
+
+                if let Some(def) = default {
+                    input = input.default(*def);
+                }
+
+                let value = input
+                    .validate_with(|val: &i64| -> std::result::Result<(), String> {
+                        if let Some(min_val) = min {
+                            if val < min_val {
+                                return Err(format!("Value must be at least {}", min_val));
+                            }
+                        }
+                        if let Some(max_val) = max {
+                            if val > max_val {
+                                return Err(format!("Value must be at most {}", max_val));
+                            }
+                        }
+                        Ok(())
+                    })
+                    .interact_text()?;
+
+                values.insert(param.name.clone(), value.to_string());
+            }
+            ParameterType::Boolean { default } => {
+                let value = Confirm::with_theme(&theme)
+                    .with_prompt(&prompt_text)
+                    .default(*default)
+                    .interact()?;
+
+                values.insert(param.name.clone(), value.to_string());
+            }
+            ParameterType::Choice { choices, default } => {
+                let mut select = Select::with_theme(&theme)
+                    .with_prompt(&prompt_text)
+                    .items(&choices);
+
+                if let Some(def) = default {
+                    if let Some(idx) = choices.iter().position(|c| c == def) {
+                        select = select.default(idx);
+                    }
+                }
+
+                let idx = select.interact()?;
+                values.insert(param.name.clone(), choices[idx].clone());
+            }
+        }
+    }
+
+    Ok(values)
+}
+
+/// Load template configuration with parameters
+pub fn load_template_config(repo_root: &Path, template_name: &str) -> Result<TemplateConfig> {
+    let template_dir = repo_root.join(".hn-templates").join(template_name);
+    let config_path = template_dir.join("template.yml");
+
+    if !config_path.exists() {
+        // No template.yml, return basic config with no parameters
+        return Ok(TemplateConfig {
+            name: template_name.to_string(),
+            description: None,
+            parameters: Vec::new(),
+        });
+    }
+
+    let content = fs::read_to_string(&config_path)?;
+    let config: TemplateConfig = serde_yml::from_str(&content)
+        .map_err(|e| HnError::TemplateError(format!("Invalid template.yml: {}", e)))?;
+
+    Ok(config)
+}
+
+/// Apply template with parameters (v0.6)
+pub fn apply_template_with_parameters(
+    repo_root: &Path,
+    worktree_path: &Path,
+    template_name: &str,
+    worktree_name: &str,
+    cli_params: &[String],
+) -> Result<()> {
+    // Load template configuration
+    let template_config = load_template_config(repo_root, template_name)?;
+
+    // Parse CLI parameters
+    let cli_param_map = parse_cli_parameters(cli_params)?;
+
+    // Collect parameter values (interactive + CLI)
+    let param_values = collect_template_parameters(&template_config, &cli_param_map)?;
+
+    // Copy template files with parameter substitution
+    let template_dir = repo_root.join(".hn-templates").join(template_name);
+    let files_dir = template_dir.join("files");
+
+    if !files_dir.exists() {
+        return Ok(());
+    }
+
+    // Copy with both built-in and custom parameters
+    copy_dir_with_params(&files_dir, worktree_path, worktree_name, worktree_path, &param_values)?;
+
+    Ok(())
+}
+
+/// Recursively copy directory with parameter substitution
+fn copy_dir_with_params(
+    src: &Path,
+    dst: &Path,
+    worktree_name: &str,
+    worktree_path: &Path,
+    params: &HashMap<String, String>,
+) -> Result<()> {
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        let file_name = entry.file_name();
+        let dst_path = dst.join(&file_name);
+
+        if src_path.is_dir() {
+            fs::create_dir_all(&dst_path)?;
+            copy_dir_with_params(&src_path, &dst_path, worktree_name, worktree_path, params)?;
+        } else {
+            copy_file_with_params(&src_path, &dst_path, worktree_name, worktree_path, params)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Copy file with parameter substitution
+fn copy_file_with_params(
+    src: &Path,
+    dst: &Path,
+    worktree_name: &str,
+    worktree_path: &Path,
+    params: &HashMap<String, String>,
+) -> Result<()> {
+    let content = fs::read_to_string(src).unwrap_or_else(|_| {
+        let bytes = fs::read(src).unwrap();
+        String::from_utf8_lossy(&bytes).to_string()
+    });
+
+    // Start with built-in variable substitution
+    let mut substituted = content
+        .replace("${HNHN_NAME}", worktree_name)
+        .replace("${HNHN_PATH}", &worktree_path.to_string_lossy())
+        .replace("${HNHN_BRANCH}", worktree_name);
+
+    // Apply custom parameter substitution
+    for (key, value) in params {
+        let placeholder = format!("${{PARAM_{}}}", key.to_uppercase());
+        substituted = substituted.replace(&placeholder, value);
+
+        // Also support lowercase variant
+        let placeholder_lower = format!("${{{}}}", key);
+        substituted = substituted.replace(&placeholder_lower, value);
+    }
+
+    fs::write(dst, substituted)?;
+
+    // Preserve permissions (Unix only)
+    #[cfg(unix)]
+    {
+        let metadata = fs::metadata(src)?;
+        let permissions = metadata.permissions();
+        fs::set_permissions(dst, permissions)?;
     }
 
     Ok(())

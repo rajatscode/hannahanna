@@ -20,6 +20,7 @@ pub fn run(
     no_branch: bool,
     sparse_paths: Option<Vec<String>>,
     template: Option<String>,
+    template_params: Option<Vec<String>>,
     profile: Option<String>,
     no_hooks: bool,
     vcs_type: Option<VcsType>,
@@ -195,10 +196,19 @@ pub fn run(
     // Apply template if specified
     if let Some(template_name) = template {
         eprintln!("\nApplying template '{}'...", template_name);
+
+        // First apply hannahanna config from template (v0.5)
         crate::templates::apply_template(&repo_root, &worktree.path, &template_name)?;
 
-        // Copy template files (v0.5)
-        crate::templates::copy_template_files(&template_name, &repo_root, &worktree.path, &name)?;
+        // Then copy template files with parameterization (v0.6)
+        let params = template_params.unwrap_or_default();
+        crate::templates::apply_template_with_parameters(
+            &repo_root,
+            &worktree.path,
+            &template_name,
+            &name,
+            &params,
+        )?;
     }
 
     // Docker integration

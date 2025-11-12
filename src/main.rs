@@ -9,6 +9,7 @@ mod env;
 mod errors;
 mod fuzzy;
 mod hooks;
+mod snapshot;
 mod state;
 mod suggestions;
 mod tags;
@@ -53,6 +54,9 @@ enum Commands {
         /// Apply a template from .hn-templates/
         #[arg(long)]
         template: Option<String>,
+        /// Template parameters in key=value format (can be specified multiple times)
+        #[arg(long)]
+        param: Option<Vec<String>>,
         /// Apply a configuration profile (dev/staging/prod)
         #[arg(long)]
         profile: Option<String>,
@@ -192,6 +196,11 @@ enum Commands {
     Workspace {
         #[command(subcommand)]
         command: WorkspaceCommands,
+    },
+    /// Manage worktree snapshots (save/restore state with uncommitted changes)
+    Snapshot {
+        #[command(subcommand)]
+        command: SnapshotCommands,
     },
     /// Show resource usage statistics
     Stats {
@@ -406,6 +415,54 @@ enum WorkspaceCommands {
         #[arg(long)]
         output: Option<String>,
     },
+    /// Import a workspace from a file
+    Import {
+        /// Path to the workspace file
+        path: String,
+        /// Automatically create worktrees during import
+        #[arg(long)]
+        create_worktrees: bool,
+    },
+    /// Compare two workspaces
+    Diff {
+        /// First workspace name
+        name1: String,
+        /// Second workspace name
+        name2: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum SnapshotCommands {
+    /// Create a snapshot of a worktree
+    Create {
+        /// Worktree name
+        worktree: String,
+        /// Snapshot name (auto-generated if omitted)
+        name: Option<String>,
+        /// Description of the snapshot
+        #[arg(long)]
+        description: Option<String>,
+    },
+    /// List snapshots
+    List {
+        /// Worktree name (shows all if omitted)
+        worktree: Option<String>,
+    },
+    /// Restore a snapshot
+    Restore {
+        /// Worktree name
+        worktree: String,
+        /// Snapshot name
+        snapshot: String,
+    },
+    /// Delete a snapshot
+    Delete {
+        /// Worktree name
+        worktree: String,
+        /// Snapshot name
+        snapshot: String,
+    },
 }
 
 /// Resolve command aliases before parsing
@@ -546,8 +603,9 @@ fn main() {
             no_branch,
             sparse,
             template,
+            param,
             profile,
-        } => cli::add::run(name, branch, from, no_branch, sparse, template, profile, cli.no_hooks, vcs_type),
+        } => cli::add::run(name, branch, from, no_branch, sparse, template, param, profile, cli.no_hooks, vcs_type),
         Commands::List { tree, tag } => cli::list::run(tree, tag, vcs_type),
         Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks, vcs_type),
         Commands::Switch { name } => cli::switch::run(name, vcs_type),
@@ -642,6 +700,26 @@ fn main() {
             WorkspaceCommands::Delete { name, force } => cli::workspace::delete(&name, force),
             WorkspaceCommands::Export { name, output } => {
                 cli::workspace::export(&name, output.as_deref())
+            }
+            WorkspaceCommands::Import { path, create_worktrees } => {
+                cli::workspace::import(&path, create_worktrees, vcs_type)
+            }
+            WorkspaceCommands::Diff { name1, name2 } => {
+                cli::workspace::diff(&name1, &name2)
+            }
+        },
+        Commands::Snapshot { command } => match command {
+            SnapshotCommands::Create { worktree, name, description } => {
+                cli::snapshot::create(&worktree, name.as_deref(), description.as_deref(), vcs_type)
+            }
+            SnapshotCommands::List { worktree } => {
+                cli::snapshot::list(worktree.as_deref())
+            }
+            SnapshotCommands::Restore { worktree, snapshot } => {
+                cli::snapshot::restore(&worktree, &snapshot, vcs_type)
+            }
+            SnapshotCommands::Delete { worktree, snapshot } => {
+                cli::snapshot::delete(&worktree, &snapshot)
             }
         },
         Commands::Stats { name, all, disk } => cli::stats::run(name, all, disk, vcs_type),

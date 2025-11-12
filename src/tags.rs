@@ -6,7 +6,7 @@ use crate::errors::{HnError, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Tag index for fast lookup
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -57,6 +57,7 @@ impl TagIndex {
     }
 
     /// Remove tags from a worktree
+    #[allow(dead_code)]
     pub fn remove_tags(&mut self, worktree: &str, tags: &[String]) {
         // Remove from worktree -> tags mapping
         if let Some(worktree_tags) = self.worktrees.get_mut(worktree) {
@@ -80,6 +81,7 @@ impl TagIndex {
     }
 
     /// Remove all tags from a worktree
+    #[allow(dead_code)]
     pub fn remove_worktree(&mut self, worktree: &str) {
         if let Some(tags) = self.worktrees.remove(worktree) {
             for tag in tags {
@@ -158,6 +160,7 @@ pub fn add_tags(state_dir: &Path, worktree: &str, tags: &[String]) -> Result<()>
 }
 
 /// Remove tags from a worktree
+#[allow(dead_code)]
 pub fn remove_tags(state_dir: &Path, worktree: &str, tags: &[String]) -> Result<()> {
     // Load index
     let mut index = TagIndex::load(state_dir)?;

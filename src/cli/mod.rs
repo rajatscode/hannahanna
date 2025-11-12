@@ -11,6 +11,7 @@ pub mod prune;
 pub mod remove;
 pub mod return_cmd;
 pub mod setup;
+pub mod snapshot;
 pub mod state;
 pub mod stats;
 pub mod switch;

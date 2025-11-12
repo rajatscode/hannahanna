@@ -530,6 +530,7 @@ impl Config {
     }
 
     /// Get available profile names (v0.6)
+    #[allow(dead_code)]
     pub fn list_profiles(&self) -> Vec<String> {
         self.profiles.keys().cloned().collect()
     }

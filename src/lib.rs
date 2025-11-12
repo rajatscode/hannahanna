@@ -9,6 +9,7 @@ pub mod env;
 pub mod errors;
 pub mod fuzzy;
 pub mod hooks;
+pub mod snapshot;
 pub mod state;
 pub mod suggestions;
 pub mod tags;
