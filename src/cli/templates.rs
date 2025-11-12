@@ -6,6 +6,7 @@ use crate::templates;
 use colored::*;
 use std::env;
 use std::fs;
+use std::path::Path;
 
 /// List all available templates
 pub fn list(json: bool) -> Result<()> {
@@ -128,4 +129,136 @@ pub fn show(name: &str) -> Result<()> {
     println!();
 
     Ok(())
+}
+
+/// Create a new template
+pub fn create(name: &str, description: Option<&str>, enable_docker: bool, from_current: bool) -> Result<()> {
+    let cwd = env::current_dir()?;
+    let repo_root = Config::find_repo_root(&cwd)?;
+
+    // Validate template name
+    if name.is_empty() || name.contains('/') || name.contains('\\') || name.starts_with('.') {
+        return Err(HnError::TemplateError(format!(
+            "Invalid template name '{}'. Template names must be simple directory names without special characters.",
+            name
+        )));
+    }
+
+    // Create templates directory if it doesn't exist
+    let templates_dir = repo_root.join(".hn-templates");
+    if !templates_dir.exists() {
+        fs::create_dir_all(&templates_dir)?;
+    }
+
+    // Create template directory
+    let template_dir = templates_dir.join(name);
+    if template_dir.exists() {
+        return Err(HnError::TemplateError(format!(
+            "Template '{}' already exists at {}",
+            name,
+            template_dir.display()
+        )));
+    }
+
+    fs::create_dir_all(&template_dir)?;
+
+    // Generate config content
+    let config_content = if from_current {
+        // Copy from current .hannahanna.yml if it exists
+        let current_config = repo_root.join(".hannahanna.yml");
+        if current_config.exists() {
+            fs::read_to_string(&current_config)?
+        } else {
+            generate_template_config(enable_docker)
+        }
+    } else {
+        generate_template_config(enable_docker)
+    };
+
+    // Write config file
+    fs::write(template_dir.join(".hannahanna.yml"), config_content)?;
+
+    // Generate README
+    let readme_content = generate_readme(name, description);
+    fs::write(template_dir.join("README.md"), readme_content)?;
+
+    // Create files/ directory for template file copying
+    fs::create_dir_all(template_dir.join("files"))?;
+
+    println!();
+    println!("{} Template '{}' created successfully!", "✓".green().bold(), name.cyan().bold());
+    println!();
+    println!("{}: {}", "Location".bold(), template_dir.display().to_string().dimmed());
+    println!();
+    println!("{}", "Next steps:".bold());
+    println!("  1. Edit {}/.hannahanna.yml to customize configuration", template_dir.display());
+    println!("  2. Add files to {}/ to copy to new worktrees", template_dir.join("files").display());
+    println!("  3. Use with: {} <name> {} {}", "hn add".bold(), "--template".dimmed(), name.cyan());
+    println!();
+
+    Ok(())
+}
+
+/// Generate template configuration
+fn generate_template_config(enable_docker: bool) -> String {
+    if enable_docker {
+        r#"# Template configuration
+# This template includes Docker support
+
+docker:
+  enabled: true
+  services:
+    - app
+  ports:
+    app: auto
+
+hooks:
+  post_create: |
+    echo "Setting up Docker environment..."
+    # Add your setup commands here
+"#.to_string()
+    } else {
+        r#"# Template configuration
+
+hooks:
+  post_create: |
+    echo "Worktree created from template"
+    # Add your setup commands here
+"#.to_string()
+    }
+}
+
+/// Generate README for template
+fn generate_readme(name: &str, description: Option<&str>) -> String {
+    let desc = description.unwrap_or("Template for hannahanna worktrees");
+
+    format!(
+        r#"# {} Template
+
+{}
+
+## Usage
+
+```bash
+hn add <worktree-name> --template {}
+```
+
+## Configuration
+
+See `.hannahanna.yml` for template configuration.
+
+## Files
+
+Any files in the `files/` directory will be copied to new worktrees created with this template.
+
+## Customization
+
+Edit `.hannahanna.yml` to customize:
+- Hooks (setup commands)
+- Docker configuration
+- Environment variables
+- Sparse checkout paths
+"#,
+        name, desc, name
+    )
 }

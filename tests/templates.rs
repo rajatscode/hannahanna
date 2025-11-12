@@ -101,3 +101,51 @@ fn test_templates_ignores_missing_config() {
     assert!(result.stdout.contains("valid"));
     assert!(result.stdout.contains("1 template"));
 }
+
+#[test]
+fn test_templates_create_basic() {
+    let repo = TestRepo::new();
+
+    // Create a new template (non-interactive mode for testing)
+    let result = repo.hn(&["templates", "create", "mytemplate", "--description", "My test template"]);
+    assert!(result.success, "Create should succeed. stderr: {}", result.stderr);
+
+    // Verify template was created
+    let template_dir = repo.path().join(".hn-templates/mytemplate");
+    assert!(template_dir.exists(), "Template directory should exist");
+    assert!(template_dir.join(".hannahanna.yml").exists(), "Config file should exist");
+    assert!(template_dir.join("README.md").exists(), "README should exist");
+}
+
+#[test]
+fn test_templates_create_with_docker() {
+    let repo = TestRepo::new();
+
+    let result = repo.hn(&["templates", "create", "dockerized", "--description", "Docker template", "--docker"]);
+    assert!(result.success);
+
+    let config_path = repo.path().join(".hn-templates/dockerized/.hannahanna.yml");
+    let config_content = fs::read_to_string(&config_path).unwrap();
+    assert!(config_content.contains("docker") || config_content.contains("enabled: true"));
+}
+
+#[test]
+fn test_templates_create_from_current() {
+    let repo = TestRepo::new();
+
+    // Create a config in current repo
+    repo.create_config(r#"
+docker:
+  enabled: true
+  services:
+    - app
+"#);
+
+    // Create template from current config
+    let result = repo.hn(&["templates", "create", "from-current", "--from-current", "--description", "From current"]);
+    assert!(result.success);
+
+    let template_config = repo.path().join(".hn-templates/from-current/.hannahanna.yml");
+    let content = fs::read_to_string(&template_config).unwrap();
+    assert!(content.contains("docker") || content.contains("app"));
+}

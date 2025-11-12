@@ -172,6 +172,9 @@ pub fn run(
     if let Some(template_name) = template {
         eprintln!("\nApplying template '{}'...", template_name);
         crate::templates::apply_template(&repo_root, &worktree.path, &template_name)?;
+
+        // Copy template files (v0.5)
+        crate::templates::copy_template_files(&template_name, &repo_root, &worktree.path, &name)?;
     }
 
     // Docker integration

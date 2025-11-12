@@ -292,6 +292,20 @@ enum TemplatesCommands {
         /// Name of the template
         name: String,
     },
+    /// Create a new template
+    Create {
+        /// Name of the template
+        name: String,
+        /// Template description
+        #[arg(long)]
+        description: Option<String>,
+        /// Enable Docker in template
+        #[arg(long)]
+        docker: bool,
+        /// Create from current worktree config
+        #[arg(long)]
+        from_current: bool,
+    },
 }
 
 /// Resolve command aliases before parsing
@@ -502,6 +516,9 @@ fn main() {
         Commands::Templates { command } => match command {
             TemplatesCommands::List { json } => cli::templates::list(json),
             TemplatesCommands::Show { name } => cli::templates::show(&name),
+            TemplatesCommands::Create { name, description, docker, from_current } => {
+                cli::templates::create(&name, description.as_deref(), docker, from_current)
+            }
         },
     };
 
