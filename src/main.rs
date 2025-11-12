@@ -183,6 +183,17 @@ enum Commands {
         #[command(subcommand)]
         command: WorkspaceCommands,
     },
+    /// Show resource usage statistics
+    Stats {
+        /// Worktree name (shows all if not specified)
+        name: Option<String>,
+        /// Show all worktrees in detail
+        #[arg(long)]
+        all: bool,
+        /// Show disk usage only
+        #[arg(long)]
+        disk: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -580,6 +591,7 @@ fn main() {
                 cli::workspace::export(&name, output.as_deref())
             }
         },
+        Commands::Stats { name, all, disk } => cli::stats::run(name, all, disk, vcs_type),
     };
 
     // Handle errors with suggestions
