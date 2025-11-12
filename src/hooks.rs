@@ -1,5 +1,5 @@
 use crate::clock::{Clock, SystemClock};
-use crate::config::{ConditionalHook, HooksConfig};
+use crate::config::HooksConfig;
 use crate::errors::{HnError, Result};
 use crate::vcs::Worktree;
 use std::collections::HashMap;
