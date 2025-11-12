@@ -95,6 +95,7 @@ impl ActivityLog {
     }
 
     /// Get events since a timestamp
+    #[allow(dead_code)] // Reserved for future `hn activity` command
     pub fn events_since(&self, timestamp: u64) -> Vec<&ActivityEvent> {
         self.events
             .iter()
@@ -103,6 +104,7 @@ impl ActivityLog {
     }
 
     /// Get last N events
+    #[allow(dead_code)] // Reserved for future `hn activity` command
     pub fn last_events(&self, count: usize) -> Vec<&ActivityEvent> {
         let start = if self.events.len() > count {
             self.events.len() - count
@@ -112,6 +114,7 @@ impl ActivityLog {
         self.events[start..].iter().collect()
     }
 
+    #[allow(dead_code)] // Helper for public methods
     fn event_timestamp(&self, event: &ActivityEvent) -> u64 {
         match event {
             ActivityEvent::WorktreeCreated { timestamp, .. } => *timestamp,
@@ -194,6 +197,7 @@ impl MetricsHistory {
     }
 
     /// Get last N snapshots
+    #[allow(dead_code)] // Reserved for future `hn stats --history` enhancements
     pub fn last_snapshots(&self, count: usize) -> Vec<&MetricsSnapshot> {
         let start = if self.snapshots.len() > count {
             self.snapshots.len() - count
