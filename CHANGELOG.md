@@ -5,6 +5,55 @@ All notable changes to hannahanna will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2025-11-12
+
+**Theme:** Enhanced Workflows, Data Safety & Observability
+**Status:** ✅ RELEASED
+**Test Coverage:** 486/486 tests passing (100%)
+
+### 🔴 Critical Data Safety Fixes
+
+- **Snapshot Stash Management** - Implemented message-based stash identification preventing data loss
+- **Atomic Snapshot Operations** - Added automatic rollback on failure
+- **Stash Cleanup** - Automatic cleanup of orphaned git stashes
+
+### ✨ New Features
+
+- **`hn monitor`** - Real-time monitoring dashboard for worktrees
+- **`hn activity`** - Activity log viewing for worktree operations
+- **Enhanced Stats** - Historical metrics tracking with `--history` flag
+- **Enhanced Interactive Mode** - Better UX for `hn add` with section-based prompts
+- **Template Marketplace** - Export/import/validate templates with `.hnhn` packages
+- **Worktree Tagging** - Organize worktrees with tags using `hn tag` and `hn tags`
+- **Configuration Profiles** - Environment-specific configs (dev/staging/prod)
+- **Workspace Collaboration** - Save/restore/export/import/diff workspaces
+
+### 📊 Monitoring Infrastructure
+
+- Activity logging for all worktree operations
+- Metrics collection with configurable retention
+- JSON-based event logs for analysis
+
+### 🧪 Testing
+
+- All 486 tests passing (100% pass rate)
+- Zero compiler warnings
+- Zero clippy warnings
+
+### 📚 Documentation
+
+- Updated README.md
+- Complete RELEASE_NOTES_v0.6.md
+- Updated all command documentation
+
+### 🔧 Technical
+
+- Added `monitor` and `activity` CLI commands
+- Enhanced monitoring infrastructure
+- Improved snapshot safety and reliability
+
+See [RELEASE_NOTES_v0.6.md](RELEASE_NOTES_v0.6.md) for complete details.
+
 ## [0.5.0] - 2025-01-12
 
 **Theme:** Template Management & Enhanced Features

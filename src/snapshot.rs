@@ -24,6 +24,12 @@ pub struct SnapshotIndex {
     pub snapshots: Vec<Snapshot>,
 }
 
+impl Default for SnapshotIndex {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SnapshotIndex {
     pub fn new() -> Self {
         Self {

@@ -196,13 +196,13 @@ fn print_history(history: &MetricsHistory, days: Option<u64>) {
         if change > 0 {
             println!("  {} {} ({})",
                 "Trend:".bold(),
-                format!("↑ {}", format_size(change.abs() as u64)).red(),
+                format!("↑ {}", format_size(change.unsigned_abs())).red(),
                 "increased".red()
             );
         } else if change < 0 {
             println!("  {} {} ({})",
                 "Trend:".bold(),
-                format!("↓ {}", format_size(change.abs() as u64)).green(),
+                format!("↓ {}", format_size(change.unsigned_abs())).green(),
                 "decreased".green()
             );
         } else {
