@@ -16,6 +16,7 @@ pub fn run(
     from: Option<String>,
     no_branch: bool,
     sparse_paths: Option<Vec<String>>,
+    template: Option<String>,
     no_hooks: bool,
     vcs_type: Option<VcsType>,
 ) -> Result<()> {
@@ -164,6 +165,12 @@ pub fn run(
         eprintln!("✓ Hook completed successfully");
     } else if has_post_create_hooks && no_hooks {
         eprintln!("⚠ Skipping post_create hook (--no-hooks)");
+    }
+
+    // Apply template if specified
+    if let Some(template_name) = template {
+        eprintln!("\nApplying template '{}'...", template_name);
+        crate::templates::apply_template(&repo_root, &worktree.path, &template_name)?;
     }
 
     // Docker integration

@@ -11,6 +11,7 @@ mod fuzzy;
 mod hooks;
 mod state;
 mod suggestions;
+mod templates;
 mod vcs;
 
 #[derive(Parser)]
@@ -48,6 +49,9 @@ enum Commands {
         /// Example: --sparse services/api/ --sparse libs/utils/
         #[arg(long)]
         sparse: Option<Vec<String>>,
+        /// Apply a template from .hn-templates/
+        #[arg(long)]
+        template: Option<String>,
     },
     /// List all worktrees
     List {
@@ -401,7 +405,8 @@ fn main() {
             from,
             no_branch,
             sparse,
-        } => cli::add::run(name, branch, from, no_branch, sparse, cli.no_hooks, vcs_type),
+            template,
+        } => cli::add::run(name, branch, from, no_branch, sparse, template, cli.no_hooks, vcs_type),
         Commands::List { tree } => cli::list::run(tree, vcs_type),
         Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks, vcs_type),
         Commands::Switch { name } => cli::switch::run(name, vcs_type),

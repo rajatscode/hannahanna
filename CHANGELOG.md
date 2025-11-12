@@ -39,10 +39,44 @@ hn completions zsh > ~/.zsh/completions/_hn
 hn completions fish > ~/.config/fish/completions/hn.fish
 ```
 
+#### 📋 Template System
+
+**Pre-configured environment setups:**
+- Create templates in `.hn-templates/<template-name>/`
+- Each template contains `.hannahanna.yml` with config overrides
+- Apply with: `hn add feature-x --template microservice`
+- Template config merged into worktree's `.hannahanna.local.yml`
+
+**Example:**
+```bash
+# Create template directory
+mkdir -p .hn-templates/microservice
+
+# Add template config
+cat > .hn-templates/microservice/.hannahanna.yml <<EOF
+docker:
+  enabled: true
+  ports:
+    base:
+      app: 3000
+      db: 5432
+hooks:
+  post_create: |
+    npm install
+    npm run db:migrate
+EOF
+
+# Use template
+hn add my-service --template microservice
+```
+
 ### ✨ Enhancements
 
 - **Cache Statistics**: View cache status, age, and size
-- **Improved Test Coverage**: 342 total tests across lib and integration tests
+- **Improved Test Coverage**: 346 total tests across lib and integration tests
+- **Orphaned Children Protection**: Block removal of parent worktrees unless `--force`
+- **Automatic Reparenting**: Children reparented to target during integrate
+- **Docker Stats Filtering**: Stats now filtered by worktree project name
 
 ### 🏗️ Technical Improvements
 
