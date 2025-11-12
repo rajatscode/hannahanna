@@ -176,7 +176,7 @@ pub fn exec(name: String, service: Option<String>, command: Vec<String>) -> Resu
         ));
     }
 
-    let manager = ContainerManager::new(&config.docker, &state_dir)?;
+    let _manager = ContainerManager::new(&config.docker, &state_dir)?;
     let worktree_path = repo_root.join("worktrees").join(&name);
 
     if !worktree_path.exists() {
@@ -201,7 +201,7 @@ pub fn exec(name: String, service: Option<String>, command: Vec<String>) -> Resu
 
     // Try modern "docker compose" first, fallback to legacy "docker-compose"
     let compose_cmd = if std::process::Command::new("docker")
-        .args(&["compose", "version"])
+        .args(["compose", "version"])
         .output()
         .is_ok()
     {

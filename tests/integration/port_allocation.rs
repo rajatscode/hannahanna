@@ -181,3 +181,26 @@ fn test_port_exhaustion() {
     let err_msg = format!("{}", err);
     assert!(err_msg.contains("exhausted") || err_msg.contains("available"));
 }
+
+#[test]
+fn test_port_reassign() {
+    let temp_dir = TempDir::new().unwrap();
+    let state_dir = temp_dir.path().join(".hn-state");
+    std::fs::create_dir_all(&state_dir).unwrap();
+
+    let mut allocator = PortAllocator::new(&state_dir).unwrap();
+
+    // Allocate initial ports
+    let ports_initial = allocator.allocate("feature-x", &["app", "postgres"]).unwrap();
+    let _app_initial = *ports_initial.get("app").unwrap();
+    let _postgres_initial = *ports_initial.get("postgres").unwrap();
+
+    // Simulate reassign: release + reallocate
+    allocator.release("feature-x").unwrap();
+    let ports_new = allocator.allocate("feature-x", &["app", "postgres"]).unwrap();
+
+    // Should successfully reallocate
+    assert!(ports_new.contains_key("app"));
+    assert!(ports_new.contains_key("postgres"));
+    assert_eq!(ports_new.len(), 2);
+}

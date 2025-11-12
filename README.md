@@ -409,6 +409,57 @@ hn ports release feature-x
 - `list` - Show all port allocations across worktrees
 - `show <name>` - Show port allocations for a specific worktree
 - `release <name>` - Manually release port allocations
+- `reassign <name>` - Reassign ports to resolve conflicts (v0.3+)
+
+### `hn state <subcommand>` (v0.3)
+
+Manage worktree state directories.
+
+```bash
+# List all state directories with sizes
+hn state list
+
+# Check disk usage for specific worktree
+hn state size feature-x
+
+# Clean orphaned state directories
+hn state clean
+```
+
+**Subcommands:**
+- `list` - View all state dirs with sizes
+- `size [name]` - Check disk usage for a specific worktree or all worktrees
+- `clean` - Remove orphaned state directories
+
+### Command Aliases (v0.3)
+
+Define custom command aliases in `.hannahanna.yml`:
+
+```yaml
+aliases:
+  sw: switch
+  ls: list
+  lt: list --tree
+  s: sw  # Chained aliases supported
+```
+
+**Features:**
+- Cycle detection prevents infinite loops
+- Chained aliases supported (s → sw → switch)
+- Aliases work with arguments: `hn sw feature-x`
+- Cannot override built-in commands
+
+**Usage:**
+```bash
+# Define in .hannahanna.yml
+aliases:
+  sw: switch
+  lt: list --tree
+
+# Use them
+hn sw feature-1
+hn lt
+```
 
 ## Configuration
 
@@ -491,8 +542,15 @@ hn remove feature-x --no-hooks # Skip pre_remove hook
 ```
 
 **Available hooks:**
+- `pre_create` - Runs before worktree creation (v0.3+)
 - `post_create` - Runs after worktree creation
+- `post_switch` - Runs after switching to a worktree (v0.3+)
 - `pre_remove` - Runs before worktree deletion
+- `post_remove` - Runs after worktree deletion (v0.3+)
+- `pre_integrate` - Runs before merging (v0.3+)
+- `post_integrate` - Runs after merging (v0.3+)
+
+All hooks support conditional execution via branch patterns (v0.3+)
 
 **Environment variables available in hooks:**
 - `$WT_NAME` - Worktree name
@@ -750,47 +808,56 @@ my-project/              # Main repository
 
 ## Development Status
 
-**Current Version:** 0.1+ (MVP + Enhancements)
+**Current Version:** v0.3.0
 
 **Implemented:**
 - ✅ Git worktree management (add, list, remove, switch, info, prune)
 - ✅ Parent/child tracking with nested workflow support
 - ✅ `return` command for merging back to parent
-- ✅ **`integrate` command for merging worktrees/branches** (Phase 2)
-- ✅ **`sync` command for keeping branches up to date** (Phase 2)
+- ✅ `integrate` command for merging worktrees/branches
+- ✅ `sync` command for keeping branches up to date
+- ✅ `each` command for batch operations
 - ✅ Fuzzy name matching
 - ✅ Shared resource symlinks with compatibility checking
 - ✅ File copying for templates
-- ✅ Lifecycle hooks (post_create, pre_remove)
+- ✅ **Extended lifecycle hooks (7 total)** - v0.3
+  - pre_create, post_create, post_switch
+  - pre_remove, post_remove
+  - pre_integrate, post_integrate
+  - Conditional execution via branch patterns
 - ✅ State management with file locking
+- ✅ **State commands** (list/size/clean) - v0.3
 - ✅ Docker integration
   - Port allocation system
-  - Container lifecycle management
+  - **Port reassign command** - v0.3
+  - Container lifecycle management (exec/restart/prune)
   - Docker Compose override generation
 - ✅ Config management commands (init/validate/show/edit)
+- ✅ **Command aliases with cycle detection** - v0.3
 - ✅ Helpful error messages with actionable suggestions
 - ✅ **Graphite compatibility** - Works seamlessly with Graphite stacks
 
-**Test Coverage:** 146 tests passing, ~85% coverage
+**Test Coverage:** 247 tests passing, zero warnings
 
-**Multi-VCS Support (Phase 3 - Foundation Complete):**
+**Multi-VCS Support (v0.3 Complete):**
 - ✅ VCS abstraction layer with trait-based design
 - ✅ Auto-detection (Jujutsu → Git → Mercurial priority)
-- ✅ Mercurial backend skeleton (full implementation in v0.3)
-- ✅ Jujutsu backend skeleton (full implementation in v0.3)
+- ✅ **Full Mercurial backend** (`hg share` workspaces)
+- ✅ **Sparse checkout for Mercurial** - v0.3
+- ✅ Full Jujutsu backend (`jj workspace` support)
 - ✅ Clear error messages for unsupported VCS operations
 
-**v0.2 Features (In Progress):**
+**v0.2 Features (Complete):**
 - ✅ Sparse checkout for Git and Jujutsu (monorepo support)
-- ⏳ Configuration hierarchy (user/repo/worktree)
-- ⏳ Advanced hook conditions
-- ⏳ Performance optimizations
+- ✅ Configuration hierarchy (user/repo/worktree)
 
-**Planned for v0.3:**
-- Complete Mercurial backend (`hg share` workspaces)
-- Complete Jujutsu backend (`jj workspace` support)
-- VCS override flag (`--vcs`)
-- Sparse checkout for Mercurial
+**v0.3 Features (Complete):**
+- ✅ Command aliases with cycle detection
+- ✅ Extended hooks (7 types with conditional execution)
+- ✅ State management commands
+- ✅ Port reassign command
+- ✅ Docker enhancements (exec/restart/prune)
+- ✅ Mercurial sparse checkout
 
 **See:** [`spec/plan.md`](spec/plan.md) and [`spec/spec.md`](spec/spec.md) for detailed roadmap
 

@@ -5,6 +5,7 @@ use common::TestRepo;
 use std::fs;
 
 /// Helper to check if a path exists in worktree
+#[allow(dead_code)]
 fn path_exists_in_worktree(repo: &TestRepo, worktree_name: &str, path: &str) -> bool {
     repo.worktree_path(worktree_name).join(path).exists()
 }

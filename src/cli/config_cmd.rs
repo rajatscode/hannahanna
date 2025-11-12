@@ -354,7 +354,7 @@ pub fn show() -> Result<()> {
     );
     println!(
         "  • Create local override: {}",
-        format!("$EDITOR .hannahanna.local.yml").bright_cyan()
+        "$EDITOR .hannahanna.local.yml".bright_cyan()
     );
 
     Ok(())
