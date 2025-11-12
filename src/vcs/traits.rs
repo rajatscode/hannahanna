@@ -24,7 +24,6 @@ impl VcsType {
     }
 
     /// Convert to string for display
-    #[allow(dead_code)] // Will be used in v0.3 when --vcs flag is added
     pub fn as_str(&self) -> &'static str {
         match self {
             VcsType::Git => "git",
@@ -81,6 +80,7 @@ pub trait VcsBackend {
     fn get_workspace_status(&self, worktree_path: &Path) -> Result<crate::vcs::WorkspaceStatus>;
 
     /// Check if a path has uncommitted changes
+    #[allow(dead_code)] // Utility method for future features
     fn has_uncommitted_changes(&self, worktree_path: &Path) -> Result<bool> {
         let status = self.get_workspace_status(worktree_path)?;
         Ok(!status.is_clean())

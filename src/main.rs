@@ -1,4 +1,5 @@
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::Shell;
 
 mod cli;
 mod clock;
@@ -10,6 +11,7 @@ mod fuzzy;
 mod hooks;
 mod state;
 mod suggestions;
+mod templates;
 mod vcs;
 
 #[derive(Parser)]
@@ -47,6 +49,9 @@ enum Commands {
         /// Example: --sparse services/api/ --sparse libs/utils/
         #[arg(long)]
         sparse: Option<Vec<String>>,
+        /// Apply a template from .hn-templates/
+        #[arg(long)]
+        template: Option<String>,
     },
     /// List all worktrees
     List {
@@ -137,6 +142,17 @@ enum Commands {
     InitShell,
     /// Clean up orphaned state directories
     Prune,
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        shell: Shell,
+    },
+    /// Automate hannahanna installation and shell integration
+    Setup {
+        /// Shell type (bash, zsh, or fish). Auto-detects if not specified
+        #[arg(long)]
+        shell: Option<String>,
+    },
     /// Manage state directories
     State {
         #[command(subcommand)]
@@ -170,6 +186,19 @@ enum StateCommands {
         /// Name of specific worktree (optional)
         name: Option<String>,
     },
+    /// Manage worktree registry cache
+    Cache {
+        #[command(subcommand)]
+        command: CacheCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum CacheCommands {
+    /// Show cache statistics
+    Stats,
+    /// Clear the cache
+    Clear,
 }
 
 #[derive(Subcommand)]
@@ -382,7 +411,8 @@ fn main() {
             from,
             no_branch,
             sparse,
-        } => cli::add::run(name, branch, from, no_branch, sparse, cli.no_hooks, vcs_type),
+            template,
+        } => cli::add::run(name, branch, from, no_branch, sparse, template, cli.no_hooks, vcs_type),
         Commands::List { tree } => cli::list::run(tree, vcs_type),
         Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks, vcs_type),
         Commands::Switch { name } => cli::switch::run(name, vcs_type),
@@ -414,10 +444,19 @@ fn main() {
         } => cli::sync::run(source_branch, strategy, autostash, no_commit, vcs_type),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
+        Commands::Completions { shell } => {
+            clap_complete::generate(shell, &mut Cli::command(), "hn", &mut std::io::stdout());
+            Ok(())
+        }
+        Commands::Setup { shell } => cli::setup::run(shell),
         Commands::State { command } => match command {
             StateCommands::List => cli::state::list(),
             StateCommands::Clean => cli::state::clean(),
             StateCommands::Size { name } => cli::state::size(name),
+            StateCommands::Cache { command } => match command {
+                CacheCommands::Stats => cli::state::cache_stats(),
+                CacheCommands::Clear => cli::state::cache_clear(),
+            },
         },
         Commands::Config { command } => match command {
             ConfigCommands::Init => cli::config_cmd::init(),

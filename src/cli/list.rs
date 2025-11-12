@@ -1,5 +1,5 @@
 use crate::errors::Result;
-use crate::vcs::{init_backend_from_current_dir, short_commit, VcsType, Worktree};
+use crate::vcs::{init_backend_from_current_dir, short_commit, RegistryCache, VcsType, Worktree};
 use std::collections::HashMap;
 
 pub fn run(tree: bool, vcs_type: Option<VcsType>) -> Result<()> {
@@ -8,7 +8,25 @@ pub fn run(tree: bool, vcs_type: Option<VcsType>) -> Result<()> {
     } else {
         init_backend_from_current_dir()?
     };
-    let worktrees = backend.list_workspaces()?;
+
+    // Try to get worktrees from cache first
+    let repo_root = backend.repo_root()?;
+    let state_dir = repo_root.join(".hn-state");
+
+    let worktrees = if let Ok(cache) = RegistryCache::new(&state_dir, None) {
+        if let Ok(Some(cached_worktrees)) = cache.get() {
+            // Cache hit!
+            cached_worktrees
+        } else {
+            // Cache miss or expired - query VCS and update cache
+            let worktrees = backend.list_workspaces()?;
+            let _ = cache.set(worktrees.clone()); // Ignore cache write errors
+            worktrees
+        }
+    } else {
+        // Cache unavailable - fall back to direct VCS query
+        backend.list_workspaces()?
+    };
 
     if tree {
         // Tree view with parent/child relationships

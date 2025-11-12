@@ -8,7 +8,7 @@ use crate::env::validation;
 use crate::errors::Result;
 use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
-use crate::vcs::{init_backend_from_current_dir, VcsType};
+use crate::vcs::{init_backend_from_current_dir, RegistryCache, VcsType};
 
 pub fn run(
     name: String,
@@ -16,6 +16,7 @@ pub fn run(
     from: Option<String>,
     no_branch: bool,
     sparse_paths: Option<Vec<String>>,
+    template: Option<String>,
     no_hooks: bool,
     vcs_type: Option<VcsType>,
 ) -> Result<()> {
@@ -74,6 +75,12 @@ pub fn run(
     let worktree =
         backend.create_workspace(&name, branch.as_deref(), from.as_deref(), no_branch)?;
     eprintln!("✓ Worktree created at {}", worktree.path.display());
+
+    // Invalidate cache after creating worktree
+    let state_dir_path = repo_root.join(".hn-state");
+    if let Ok(cache) = RegistryCache::new(&state_dir_path, None) {
+        let _ = cache.invalidate(); // Ignore cache invalidation errors
+    }
 
     // Setup sparse checkout if requested
     // Priority: CLI flag > config default
@@ -158,6 +165,12 @@ pub fn run(
         eprintln!("✓ Hook completed successfully");
     } else if has_post_create_hooks && no_hooks {
         eprintln!("⚠ Skipping post_create hook (--no-hooks)");
+    }
+
+    // Apply template if specified
+    if let Some(template_name) = template {
+        eprintln!("\nApplying template '{}'...", template_name);
+        crate::templates::apply_template(&repo_root, &worktree.path, &template_name)?;
     }
 
     // Docker integration

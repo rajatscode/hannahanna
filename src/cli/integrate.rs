@@ -167,6 +167,44 @@ pub fn run(
         eprintln!("✓ Merge successful");
     }
 
+    // Check if source worktree has children and reparent them to target
+    let source_worktree = worktrees.iter().find(|wt| wt.branch == source_branch);
+    if let Some(src_wt) = source_worktree {
+        let children: Vec<_> = worktrees
+            .iter()
+            .filter(|wt| wt.parent.as_ref() == Some(&src_wt.name))
+            .collect();
+
+        if !children.is_empty() {
+            eprintln!(
+                "\n→ Reparenting {} child worktree(s) from '{}' to '{}'...",
+                children.len(),
+                src_wt.name,
+                target_worktree.name
+            );
+
+            for child in &children {
+                // Update parent using git config
+                let reparent_output = Command::new("git")
+                    .arg("-C")
+                    .arg(&child.path)
+                    .arg("config")
+                    .arg("worktree.parent")
+                    .arg(&target_worktree.name)
+                    .output();
+
+                match reparent_output {
+                    Ok(output) if output.status.success() => {
+                        eprintln!("  ✓ Reparented '{}'", child.name);
+                    }
+                    _ => {
+                        eprintln!("  ⚠ Failed to reparent '{}' (you may need to update manually)", child.name);
+                    }
+                }
+            }
+        }
+    }
+
     // Run post_integrate hook
     let has_post_integrate_hooks = config.hooks.post_integrate.is_some()
         || !config.hooks.post_integrate_conditions.is_empty();

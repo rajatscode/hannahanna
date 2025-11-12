@@ -28,9 +28,29 @@ cargo build --release
 sudo cp target/release/hn /usr/local/bin/
 ```
 
-### Shell Integration
+### Quick Setup (Recommended)
 
-For the `hn switch` command to work (changes directory), add this to your `~/.bashrc` or `~/.zshrc`:
+After installation, run the automated setup:
+
+```bash
+hn setup
+```
+
+This command will:
+- Install shell completions for your shell (bash/zsh/fish)
+- Provide instructions for shell integration setup
+- Create example templates (`.hn-templates/`)
+- Validate your environment (git, docker)
+
+The setup command auto-detects your shell, or you can specify:
+
+```bash
+hn setup --shell bash   # or zsh, fish
+```
+
+### Manual Shell Integration
+
+Alternatively, for the `hn switch` command to work (changes directory), add this to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
 eval "$(hn init-shell)"
@@ -327,6 +347,62 @@ Clean up orphaned state directories from deleted worktrees.
 hn prune
 ```
 
+### `hn setup [options]` (v0.4)
+
+Automate hannahanna installation and shell integration.
+
+```bash
+# Auto-detect shell and run setup
+hn setup
+
+# Specify shell explicitly
+hn setup --shell bash
+hn setup --shell zsh
+hn setup --shell fish
+```
+
+**What it does:**
+1. **Shell Completions**: Installs completions to the appropriate location for your shell
+2. **Shell Integration**: Provides instructions for adding the cd wrapper to your shell config
+3. **Example Templates**: Creates `.hn-templates/` with microservice and frontend examples
+4. **Environment Validation**: Checks for git and docker installation
+
+**After running setup:**
+1. Reload your shell: `source ~/.bashrc` (or `~/.zshrc`)
+2. Try tab completion: `hn <TAB>`
+3. Explore templates: `ls .hn-templates/`
+
+**Options:**
+- `--shell <bash|zsh|fish>` - Specify shell type (auto-detects if omitted)
+
+This is the recommended way to set up hannahanna after installation.
+
+### `hn completions <shell>` (v0.4)
+
+Generate shell completions for auto-completion (manual alternative to `hn setup`).
+
+```bash
+# Bash
+hn completions bash > ~/.local/share/bash-completion/completions/hn
+source ~/.bashrc
+
+# Zsh
+hn completions zsh > ~/.zsh/completions/_hn
+# Add to ~/.zshrc: fpath=(~/.zsh/completions $fpath)
+source ~/.zshrc
+
+# Fish
+hn completions fish > ~/.config/fish/completions/hn.fish
+# Fish auto-loads completions
+```
+
+After setup, enjoy tab completion:
+```bash
+hn <TAB>        # Shows all commands
+hn add <TAB>    # Shows options
+hn switch <TAB> # Shows worktree names
+```
+
 ### `hn config <subcommand>`
 
 Manage configuration files.
@@ -430,6 +506,8 @@ hn state clean
 - `list` - View all state dirs with sizes
 - `size [name]` - Check disk usage for a specific worktree or all worktrees
 - `clean` - Remove orphaned state directories
+- `cache stats` - View registry cache statistics (v0.4)
+- `cache clear` - Clear registry cache (v0.4)
 
 ### Command Aliases (v0.3)
 
@@ -808,7 +886,7 @@ my-project/              # Main repository
 
 ## Development Status
 
-**Current Version:** v0.3.0
+**Current Version:** v0.4.0
 
 **Implemented:**
 - ✅ Git worktree management (add, list, remove, switch, info, prune)
@@ -837,7 +915,7 @@ my-project/              # Main repository
 - ✅ Helpful error messages with actionable suggestions
 - ✅ **Graphite compatibility** - Works seamlessly with Graphite stacks
 
-**Test Coverage:** 247 tests passing, zero warnings
+**Test Coverage:** 273 tests passing (87 lib + 186 integration), zero warnings
 
 **Multi-VCS Support (v0.3 Complete):**
 - ✅ VCS abstraction layer with trait-based design
@@ -857,6 +935,25 @@ my-project/              # Main repository
 - ✅ State management commands
 - ✅ Port reassign command
 - ✅ Docker enhancements (exec/restart/prune)
+
+**v0.4 Features (Complete):**
+- ✅ **Registry caching system** - 50%+ faster worktree listings
+  - Intelligent TTL-based caching (30s default)
+  - Auto-invalidation on add/remove operations
+  - Cache management: `hn state cache stats/clear`
+- ✅ **Performance benchmark suite** - Criterion-based benchmarks
+  - Established performance targets for key operations
+  - Run with `cargo bench`
+  - Documentation in `BENCHMARKS.md`
+- ✅ **Shell completions** - Auto-completion for bash/zsh/fish
+  - Generate with `hn completions <shell>`
+  - Full command and option completion
+- ✅ **Enhanced `hn info` output** - Rich, actionable information
+  - Status with emojis (✓/⚠)
+  - Age, disk usage, VCS type
+  - Parent/children relationships
+  - Docker memory & CPU stats
+  - Suggested actions section
 - ✅ Mercurial sparse checkout
 
 **See:** [`spec/plan.md`](spec/plan.md) and [`spec/spec.md`](spec/spec.md) for detailed roadmap
