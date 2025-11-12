@@ -1,6 +1,9 @@
+use crate::config::Config;
 use crate::env::validation;
 use crate::errors::Result;
 use crate::fuzzy;
+use crate::hooks::{HookExecutor, HookType};
+use crate::state::StateManager;
 use crate::vcs::{init_backend_from_current_dir, short_commit, VcsType};
 
 /// Switch to a worktree by name
@@ -65,6 +68,23 @@ pub fn run(name: String, vcs_type: Option<VcsType>) -> Result<()> {
     eprintln!("Switching to worktree '{}'", matched_name);
     eprintln!("  Branch: {}", worktree.branch);
     eprintln!("  Commit: {}", short_commit(&worktree.commit));
+
+    // Run post_switch hook if configured
+    let repo_root = Config::find_repo_root(&worktree.path)?;
+    let config = Config::load(&repo_root)?;
+
+    let has_post_switch_hooks = config.hooks.post_switch.is_some()
+        || !config.hooks.post_switch_conditions.is_empty();
+
+    if has_post_switch_hooks {
+        let state_manager = StateManager::new(&repo_root)?;
+        let state_dir = state_manager.get_state_dir(&matched_name);
+
+        eprintln!("Running post_switch hook...");
+        let hook_executor = HookExecutor::new(config.hooks.clone(), false);
+        hook_executor.run_hook(HookType::PostSwitch, &worktree, &state_dir)?;
+        eprintln!("✓ Hook completed successfully");
+    }
 
     Ok(())
 }

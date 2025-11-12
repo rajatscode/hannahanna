@@ -1,9 +1,9 @@
 [package]
 name = "hannahanna"
-version = "0.1.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["hannahanna contributors"]
-description = "Git worktree manager with isolated development environments"
+description = "Multi-VCS worktree manager with comprehensive hooks, state management, and docker integration"
 license = "MIT OR Apache-2.0"
 
 [[bin]]

@@ -137,6 +137,11 @@ enum Commands {
     InitShell,
     /// Clean up orphaned state directories
     Prune,
+    /// Manage state directories
+    State {
+        #[command(subcommand)]
+        command: StateCommands,
+    },
     /// Manage configuration
     Config {
         #[command(subcommand)]
@@ -151,6 +156,19 @@ enum Commands {
     Docker {
         #[command(subcommand)]
         command: DockerCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum StateCommands {
+    /// List all state directories
+    List,
+    /// Clean orphaned state directories
+    Clean,
+    /// Show state directory sizes
+    Size {
+        /// Name of specific worktree (optional)
+        name: Option<String>,
     },
 }
 
@@ -177,6 +195,11 @@ enum PortsCommands {
     },
     /// Release port allocations for a worktree
     Release {
+        /// Name of the worktree
+        name: String,
+    },
+    /// Reassign ports to a worktree (releases old, allocates new)
+    Reassign {
         /// Name of the worktree
         name: String,
     },
@@ -208,12 +231,135 @@ enum DockerCommands {
         /// Optional service name
         service: Option<String>,
     },
+    /// Execute a command in a worktree's container
+    Exec {
+        /// Name of the worktree
+        name: String,
+        /// Service name (optional, defaults to first service)
+        #[arg(long)]
+        service: Option<String>,
+        /// Command to execute
+        command: Vec<String>,
+    },
     /// Clean up orphaned containers
     Prune,
 }
 
+/// Resolve command aliases before parsing
+fn resolve_aliases() -> Vec<String> {
+    let args: Vec<String> = std::env::args().collect();
+
+    // Need at least program name + command
+    if args.len() < 2 {
+        return args;
+    }
+
+    // Try to load config (silently skip if not in a repo or no config)
+    let cwd = match std::env::current_dir() {
+        Ok(d) => d,
+        Err(_) => return args,
+    };
+
+    let root = match config::Config::find_repo_root(&cwd) {
+        Ok(r) => r,
+        Err(_) => return args,
+    };
+
+    let config = match config::Config::load(&root) {
+        Ok(cfg) => cfg,
+        Err(_) => return args,
+    };
+
+    // If no aliases configured, return original args
+    if config.aliases.is_empty() {
+        return args;
+    }
+
+    // Find the command argument (skip program name and any global flags)
+    let mut command_idx = 1;
+    while command_idx < args.len() {
+        let arg = &args[command_idx];
+        // Skip global flags
+        if arg == "--no-hooks" || arg == "--vcs" {
+            command_idx += 1;
+            // Skip --vcs value
+            if arg == "--vcs" && command_idx < args.len() {
+                command_idx += 1;
+            }
+            continue;
+        }
+        // Found the command
+        break;
+    }
+
+    // No command found
+    if command_idx >= args.len() {
+        return args;
+    }
+
+    let command = &args[command_idx];
+
+    // Check if command is an alias
+    if let Some(alias_expansion) = config.aliases.get(command) {
+        // Expand the alias with cycle detection
+        let mut expanded = expand_alias_with_cycle_detection(
+            alias_expansion,
+            &config.aliases,
+            &mut std::collections::HashSet::new(),
+        );
+
+        // Build new args: program name + global flags + expanded alias + remaining args
+        let mut new_args = args[..command_idx].to_vec();
+        new_args.append(&mut expanded);
+        new_args.extend_from_slice(&args[command_idx + 1..]);
+
+        return new_args;
+    }
+
+    args
+}
+
+/// Expand an alias with cycle detection
+fn expand_alias_with_cycle_detection(
+    alias: &str,
+    aliases: &std::collections::HashMap<String, String>,
+    seen: &mut std::collections::HashSet<String>,
+) -> Vec<String> {
+    // Split alias into words
+    let parts: Vec<String> = alias.split_whitespace().map(String::from).collect();
+
+    if parts.is_empty() {
+        return vec![];
+    }
+
+    let first_word = &parts[0];
+
+    // Check for cycle
+    if seen.contains(first_word) {
+        eprintln!("Error: Alias cycle detected involving '{}'", first_word);
+        eprintln!("Alias chain: {}", seen.iter().cloned().collect::<Vec<_>>().join(" -> "));
+        std::process::exit(1);
+    }
+
+    // If first word is another alias, recursively expand
+    if let Some(nested_alias) = aliases.get(first_word) {
+        seen.insert(first_word.clone());
+        let mut expanded = expand_alias_with_cycle_detection(nested_alias, aliases, seen);
+        seen.remove(first_word);
+
+        // Append remaining parts
+        expanded.extend_from_slice(&parts[1..]);
+        expanded
+    } else {
+        // Not an alias, return as is
+        parts
+    }
+}
+
 fn main() {
-    let cli = Cli::parse();
+    // Resolve aliases before parsing
+    let args = resolve_aliases();
+    let cli = Cli::parse_from(args);
 
     // Parse VCS type if provided
     let vcs_type = if let Some(ref vcs_str) = cli.vcs {
@@ -268,6 +414,11 @@ fn main() {
         } => cli::sync::run(source_branch, strategy, autostash, no_commit, vcs_type),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
+        Commands::State { command } => match command {
+            StateCommands::List => cli::state::list(),
+            StateCommands::Clean => cli::state::clean(),
+            StateCommands::Size { name } => cli::state::size(name),
+        },
         Commands::Config { command } => match command {
             ConfigCommands::Init => cli::config_cmd::init(),
             ConfigCommands::Validate => cli::config_cmd::validate(),
@@ -278,6 +429,7 @@ fn main() {
             PortsCommands::List => cli::ports::list(),
             PortsCommands::Show { name } => cli::ports::show(name),
             PortsCommands::Release { name } => cli::ports::release(name),
+            PortsCommands::Reassign { name } => cli::ports::reassign(name),
         },
         Commands::Docker { command } => match command {
             DockerCommands::Ps => cli::docker::ps(),
@@ -285,6 +437,7 @@ fn main() {
             DockerCommands::Stop { name } => cli::docker::stop(name),
             DockerCommands::Restart { name } => cli::docker::restart(name),
             DockerCommands::Logs { name, service } => cli::docker::logs(name, service),
+            DockerCommands::Exec { name, service, command } => cli::docker::exec(name, service, command),
             DockerCommands::Prune => cli::docker::prune(),
         },
     };

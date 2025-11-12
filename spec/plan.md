@@ -1211,38 +1211,39 @@ hooks:
   - Consistent hannahanna/hn naming throughout
 
 ### v0.3: Extended Hooks & CLI Commands
-**Status:** 🚧 Planned
+**Status:** ✅ Complete
 
 #### Additional Hooks
-- [ ] `pre_create` - Run before creating worktree
-- [ ] `post_remove` - Run after removing worktree
-- [ ] `post_switch` - Run after switching to worktree
-- [ ] `pre_integrate` - Run before integration
-- [ ] `post_integrate` - Run after integration
-- [ ] Conditional versions of new hooks
+- [x] `pre_create` - Run before creating worktree
+- [x] `post_remove` - Run after removing worktree
+- [x] `post_switch` - Run after switching to worktree
+- [x] `pre_integrate` - Run before integration
+- [x] `post_integrate` - Run after integration
+- [x] Conditional versions of new hooks
 
 #### Config Commands
-- [ ] `hn config init [--template=<name>]` - Initialize config file
-- [ ] `hn config validate` - Validate config syntax
-- [ ] `hn config edit` - Open config in $EDITOR
+- [x] `hn config init` - Initialize config file
+- [x] `hn config validate` - Validate config syntax
+- [x] `hn config edit` - Open config in $EDITOR
+- [x] `hn config show` - Show merged configuration
 
 #### Docker Commands
-- [ ] `hn docker restart <name>` - Restart containers
-- [ ] `hn docker exec <name> <cmd>` - Execute command in container
-- [ ] `hn docker prune` - Clean orphaned containers/volumes
+- [x] `hn docker restart <name>` - Restart containers
+- [x] `hn docker exec <name> <cmd>` - Execute command in container
+- [x] `hn docker prune` - Clean orphaned containers/volumes
 
 #### Port Commands
-- [ ] `hn ports reassign <name>` - Reassign ports to worktree
+- [x] `hn ports reassign <name>` - Reassign ports to worktree
 
 #### State Commands
-- [ ] `hn state list` - List all state directories
-- [ ] `hn state clean` - Clean orphaned state
-- [ ] `hn state size [name]` - Show disk usage
+- [x] `hn state list` - List all state directories
+- [x] `hn state clean` - Clean orphaned state
+- [x] `hn state size [name]` - Show disk usage
 
 #### Other Features
-- [ ] Aliases support (e.g., `sw` → `switch`, `rm` → `remove`)
-- [ ] Sparse checkout for Mercurial
-- [ ] Additional performance optimizations
+- [x] Aliases support (e.g., `sw` → `switch`, `rm` → `remove`)
+- [x] Sparse checkout for Mercurial
+- [ ] Additional performance optimizations (deferred to v0.4)
 
 ### v0.4: Advanced Features & Polish
 **Status:** 📋 Backlog

@@ -399,6 +399,62 @@ impl VcsBackend for MercurialBackend {
 
         Ok(status)
     }
+
+    fn setup_sparse_checkout(&self, worktree_path: &Path, paths: &[String]) -> Result<()> {
+        if paths.is_empty() {
+            return Ok(());
+        }
+
+        // Check if sparse extension is available
+        let check_output = Command::new("hg")
+            .arg("help")
+            .arg("sparse")
+            .current_dir(worktree_path)
+            .output()?;
+
+        if !check_output.status.success() {
+            return Err(HnError::ConfigError(
+                "Sparse checkout requires the 'sparse' extension. Enable it in your .hgrc with:\n\
+                 [extensions]\n\
+                 sparse =".to_string(),
+            ));
+        }
+
+        // Enable sparse checkout
+        let enable_output = Command::new("hg")
+            .arg("sparse")
+            .arg("enable")
+            .current_dir(worktree_path)
+            .output()?;
+
+        if !enable_output.status.success() {
+            let stderr = String::from_utf8_lossy(&enable_output.stderr);
+            return Err(HnError::ConfigError(format!(
+                "Failed to enable sparse checkout: {}",
+                stderr
+            )));
+        }
+
+        // Include specified paths
+        for path in paths {
+            let include_output = Command::new("hg")
+                .arg("sparse")
+                .arg("include")
+                .arg(path)
+                .current_dir(worktree_path)
+                .output()?;
+
+            if !include_output.status.success() {
+                let stderr = String::from_utf8_lossy(&include_output.stderr);
+                return Err(HnError::ConfigError(format!(
+                    "Failed to include sparse path '{}': {}",
+                    path, stderr
+                )));
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -35,6 +35,40 @@ pub fn run(
     // Load configuration
     let config = Config::load(&repo_root)?;
 
+    // Run pre_create hook if configured
+    let has_pre_create_hooks = config.hooks.pre_create.is_some()
+        || !config.hooks.pre_create_conditions.is_empty();
+
+    if has_pre_create_hooks && !no_hooks {
+        eprintln!("Running pre_create hook...");
+
+        // Create a temporary worktree struct for the hook
+        // We don't have all the info yet, but we have enough for the hook to use
+        let current_workspace = backend.get_current_workspace().ok();
+        let current_branch = current_workspace
+            .as_ref()
+            .map(|w| w.branch.clone())
+            .unwrap_or_else(|| "unknown".to_string());
+        let effective_branch = branch.clone()
+            .or_else(|| from.clone())
+            .unwrap_or_else(|| current_branch.clone());
+
+        let temp_worktree = crate::vcs::Worktree {
+            name: name.clone(),
+            path: repo_root.join(&name), // Estimated path
+            branch: effective_branch,
+            commit: String::new(), // Not known yet
+            parent: None, // Will be set later
+        };
+
+        let state_dir = repo_root.join(".hn-state").join(&name);
+        let hook_executor = HookExecutor::new(config.hooks.clone(), no_hooks);
+        hook_executor.run_hook(HookType::PreCreate, &temp_worktree, &state_dir)?;
+        eprintln!("✓ Pre-create hook completed successfully");
+    } else if has_pre_create_hooks && no_hooks {
+        eprintln!("⚠ Skipping pre_create hook (--no-hooks)");
+    }
+
     // Create the worktree
     eprintln!("Creating worktree '{}'...", name);
     let worktree =

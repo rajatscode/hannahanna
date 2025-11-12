@@ -1,5 +1,8 @@
 // Sync command: Sync current worktree with another branch (typically main)
+use crate::config::Config;
 use crate::errors::{HnError, Result};
+use crate::hooks::{HookExecutor, HookType};
+use crate::state::StateManager;
 use crate::vcs::{init_backend_from_current_dir, VcsType};
 use std::env;
 use std::process::Command;
@@ -107,6 +110,23 @@ pub fn run(
         eprintln!("✓ Fetch complete");
     }
 
+    // Load config and run pre_integrate hook
+    let repo_root = Config::find_repo_root(&current_worktree.path)?;
+    let config = Config::load(&repo_root)?;
+
+    let has_pre_integrate_hooks = config.hooks.pre_integrate.is_some()
+        || !config.hooks.pre_integrate_conditions.is_empty();
+
+    if has_pre_integrate_hooks {
+        let state_manager = StateManager::new(&repo_root)?;
+        let state_dir = state_manager.get_state_dir(&current_worktree.name);
+
+        eprintln!("Running pre_integrate hook...");
+        let hook_executor = HookExecutor::new(config.hooks.clone(), false);
+        hook_executor.run_hook(HookType::PreIntegrate, &current_worktree, &state_dir)?;
+        eprintln!("✓ Pre-integrate hook completed successfully");
+    }
+
     // Perform sync based on strategy
     let sync_result = match sync_strategy {
         SyncStrategy::Merge => sync_merge(&source, no_commit),
@@ -117,6 +137,20 @@ pub fn run(
     match sync_result {
         Ok(_) => {
             eprintln!("✓ Sync successful");
+
+            // Run post_integrate hook
+            let has_post_integrate_hooks = config.hooks.post_integrate.is_some()
+                || !config.hooks.post_integrate_conditions.is_empty();
+
+            if has_post_integrate_hooks {
+                let state_manager = StateManager::new(&repo_root)?;
+                let state_dir = state_manager.get_state_dir(&current_worktree.name);
+
+                eprintln!("Running post_integrate hook...");
+                let hook_executor = HookExecutor::new(config.hooks.clone(), false);
+                hook_executor.run_hook(HookType::PostIntegrate, &current_worktree, &state_dir)?;
+                eprintln!("✓ Post-integrate hook completed successfully");
+            }
 
             // Pop stash if we stashed
             if stashed {

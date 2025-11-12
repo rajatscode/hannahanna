@@ -87,6 +87,19 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
     // Clean up state directory
     state_manager.remove_state_dir(&matched_name)?;
 
+    // Run post_remove hook if configured
+    let has_post_remove_hooks = config.hooks.post_remove.is_some()
+        || !config.hooks.post_remove_conditions.is_empty();
+
+    if has_post_remove_hooks && !no_hooks {
+        println!("Running post_remove hook...");
+        let hook_executor = HookExecutor::new(config.hooks.clone(), no_hooks);
+        hook_executor.run_hook(HookType::PostRemove, &worktree, &state_dir)?;
+        println!("✓ Hook completed successfully");
+    } else if has_post_remove_hooks && no_hooks {
+        println!("⚠ Skipping post_remove hook (--no-hooks)");
+    }
+
     // Print success message
     println!("Removed worktree '{}'", matched_name);
 

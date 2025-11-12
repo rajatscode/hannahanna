@@ -30,14 +30,43 @@ shared:
 
 # Lifecycle hooks
 hooks:
+  # Run before worktree creation
+  # pre_create: |
+  #   echo "Preparing to create worktree..."
+
+  # Run after worktree creation
   post_create: |
     echo "✓ Worktree created successfully!"
     # npm install
     # make setup
 
+  # Run before worktree removal
   pre_remove: |
     echo "Cleaning up worktree..."
     # make cleanup
+
+  # Run after worktree removal
+  # post_remove: |
+  #   echo "Worktree removed successfully"
+
+  # Run after switching to a worktree
+  # post_switch: |
+  #   echo "Switched to worktree successfully"
+
+  # Run before merge/integrate operations
+  # pre_integrate: |
+  #   echo "Preparing for integration..."
+
+  # Run after merge/integrate operations
+  # post_integrate: |
+  #   echo "Integration complete!"
+
+  # Conditional hooks based on branch name patterns
+  # post_create_conditions:
+  #   - condition: "branch.startsWith('feature-')"
+  #     command: "make setup-dev"
+  #   - condition: "branch.contains('api')"
+  #     command: "docker compose up -d api-deps"
 
   # Hook execution timeout in seconds (default: 300 = 5 minutes)
   # Prevents hooks from hanging indefinitely
@@ -69,6 +98,20 @@ docker:
     volumes:
       - app-cache
       - logs
+
+# Command aliases
+aliases:
+  # Short aliases for common commands
+  # sw: switch
+  # ls: list
+  # rm: remove
+
+  # Aliases with arguments
+  # lt: list --tree
+  # stat: state list
+
+  # Chained aliases (aliases can reference other aliases)
+  # Note: Circular references are detected and will cause an error
 "#;
 
 /// Initialize a new config file
@@ -155,15 +198,55 @@ pub fn validate() -> Result<()> {
             }
 
             // Hooks
-            let hooks_configured =
-                config.hooks.post_create.is_some() || config.hooks.pre_remove.is_some();
+            let hooks_configured = config.hooks.pre_create.is_some()
+                || config.hooks.post_create.is_some()
+                || config.hooks.pre_remove.is_some()
+                || config.hooks.post_remove.is_some()
+                || config.hooks.post_switch.is_some()
+                || config.hooks.pre_integrate.is_some()
+                || config.hooks.post_integrate.is_some()
+                || !config.hooks.pre_create_conditions.is_empty()
+                || !config.hooks.post_create_conditions.is_empty()
+                || !config.hooks.pre_remove_conditions.is_empty()
+                || !config.hooks.post_remove_conditions.is_empty()
+                || !config.hooks.post_switch_conditions.is_empty()
+                || !config.hooks.pre_integrate_conditions.is_empty()
+                || !config.hooks.post_integrate_conditions.is_empty();
+
             if hooks_configured {
                 println!("  • Lifecycle hooks configured");
+                if config.hooks.pre_create.is_some() {
+                    println!("    - pre_create");
+                }
                 if config.hooks.post_create.is_some() {
                     println!("    - post_create");
                 }
                 if config.hooks.pre_remove.is_some() {
                     println!("    - pre_remove");
+                }
+                if config.hooks.post_remove.is_some() {
+                    println!("    - post_remove");
+                }
+                if config.hooks.post_switch.is_some() {
+                    println!("    - post_switch");
+                }
+                if config.hooks.pre_integrate.is_some() {
+                    println!("    - pre_integrate");
+                }
+                if config.hooks.post_integrate.is_some() {
+                    println!("    - post_integrate");
+                }
+
+                // Show conditional hooks count
+                let conditional_count = config.hooks.pre_create_conditions.len()
+                    + config.hooks.post_create_conditions.len()
+                    + config.hooks.pre_remove_conditions.len()
+                    + config.hooks.post_remove_conditions.len()
+                    + config.hooks.post_switch_conditions.len()
+                    + config.hooks.pre_integrate_conditions.len()
+                    + config.hooks.post_integrate_conditions.len();
+                if conditional_count > 0 {
+                    println!("    - {} conditional hooks", conditional_count);
                 }
             } else {
                 println!("  • No hooks configured");
