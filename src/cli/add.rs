@@ -257,7 +257,15 @@ fn interactive_prompts(
 )> {
     let theme = ColorfulTheme::default();
 
-    eprintln!("{}", "Creating new worktree".bold().green());
+    // Header
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!("{}", "  Interactive Worktree Creation".bold().bright_green());
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!();
+
+    // Section 1: Basic Information
+    eprintln!("{}", "📋 Basic Information".bold().cyan());
+    eprintln!("{}", "─".repeat(60).bright_black());
     eprintln!();
 
     // Prompt for name
@@ -315,6 +323,13 @@ fn interactive_prompts(
         None
     };
 
+    eprintln!();
+
+    // Section 2: Template Selection
+    eprintln!("{}", "📦 Template Configuration".bold().cyan());
+    eprintln!("{}", "─".repeat(60).bright_black());
+    eprintln!();
+
     // List available templates
     let template = if template.is_some() {
         template
@@ -339,15 +354,25 @@ fn interactive_prompts(
                     None
                 }
             }
-            _ => None,
+            _ => {
+                eprintln!("{}", "No templates found in .hn-templates/".dimmed());
+                None
+            }
         }
     };
+
+    eprintln!();
+
+    // Section 3: Advanced Options
+    eprintln!("{}", "⚙️  Advanced Options".bold().cyan());
+    eprintln!("{}", "─".repeat(60).bright_black());
+    eprintln!();
 
     // Prompt for sparse checkout
     let sparse_paths = if sparse_paths.is_some() {
         sparse_paths
     } else if Confirm::with_theme(&theme)
-        .with_prompt("Use sparse checkout?")
+        .with_prompt("Use sparse checkout? (for large monorepos)")
         .default(false)
         .interact()?
     {
@@ -370,6 +395,73 @@ fn interactive_prompts(
     } else {
         None
     };
+
+    eprintln!();
+
+    // Section 4: Summary & Confirmation
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!("{}", "  Configuration Summary".bold().bright_yellow());
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!();
+
+    // Display summary
+    eprintln!("  {} {}", "Name:".bold(), name.bright_white());
+    eprintln!("  {} {}", "Branch:".bold(),
+        branch.as_deref().unwrap_or("(existing branch)").bright_white());
+    if let Some(ref from_branch) = from {
+        eprintln!("  {} {}", "From:".bold(), from_branch.bright_white());
+    }
+    if let Some(ref tmpl) = template {
+        eprintln!("  {} {}", "Template:".bold(), tmpl.bright_green());
+    }
+    if let Some(ref paths) = sparse_paths {
+        eprintln!("  {} {} paths", "Sparse:".bold(), paths.len().to_string().bright_white());
+        for path in paths {
+            eprintln!("    • {}", path.dimmed());
+        }
+    }
+
+    // Check Docker configuration from config
+    let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
+    if let Ok(config) = Config::load(&repo_root) {
+        if config.docker.enabled {
+            eprintln!("  {} {}", "Docker:".bold(), "enabled".bright_green());
+            if !config.docker.ports.base.is_empty() {
+                eprintln!("    Services: {}",
+                    config.docker.ports.base.keys()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                        .dimmed());
+            }
+        } else {
+            eprintln!("  {} {}", "Docker:".bold(), "disabled".dimmed());
+        }
+
+        // Show hooks status
+        let has_hooks = config.hooks.post_create.is_some()
+            || !config.hooks.post_create_conditions.is_empty()
+            || config.hooks.pre_create.is_some()
+            || !config.hooks.pre_create_conditions.is_empty();
+        if has_hooks {
+            eprintln!("  {} {}", "Hooks:".bold(), "enabled".bright_green());
+        }
+    }
+
+    eprintln!();
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!();
+
+    // Final confirmation
+    if !Confirm::with_theme(&theme)
+        .with_prompt("Create worktree with this configuration?")
+        .default(true)
+        .interact()?
+    {
+        eprintln!();
+        eprintln!("{}", "Worktree creation cancelled.".yellow());
+        std::process::exit(0);
+    }
 
     eprintln!();
     Ok((name, branch, from, no_branch, sparse_paths, template))

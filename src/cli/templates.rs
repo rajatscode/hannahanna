@@ -261,3 +261,106 @@ Edit `.hannahanna.yml` to customize:
         name, desc, name
     )
 }
+
+/// Export a template to a .hnhn package (v0.6)
+pub fn export(name: &str, output_path: &str) -> Result<()> {
+    use std::path::Path;
+
+    let cwd = env::current_dir()?;
+    let repo_root = Config::find_repo_root(&cwd)?;
+
+    // Validate template exists
+    templates::get_template(&repo_root, name)?;
+
+    let output = Path::new(output_path);
+
+    // Ensure output has .hnhn extension
+    let output_final = if output.extension().and_then(|e| e.to_str()) == Some("hnhn") {
+        output.to_path_buf()
+    } else {
+        output.with_extension("hnhn")
+    };
+
+    println!();
+    println!("{} template '{}'...", "Exporting".bold(), name.cyan());
+
+    // Export the template
+    templates::export_template(&repo_root, name, &output_final)?;
+
+    // Get file size
+    let metadata = fs::metadata(&output_final)?;
+    let size_kb = metadata.len() / 1024;
+
+    println!("{} Template exported successfully!", "✓".green().bold());
+    println!();
+    println!("{}: {}", "Package".bold(), output_final.display().to_string().dimmed());
+    println!("{}: {} KB", "Size".bold(), size_kb.to_string().dimmed());
+    println!();
+    println!("{}", "Next steps:".bold());
+    println!("  • Share this package file with others");
+    println!("  • Import with: {} <path-to-package>", "hn templates import".bold());
+    println!();
+
+    Ok(())
+}
+
+/// Import a template from a .hnhn package (v0.6)
+pub fn import(package_path: &str, name: Option<&str>) -> Result<()> {
+    use std::path::Path;
+
+    let cwd = env::current_dir()?;
+    let repo_root = Config::find_repo_root(&cwd)?;
+
+    let package = Path::new(package_path);
+
+    if !package.exists() {
+        return Err(HnError::TemplateError(format!(
+            "Package file not found: {}",
+            package_path
+        )));
+    }
+
+    println!();
+    println!("{} template from package...", "Importing".bold());
+    println!();
+
+    // Import the template
+    let imported_name = templates::import_template(&repo_root, package, name)?;
+
+    println!("{} Template '{}' imported successfully!", "✓".green().bold(), imported_name.cyan().bold());
+    println!();
+    println!("{}: {}/.hn-templates/{}/", "Location".bold(), repo_root.display(), imported_name);
+    println!();
+    println!("{}", "Usage:".bold());
+    println!("  {} <worktree-name> {} {}", "hn add".bold(), "--template".dimmed(), imported_name.cyan());
+    println!();
+
+    Ok(())
+}
+
+/// Validate a template (v0.6)
+pub fn validate(name: &str) -> Result<()> {
+    let cwd = env::current_dir()?;
+    let repo_root = Config::find_repo_root(&cwd)?;
+
+    println!();
+    println!("{} template '{}'...", "Validating".bold(), name.cyan());
+    println!();
+
+    // Validate the template
+    let warnings = templates::validate_template(&repo_root, name)?;
+
+    println!("{} Template is valid!", "✓".green().bold());
+
+    if !warnings.is_empty() {
+        println!();
+        println!("{}", "Warnings:".yellow().bold());
+        for warning in &warnings {
+            println!("  {} {}", "⚠".yellow(), warning.dimmed());
+        }
+    }
+
+    println!();
+
+    Ok(())
+}

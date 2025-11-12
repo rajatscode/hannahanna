@@ -15,5 +15,6 @@ pub mod state;
 pub mod stats;
 pub mod switch;
 pub mod sync;
+pub mod tag;
 pub mod templates;
 pub mod workspace;

@@ -11,5 +11,6 @@ pub mod fuzzy;
 pub mod hooks;
 pub mod state;
 pub mod suggestions;
+pub mod tags;
 pub mod templates;
 pub mod vcs;
