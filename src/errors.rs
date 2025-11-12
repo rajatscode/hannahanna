@@ -44,11 +44,17 @@ pub enum HnError {
     #[error("Command failed: {0}")]
     CommandFailed(String),
 
+    #[error("Template error: {0}")]
+    TemplateError(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+
+    #[error("Interactive prompt error: {0}")]
+    DialoguerError(#[from] dialoguer::Error),
 }
 
 pub type Result<T> = std::result::Result<T, HnError>;

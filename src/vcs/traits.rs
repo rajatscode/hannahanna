@@ -132,7 +132,8 @@ pub fn detect_vcs_type(path: &Path) -> Option<VcsType> {
     None
 }
 
-/// Create a VCS backend instance for the given type
+/// Create a VCS backend instance for the given type from current directory
+#[allow(dead_code)] // Public API, may be used by external crates or future features
 pub fn create_backend(vcs_type: VcsType) -> Result<Box<dyn VcsBackend>> {
     match vcs_type {
         VcsType::Git => {
@@ -145,6 +146,25 @@ pub fn create_backend(vcs_type: VcsType) -> Result<Box<dyn VcsBackend>> {
         }
         VcsType::Jujutsu => {
             let jj = crate::vcs::jujutsu::JujutsuBackend::open_from_current_dir()?;
+            Ok(Box::new(jj))
+        }
+    }
+}
+
+/// Create a VCS backend instance at a specific path
+/// This avoids changing the process-global current directory
+pub fn create_backend_at_path(vcs_type: VcsType, path: &Path) -> Result<Box<dyn VcsBackend>> {
+    match vcs_type {
+        VcsType::Git => {
+            let git = crate::vcs::git::GitBackend::open(path)?;
+            Ok(Box::new(git))
+        }
+        VcsType::Mercurial => {
+            let hg = crate::vcs::mercurial::MercurialBackend::open(path)?;
+            Ok(Box::new(hg))
+        }
+        VcsType::Jujutsu => {
+            let jj = crate::vcs::jujutsu::JujutsuBackend::open(path)?;
             Ok(Box::new(jj))
         }
     }

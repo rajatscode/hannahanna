@@ -161,7 +161,7 @@ fn install_completions(shell: SetupShell) -> Result<()> {
 
     // Generate completions using hn binary
     let output = Command::new(env::current_exe()?)
-        .args(&["completions", shell.name()])
+        .args(["completions", shell.name()])
         .output()?;
 
     if !output.status.success() {
@@ -201,7 +201,7 @@ fn setup_shell_integration(shell: SetupShell) -> Result<()> {
     }
 
     // Generate shell integration code
-    let output = Command::new(env::current_exe()?).args(&["init-shell"]).output()?;
+    let output = Command::new(env::current_exe()?).args(["init-shell"]).output()?;
 
     if !output.status.success() {
         return Err(HnError::ConfigError(
@@ -223,7 +223,7 @@ fn setup_shell_integration(shell: SetupShell) -> Result<()> {
 fn create_example_templates() -> Result<()> {
     // Check if we're in a git repo
     let is_git_repo = Command::new("git")
-        .args(&["rev-parse", "--git-dir"])
+        .args(["rev-parse", "--git-dir"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);

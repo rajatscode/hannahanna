@@ -301,11 +301,11 @@ pub fn execute_hook(hook_type: HookType, script: &str, context: &HookContext) ->
 ```
 
 #### Environment Variables
-- `$WT_NAME`
-- `$WT_PATH`
-- `$WT_BRANCH`
-- `$WT_PARENT`
-- `$WT_STATE_DIR`
+- `$HNHN_NAME`
+- `$HNHN_PATH`
+- `$HNHN_BRANCH`
+- `$HNHN_PARENT`
+- `$HNHN_STATE_DIR`
 
 **Tests:**
 - Test hook execution (success & failure)

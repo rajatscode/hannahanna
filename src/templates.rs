@@ -9,17 +9,95 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Template metadata and configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Template {
-    #[allow(dead_code)] // Used by list_templates(), reserved for v0.4.1 `hn templates list`
     pub name: String,
     pub description: Option<String>,
     pub config_path: PathBuf,
 }
 
+/// Copy template files to worktree with variable substitution (v0.5)
+pub fn copy_template_files(
+    template_name: &str,
+    repo_root: &Path,
+    worktree_path: &Path,
+    worktree_name: &str,
+) -> Result<()> {
+    let template_dir = repo_root.join(".hn-templates").join(template_name);
+    let files_dir = template_dir.join("files");
+
+    // If files directory doesn't exist, that's fine - just return
+    if !files_dir.exists() {
+        return Ok(());
+    }
+
+    // Copy all files from template files/ directory
+    copy_dir_recursive(&files_dir, worktree_path, worktree_name, worktree_path)?;
+
+    Ok(())
+}
+
+/// Recursively copy directory with variable substitution
+fn copy_dir_recursive(
+    src: &Path,
+    dst: &Path,
+    worktree_name: &str,
+    worktree_path: &Path,
+) -> Result<()> {
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        let file_name = entry.file_name();
+        let dst_path = dst.join(&file_name);
+
+        if src_path.is_dir() {
+            // Create directory and recurse
+            fs::create_dir_all(&dst_path)?;
+            copy_dir_recursive(&src_path, &dst_path, worktree_name, worktree_path)?;
+        } else {
+            // Copy file with variable substitution
+            copy_file_with_substitution(&src_path, &dst_path, worktree_name, worktree_path)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Copy a single file with variable substitution
+fn copy_file_with_substitution(
+    src: &Path,
+    dst: &Path,
+    worktree_name: &str,
+    worktree_path: &Path,
+) -> Result<()> {
+    // Read source file
+    let content = fs::read_to_string(src).unwrap_or_else(|_| {
+        // If not UTF-8, just copy bytes
+        let bytes = fs::read(src).unwrap();
+        return String::from_utf8_lossy(&bytes).to_string();
+    });
+
+    // Perform variable substitution
+    let substituted = content
+        .replace("${HNHN_NAME}", worktree_name)
+        .replace("${HNHN_PATH}", &worktree_path.to_string_lossy())
+        .replace("${HNHN_BRANCH}", worktree_name); // Branch typically matches name
+
+    // Write to destination
+    fs::write(dst, substituted)?;
+
+    // Preserve permissions (Unix only)
+    #[cfg(unix)]
+    {
+        let metadata = fs::metadata(src)?;
+        let permissions = metadata.permissions();
+        fs::set_permissions(dst, permissions)?;
+    }
+
+    Ok(())
+}
+
 /// Find available templates in the repository
-/// Reserved for v0.4.1 `hn templates list` command
-#[allow(dead_code)]
 pub fn list_templates(repo_root: &Path) -> Result<Vec<Template>> {
     let templates_dir = repo_root.join(".hn-templates");
 

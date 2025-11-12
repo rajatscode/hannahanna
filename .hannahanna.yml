@@ -6,8 +6,8 @@ shared_resources:
 hooks:
   post_create: |
     echo "✓ Worktree created successfully!"
-    echo "  Name: $WT_NAME"
-    echo "  Path: $WT_PATH"
-    echo "  Branch: $WT_BRANCH"
+    echo "  Name: $HNHN_NAME"
+    echo "  Path: $HNHN_PATH"
+    echo "  Branch: $HNHN_BRANCH"
   pre_remove: |
-    echo "Cleaning up worktree $WT_NAME..."
+    echo "Cleaning up worktree $HNHN_NAME..."

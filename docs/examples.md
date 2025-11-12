@@ -280,7 +280,7 @@ Create `.hannahanna.yml` in your repo:
 hooks:
   # Ensure branch naming convention
   pre_create: |
-    if ! echo "$WT_BRANCH" | grep -qE '^(feature|bugfix|hotfix)/'; then
+    if ! echo "$HNHN_BRANCH" | grep -qE '^(feature|bugfix|hotfix)/'; then
       echo "❌ Branch must start with feature/, bugfix/, or hotfix/"
       exit 1
     fi

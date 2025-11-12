@@ -9,9 +9,12 @@ use crate::errors::Result;
 use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
 use crate::vcs::{init_backend_from_current_dir, RegistryCache, VcsType};
+use colored::*;
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
-    name: String,
+    name: Option<String>,
     branch: Option<String>,
     from: Option<String>,
     no_branch: bool,
@@ -20,6 +23,20 @@ pub fn run(
     no_hooks: bool,
     vcs_type: Option<VcsType>,
 ) -> Result<()> {
+    // Interactive mode if name is not provided
+    let (name, branch, from, no_branch, sparse_paths, template) = if name.is_none() {
+        interactive_prompts(branch, from, no_branch, sparse_paths, template)?
+    } else {
+        (
+            name.unwrap(),
+            branch,
+            from,
+            no_branch,
+            sparse_paths,
+            template,
+        )
+    };
+
     // Validate worktree name
     validation::validate_worktree_name(&name)?;
 
@@ -171,6 +188,9 @@ pub fn run(
     if let Some(template_name) = template {
         eprintln!("\nApplying template '{}'...", template_name);
         crate::templates::apply_template(&repo_root, &worktree.path, &template_name)?;
+
+        // Copy template files (v0.5)
+        crate::templates::copy_template_files(&template_name, &repo_root, &worktree.path, &name)?;
     }
 
     // Docker integration
@@ -218,4 +238,139 @@ pub fn run(
     eprintln!("  hn switch {}", name);
 
     Ok(())
+}
+
+/// Interactive prompts for creating a worktree
+fn interactive_prompts(
+    branch: Option<String>,
+    from: Option<String>,
+    no_branch: bool,
+    sparse_paths: Option<Vec<String>>,
+    template: Option<String>,
+) -> Result<(
+    String,
+    Option<String>,
+    Option<String>,
+    bool,
+    Option<Vec<String>>,
+    Option<String>,
+)> {
+    let theme = ColorfulTheme::default();
+
+    eprintln!("{}", "Creating new worktree".bold().green());
+    eprintln!();
+
+    // Prompt for name
+    let name: String = Input::with_theme(&theme)
+        .with_prompt("Worktree name")
+        .validate_with(|input: &String| -> std::result::Result<(), &str> {
+            if validation::validate_worktree_name(input).is_ok() {
+                Ok(())
+            } else {
+                Err("Invalid name (use lowercase letters, numbers, hyphens, underscores)")
+            }
+        })
+        .interact_text()?;
+
+    // Prompt for branch name (if not provided via flag)
+    let branch = if branch.is_some() {
+        branch
+    } else if Confirm::with_theme(&theme)
+        .with_prompt("Create new branch?")
+        .default(true)
+        .interact()?
+    {
+        Some(
+            Input::with_theme(&theme)
+                .with_prompt("Branch name")
+                .default(name.clone())
+                .interact_text()?,
+        )
+    } else {
+        None
+    };
+
+    // Determine no_branch flag
+    let no_branch = if no_branch {
+        true
+    } else {
+        branch.is_none()
+    };
+
+    // Prompt for base branch (if not provided via flag)
+    let from = if from.is_some() {
+        from
+    } else if Confirm::with_theme(&theme)
+        .with_prompt("Create from specific branch?")
+        .default(false)
+        .interact()?
+    {
+        Some(
+            Input::with_theme(&theme)
+                .with_prompt("Base branch")
+                .default("main".to_string())
+                .interact_text()?,
+        )
+    } else {
+        None
+    };
+
+    // List available templates
+    let template = if template.is_some() {
+        template
+    } else {
+        let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
+        match crate::templates::list_templates(&repo_root) {
+            Ok(templates) if !templates.is_empty() => {
+                if Confirm::with_theme(&theme)
+                    .with_prompt("Use a template?")
+                    .default(false)
+                    .interact()?
+                {
+                    let template_names: Vec<String> =
+                        templates.iter().map(|t| t.name.clone()).collect();
+                    let selection = Select::with_theme(&theme)
+                        .with_prompt("Select template")
+                        .items(&template_names)
+                        .default(0)
+                        .interact()?;
+                    Some(template_names[selection].clone())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    };
+
+    // Prompt for sparse checkout
+    let sparse_paths = if sparse_paths.is_some() {
+        sparse_paths
+    } else if Confirm::with_theme(&theme)
+        .with_prompt("Use sparse checkout?")
+        .default(false)
+        .interact()?
+    {
+        let mut paths = Vec::new();
+        loop {
+            let path: String = Input::with_theme(&theme)
+                .with_prompt("Path (empty to finish)")
+                .allow_empty(true)
+                .interact_text()?;
+            if path.is_empty() {
+                break;
+            }
+            paths.push(path);
+        }
+        if paths.is_empty() {
+            None
+        } else {
+            Some(paths)
+        }
+    } else {
+        None
+    };
+
+    eprintln!();
+    Ok((name, branch, from, no_branch, sparse_paths, template))
 }

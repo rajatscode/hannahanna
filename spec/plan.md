@@ -1245,8 +1245,71 @@ hooks:
 - [x] Sparse checkout for Mercurial
 - [ ] Additional performance optimizations (deferred to v0.4)
 
-### v0.4: Advanced Features & Polish
-**Status:** 📋 Backlog
+### v0.4: Performance & Polish
+**Status:** ✅ COMPLETED (2025-11-12)
+
+Key features:
+- ⚡ Registry caching system (50%+ performance improvement)
+- 📊 Comprehensive benchmark suite
+- 🛠️ Shell completions (bash, zsh, fish)
+- 🔧 Automated setup command
+- 📈 Performance monitoring tools
+
+See spec/v0.4.md for complete details.
+
+### v0.5: Template Management & Enhanced Features
+**Status:** ✅ COMPLETED (2025-01-12)
+**Test Coverage:** 463/463 tests passing (100%)
+
+Key features delivered:
+- 🔥 **BREAKING**: Environment variables renamed `WT_*` → `HNHN_*`
+- 🔥 **BREAKING**: Interactive mode for `hn add` (name argument now optional)
+- 📋 Template management (`hn templates create/list/show`)
+- 📋 Template file copying with variable substitution
+- 💾 Workspace save/restore/list/delete/export
+- 📊 Resource tracking (`hn stats`)
+- 🧪 36 comprehensive hook tests (exceeds 35+ requirement)
+- 🧪 35 comprehensive Docker tests (meets 35+ requirement)
+- 🐛 Fixed workspace save/restore bug (worktrees weren't being saved)
+- 🔧 Fixed VCS backend cwd change issue (now thread-safe)
+- 🧹 Cleaned up outdated dead_code annotations
+
+Technical debt paid:
+- Removed 3 unused import warnings
+- Eliminated process-global cwd changes (thread-safety improvement)
+- Simplified backend initialization (20 lines removed)
+
+See:
+- [RELEASE_NOTES_v0.5.md](../RELEASE_NOTES_v0.5.md) for complete release notes
+- [spec/v0.5.md](v0.5.md) for original specification
+- [docs/templates.md](../docs/templates.md) for template guide
+- [docs/MIGRATING.md](../docs/MIGRATING.md) for migration guide
+
+### v0.6: Future Enhancements (Optional)
+**Status:** 📋 Backlog / TBD based on user feedback
+
+Potential features (not committed):
+- UX improvements based on v0.5 feedback
+- Performance tuning based on real-world usage patterns
+- Additional monitoring and observability features
+- Template marketplace/sharing capabilities
+
+### v1.0: Production Stability & Polish
+**Status:** 🎯 Future Major Milestone
+
+Focus areas:
+- Production stability audit
+- Comprehensive documentation overhaul
+- Performance optimization pass
+- Security audit
+- API stabilization
+- Breaking changes if needed for long-term maintainability
+
+Features deferred to v1.0:
+- Advanced cache tuning (need more real-world data)
+- Plugin/extension system (requires architectural changes)
+- Remote worktree support (complex, needs protocol design)
+- Enterprise features (teams, permissions, SSO)
 
 See `vision.md` for full long-term roadmap.
 

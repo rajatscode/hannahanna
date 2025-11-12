@@ -35,8 +35,8 @@ struct Cli {
 enum Commands {
     /// Create a new worktree
     Add {
-        /// Name of the worktree to create
-        name: String,
+        /// Name of the worktree to create (interactive mode if omitted)
+        name: Option<String>,
         /// Branch to checkout (defaults to creating new branch with same name)
         branch: Option<String>,
         /// Base branch to create from (defaults to current branch)
@@ -173,6 +173,27 @@ enum Commands {
         #[command(subcommand)]
         command: DockerCommands,
     },
+    /// Manage worktree templates
+    Templates {
+        #[command(subcommand)]
+        command: TemplatesCommands,
+    },
+    /// Manage workspaces (save/restore worktree sets)
+    Workspace {
+        #[command(subcommand)]
+        command: WorkspaceCommands,
+    },
+    /// Show resource usage statistics
+    Stats {
+        /// Worktree name (shows all if not specified)
+        name: Option<String>,
+        /// Show all worktrees in detail
+        #[arg(long)]
+        all: bool,
+        /// Show disk usage only
+        #[arg(long)]
+        disk: bool,
+    },
 }
 
 #[derive(Subcommand)]
@@ -272,6 +293,77 @@ enum DockerCommands {
     },
     /// Clean up orphaned containers
     Prune,
+}
+
+#[derive(Subcommand)]
+enum TemplatesCommands {
+    /// List all available templates
+    List {
+        /// Output format (json or table)
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show details about a specific template
+    Show {
+        /// Name of the template
+        name: String,
+    },
+    /// Create a new template
+    Create {
+        /// Name of the template
+        name: String,
+        /// Template description
+        #[arg(long)]
+        description: Option<String>,
+        /// Enable Docker in template
+        #[arg(long)]
+        docker: bool,
+        /// Create from current worktree config
+        #[arg(long)]
+        from_current: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkspaceCommands {
+    /// Save current workspace state
+    Save {
+        /// Name for the workspace
+        name: String,
+        /// Description of the workspace
+        #[arg(long)]
+        description: Option<String>,
+    },
+    /// Restore a saved workspace
+    Restore {
+        /// Name of the workspace to restore
+        name: String,
+        /// Force restore, overwriting existing worktrees
+        #[arg(long)]
+        force: bool,
+    },
+    /// List all saved workspaces
+    List {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Delete a saved workspace
+    Delete {
+        /// Name of the workspace to delete
+        name: String,
+        /// Skip confirmation
+        #[arg(long)]
+        force: bool,
+    },
+    /// Export a workspace to a file
+    Export {
+        /// Name of the workspace to export
+        name: String,
+        /// Output file path
+        #[arg(long)]
+        output: Option<String>,
+    },
 }
 
 /// Resolve command aliases before parsing
@@ -479,6 +571,27 @@ fn main() {
             DockerCommands::Exec { name, service, command } => cli::docker::exec(name, service, command),
             DockerCommands::Prune => cli::docker::prune(),
         },
+        Commands::Templates { command } => match command {
+            TemplatesCommands::List { json } => cli::templates::list(json),
+            TemplatesCommands::Show { name } => cli::templates::show(&name),
+            TemplatesCommands::Create { name, description, docker, from_current } => {
+                cli::templates::create(&name, description.as_deref(), docker, from_current)
+            }
+        },
+        Commands::Workspace { command } => match command {
+            WorkspaceCommands::Save { name, description } => {
+                cli::workspace::save(&name, description.as_deref(), vcs_type)
+            }
+            WorkspaceCommands::Restore { name, force } => {
+                cli::workspace::restore(&name, force, vcs_type)
+            }
+            WorkspaceCommands::List { json } => cli::workspace::list(json),
+            WorkspaceCommands::Delete { name, force } => cli::workspace::delete(&name, force),
+            WorkspaceCommands::Export { name, output } => {
+                cli::workspace::export(&name, output.as_deref())
+            }
+        },
+        Commands::Stats { name, all, disk } => cli::stats::run(name, all, disk, vcs_type),
     };
 
     // Handle errors with suggestions

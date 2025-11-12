@@ -1,4 +1,442 @@
-# Migrating to Hannahanna v0.4
+# Migration Guides
+
+Hannahanna migration guides for major version upgrades.
+
+## Table of Contents
+
+- [v0.4 → v0.5 (BREAKING CHANGES)](#migrating-to-v05)
+- [v0.3 → v0.4](#migrating-to-v04)
+
+---
+
+# Migrating to v0.5
+
+**⚠️ BREAKING CHANGES**: v0.5 contains breaking changes to environment variable names.
+
+## TL;DR - Quick Migration
+
+**Breaking Change**: Environment variables renamed from `WT_*` to `HNHN_*`.
+
+```bash
+# Update hooks in .hannahanna.yml
+sed -i 's/WT_NAME/HNHN_NAME/g' .hannahanna.yml
+sed -i 's/WT_PATH/HNHN_PATH/g' .hannahanna.yml
+sed -i 's/WT_BRANCH/HNHN_BRANCH/g' .hannahanna.yml
+sed -i 's/WT_COMMIT/HNHN_COMMIT/g' .hannahanna.yml
+sed -i 's/WT_STATE_DIR/HNHN_STATE_DIR/g' .hannahanna.yml
+sed -i 's/WT_DOCKER_PORT_/HNHN_DOCKER_PORT_/g' .hannahanna.yml
+
+# Update and verify
+cargo install --git https://github.com/yourusername/hannahanna
+hn --version  # Should show 0.5.0
+
+# Test hooks still work
+hn add test-migration
+hn remove test-migration --force
+```
+
+---
+
+## What's New in v0.5
+
+### 1. 🏷️ Environment Variable Rename (BREAKING)
+
+**What Changed**: All environment variables renamed for clarity and consistency.
+
+| v0.4 (Old)              | v0.5 (New)              | Description                    |
+|-------------------------|-------------------------|--------------------------------|
+| `WT_NAME`               | `HNHN_NAME`             | Worktree name                  |
+| `WT_PATH`               | `HNHN_PATH`             | Worktree absolute path         |
+| `WT_BRANCH`             | `HNHN_BRANCH`           | Git branch name                |
+| `WT_COMMIT`             | `HNHN_COMMIT`           | Current commit hash            |
+| `WT_STATE_DIR`          | `HNHN_STATE_DIR`        | Worktree state directory       |
+| `WT_DOCKER_PORT_<SVC>`  | `HNHN_DOCKER_PORT_<SVC>`| Docker port for service        |
+
+**Why**: `HNHN` (Hannahanna) is more specific than `WT` (worktree), reducing conflicts with other tools.
+
+**Impact**: Any hooks using environment variables must be updated.
+
+**Migration**: Update your `.hannahanna.yml`:
+
+**Before (v0.4)**:
+```yaml
+hooks:
+  post_create: |
+    echo "Created worktree: $WT_NAME"
+    echo "Path: $WT_PATH"
+    echo "Branch: $WT_BRANCH"
+    docker-compose -p $WT_NAME up -d
+```
+
+**After (v0.5)**:
+```yaml
+hooks:
+  post_create: |
+    echo "Created worktree: $HNHN_NAME"
+    echo "Path: $HNHN_PATH"
+    echo "Branch: $HNHN_BRANCH"
+    docker-compose -p $HNHN_NAME up -d
+```
+
+### 2. 📋 Template Management (NEW)
+
+**What**: Create, manage, and use worktree templates.
+
+```bash
+# Create template
+hn templates create frontend-dev --docker
+
+# List templates
+hn templates list
+
+# Show template
+hn templates show frontend-dev
+
+# Use template
+hn add my-feature --template frontend-dev
+```
+
+**Features**:
+- Store templates in `.hn-templates/`
+- Templates include config, hooks, and files
+- Variable substitution in template files: `${HNHN_NAME}`, `${HNHN_PATH}`, `${HNHN_BRANCH}`
+- Share templates across team via git
+
+**Documentation**: See [templates.md](./templates.md)
+
+### 3. 💾 Workspace Save/Restore (NEW)
+
+**What**: Save and restore sets of worktrees as workspaces.
+
+```bash
+# Save current worktrees as workspace
+hn workspace save my-workspace
+
+# List saved workspaces
+hn workspace list
+
+# Restore workspace
+hn workspace restore my-workspace
+
+# Delete workspace
+hn workspace delete my-workspace --force
+
+# Export workspace
+hn workspace export my-workspace
+```
+
+**Use Cases**:
+- Switch between projects with different worktree sets
+- Share team configurations
+- Backup worktree state before experiments
+
+### 4. 📊 Resource Tracking (NEW)
+
+**What**: Track disk usage and resource consumption.
+
+```bash
+# Show stats for all worktrees
+hn stats
+
+# Show stats for specific worktree
+hn stats my-feature
+
+# Show only disk usage
+hn stats --disk
+
+# Include main repo in stats
+hn stats --all
+```
+
+---
+
+## Migration Checklist
+
+### ✅ Step 1: Audit Hook Usage
+
+Find all hooks using old environment variables:
+
+```bash
+# Search for old variable names
+grep -r "WT_" .hannahanna.yml .hn-templates/
+
+# Also check template files
+grep -r "WT_" .hn-templates/*/files/
+```
+
+### ✅ Step 2: Update Configuration Files
+
+**Main Config** (`.hannahanna.yml`):
+```bash
+# Automated update (backup first!)
+cp .hannahanna.yml .hannahanna.yml.backup
+
+# Replace all occurrences
+sed -i 's/\$WT_NAME/\$HNHN_NAME/g' .hannahanna.yml
+sed -i 's/\${WT_NAME}/\${HNHN_NAME}/g' .hannahanna.yml
+sed -i 's/\$WT_PATH/\$HNHN_PATH/g' .hannahanna.yml
+sed -i 's/\${WT_PATH}/\${HNHN_PATH}/g' .hannahanna.yml
+sed -i 's/\$WT_BRANCH/\$HNHN_BRANCH/g' .hannahanna.yml
+sed -i 's/\${WT_BRANCH}/\${HNHN_BRANCH}/g' .hannahanna.yml
+sed -i 's/\$WT_COMMIT/\$HNHN_COMMIT/g' .hannahanna.yml
+sed -i 's/\${WT_COMMIT}/\${HNHN_COMMIT}/g' .hannahanna.yml
+sed -i 's/\$WT_STATE_DIR/\$HNHN_STATE_DIR/g' .hannahanna.yml
+sed -i 's/\${WT_STATE_DIR}/\${HNHN_STATE_DIR}/g' .hannahanna.yml
+sed -i 's/WT_DOCKER_PORT_/HNHN_DOCKER_PORT_/g' .hannahanna.yml
+
+# Review changes
+diff .hannahanna.yml.backup .hannahanna.yml
+```
+
+**Templates**:
+```bash
+# Update all templates
+for template in .hn-templates/*/; do
+  if [ -f "$template/.hannahanna.yml" ]; then
+    echo "Updating $template"
+    sed -i 's/\$WT_NAME/\$HNHN_NAME/g' "$template/.hannahanna.yml"
+    sed -i 's/\${WT_NAME}/\${HNHN_NAME}/g' "$template/.hannahanna.yml"
+    sed -i 's/\$WT_PATH/\$HNHN_PATH/g' "$template/.hannahanna.yml"
+    sed -i 's/\${WT_PATH}/\${HNHN_PATH}/g' "$template/.hannahanna.yml"
+    sed -i 's/\$WT_BRANCH/\$HNHN_BRANCH/g' "$template/.hannahanna.yml"
+    sed -i 's/\${WT_BRANCH}/\${HNHN_BRANCH}/g' "$template/.hannahanna.yml"
+    sed -i 's/WT_DOCKER_PORT_/HNHN_DOCKER_PORT_/g' "$template/.hannahanna.yml"
+  fi
+
+  # Update template files
+  find "$template/files" -type f 2>/dev/null | while read file; do
+    if file "$file" | grep -q text; then
+      sed -i 's/\${WT_NAME}/\${HNHN_NAME}/g' "$file"
+      sed -i 's/\${WT_PATH}/\${HNHN_PATH}/g' "$file"
+      sed -i 's/\${WT_BRANCH}/\${HNHN_BRANCH}/g' "$file"
+    fi
+  done
+done
+```
+
+### ✅ Step 3: Update Hannahanna
+
+```bash
+# Update installation
+cargo install --force --git https://github.com/yourusername/hannahanna
+
+# Verify version
+hn --version
+# hannahanna 0.5.0
+```
+
+### ✅ Step 4: Test Migration
+
+Create a test worktree to verify hooks work:
+
+```bash
+# Create test worktree
+hn add migration-test
+
+# Check hooks executed correctly
+# Review output for any errors
+
+# Verify environment variables were set correctly
+cd migration-test
+# Check any files created by hooks
+
+# Clean up
+hn remove migration-test --force
+```
+
+### ✅ Step 5: Update Team Documentation
+
+If you maintain team docs:
+
+```bash
+# Update any documentation referencing old variables
+find docs/ wiki/ -name "*.md" -exec sed -i 's/WT_NAME/HNHN_NAME/g' {} \;
+find docs/ wiki/ -name "*.md" -exec sed -i 's/WT_PATH/HNHN_PATH/g' {} \;
+# etc.
+
+# Notify team of breaking changes
+```
+
+---
+
+## Common Migration Issues
+
+### Issue 1: Hooks Failing After Upgrade
+
+**Symptom**: Hooks that worked in v0.4 now fail or behave incorrectly.
+
+**Cause**: Still using old `WT_*` variable names.
+
+**Solution**:
+```bash
+# Check hook output
+hn add test --verbose
+
+# Look for empty variables or errors like:
+# "WT_NAME: unbound variable"
+
+# Fix: Update .hannahanna.yml as shown in Step 2
+```
+
+### Issue 2: Template Files Not Substituting
+
+**Symptom**: Template files still contain `${WT_NAME}` after creation.
+
+**Cause**: Template files not updated to use new variables.
+
+**Solution**:
+```bash
+# Update template files
+find .hn-templates/*/files -type f | while read file; do
+  if file "$file" | grep -q text; then
+    sed -i 's/\${WT_NAME}/\${HNHN_NAME}/g' "$file"
+    sed -i 's/\${WT_PATH}/\${HNHN_PATH}/g' "$file"
+    sed -i 's/\${WT_BRANCH}/\${HNHN_BRANCH}/g' "$file"
+  fi
+done
+```
+
+### Issue 3: Docker Environment Variables
+
+**Symptom**: Docker containers can't access port numbers.
+
+**Cause**: `WT_DOCKER_PORT_*` → `HNHN_DOCKER_PORT_*` rename.
+
+**Solution**:
+```bash
+# Update docker-compose.yml or hooks
+sed -i 's/WT_DOCKER_PORT_/HNHN_DOCKER_PORT_/g' .hannahanna.yml
+
+# Also update any docker-compose files
+sed -i 's/\${WT_DOCKER_PORT_/\${HNHN_DOCKER_PORT_/g' docker-compose*.yml
+```
+
+---
+
+## New Features Guide
+
+### Using Templates
+
+**Create your first template**:
+```bash
+# Create template directory
+hn templates create my-app
+
+# Customize template config
+cat > .hn-templates/my-app/.hannahanna.yml <<'EOF'
+hooks:
+  post_create: |
+    echo "Setting up ${HNHN_NAME}..."
+    npm install
+    cp .env.example .env
+
+docker:
+  enabled: true
+  services:
+    - app
+  ports:
+    app: auto
+EOF
+
+# Add template files
+mkdir -p .hn-templates/my-app/files
+echo "NODE_ENV=development" > .hn-templates/my-app/files/.env.example
+echo "APP_NAME=\${HNHN_NAME}" >> .hn-templates/my-app/files/.env.example
+
+# Use template
+hn add feature-x --template my-app
+```
+
+**Result**: New worktree with config applied and files copied with variable substitution.
+
+### Using Workspaces
+
+**Save current work**:
+```bash
+# Create several worktrees for a project
+hn add frontend
+hn add backend
+hn add database-migration
+
+# Save as workspace
+hn workspace save web-app
+
+# Later, restore all at once
+hn workspace restore web-app
+```
+
+### Using Stats
+
+**Monitor resource usage**:
+```bash
+# See which worktrees use most space
+hn stats --all
+
+# Check specific worktree
+hn stats frontend
+
+# Quick disk check
+hn stats --disk
+```
+
+---
+
+## Rollback (If Needed)
+
+If you encounter critical issues:
+
+```bash
+# Rollback to v0.4
+cargo install --force --git https://github.com/yourusername/hannahanna --tag v0.4.0
+
+# Verify
+hn --version  # Should show 0.4.0
+
+# Restore backup config
+cp .hannahanna.yml.backup .hannahanna.yml
+```
+
+**Note**: v0.5 doesn't modify existing worktrees, only adds new features. Safe to rollback.
+
+---
+
+## FAQ
+
+### Q: Can I use both old and new variable names?
+
+**A**: No. v0.5 only supports `HNHN_*` variables. Old `WT_*` names are removed.
+
+### Q: Will my existing worktrees break?
+
+**A**: No. Existing worktrees work fine. Only hooks using old variable names need updates.
+
+### Q: How do I test before fully migrating?
+
+**A**:
+1. Create backup: `cp .hannahanna.yml .hannahanna.yml.backup`
+2. Update config as shown above
+3. Test with: `hn add migration-test`
+4. If issues: `cp .hannahanna.yml.backup .hannahanna.yml`
+
+### Q: Do templates work with the new variables?
+
+**A**: Yes! Templates fully support `${HNHN_NAME}`, `${HNHN_PATH}`, `${HNHN_BRANCH}` substitution.
+
+### Q: Can I migrate gradually?
+
+**A**: No. Once you upgrade to v0.5, all hooks must use new variable names. Migrate all configs before upgrading.
+
+---
+
+## Getting Help
+
+- 📖 **Templates Guide**: [templates.md](./templates.md)
+- 🐛 **Report Issues**: [GitHub Issues](https://github.com/yourusername/hannahanna/issues)
+- 💬 **Questions**: [GitHub Discussions](https://github.com/yourusername/hannahanna/discussions)
+
+---
+
+# Migrating to v0.4
 
 This guide helps you upgrade from v0.3 to v0.4.
 

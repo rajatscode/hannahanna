@@ -12,5 +12,8 @@ pub mod remove;
 pub mod return_cmd;
 pub mod setup;
 pub mod state;
+pub mod stats;
 pub mod switch;
 pub mod sync;
+pub mod templates;
+pub mod workspace;

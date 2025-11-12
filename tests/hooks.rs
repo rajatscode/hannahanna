@@ -72,9 +72,9 @@ fn test_hook_environment_variables() {
         r#"
 hooks:
   post_create: |
-    echo "WT_NAME=$WT_NAME" > hook_env.txt
-    echo "WT_PATH=$WT_PATH" >> hook_env.txt
-    echo "WT_BRANCH=$WT_BRANCH" >> hook_env.txt
+    echo "HNHN_NAME=$HNHN_NAME" > hook_env.txt
+    echo "HNHN_PATH=$HNHN_PATH" >> hook_env.txt
+    echo "HNHN_BRANCH=$HNHN_BRANCH" >> hook_env.txt
 "#,
     );
 
@@ -86,9 +86,9 @@ hooks:
     assert!(hook_env.exists(), "Hook should have created hook_env.txt");
 
     let content = fs::read_to_string(&hook_env).expect("Failed to read hook env");
-    assert!(content.contains("WT_NAME=feature-test"));
-    assert!(content.contains("WT_PATH="));
-    assert!(content.contains("WT_BRANCH="));
+    assert!(content.contains("HNHN_NAME=feature-test"));
+    assert!(content.contains("HNHN_PATH="));
+    assert!(content.contains("HNHN_BRANCH="));
 }
 
 #[test]
