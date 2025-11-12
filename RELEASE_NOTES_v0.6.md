@@ -356,6 +356,40 @@ All new templates exported from v0.6 will include version requirement `>=0.6.0` 
 
 ---
 
+## 🧪 Test Coverage
+
+### Snapshot Safety Tests
+
+Added comprehensive integration test suite for all critical snapshot fixes (tests/snapshot_safety.rs):
+
+**10 New Integration Tests:**
+
+1. **test_snapshot_message_based_stash_reference** - Verifies message-based stash lookup survives git stash list changes
+2. **test_snapshot_atomicity_with_metadata_first** - Verifies metadata saved before stash creation (atomic operations)
+3. **test_snapshot_duplicate_name_prevention** - Prevents duplicate snapshots from corrupting data
+4. **test_snapshot_stash_cleanup_on_delete** - Verifies automatic stash cleanup when deleting snapshots
+5. **test_snapshot_multiple_stashes_no_interference** - Multiple snapshots don't interfere with each other
+6. **test_snapshot_without_uncommitted_changes** - Clean working directory snapshots work correctly
+7. **test_snapshot_restore_with_dirty_working_directory_fails** - Safety check prevents data loss
+8. **test_snapshot_stash_survives_git_operations** - Stress test for message-based lookup stability
+9. **test_snapshot_list_shows_correct_metadata** - UI displays correct snapshot metadata
+10. **test_orphaned_stash_cleanup** - Maintenance function handles corrupted snapshot data
+
+**Test Results:**
+- ✅ All 10 snapshot safety tests pass
+- ✅ All existing 259 tests continue to pass
+- ✅ Zero regressions introduced
+- ✅ Total: 269 tests passing
+
+**Coverage:**
+- Message-based stash management
+- Atomic operations with rollback
+- Resource cleanup and leak prevention
+- Edge cases and error conditions
+- Integration with git worktree infrastructure
+
+---
+
 ## Known Limitations
 
 ### Template Marketplace

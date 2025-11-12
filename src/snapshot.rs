@@ -406,69 +406,86 @@ pub fn delete_snapshot(worktree_name: &str, snapshot_name: &str, state_dir: &Pat
 
     // Clean up associated git stash if present
     if let Some(ref stash_message) = snapshot.stash_ref {
-        // Find the worktree path to run git commands
-        // We need to find the worktree directory
+        // Find the worktree path using git worktree list
         let repo_root = state_dir.parent().ok_or_else(|| {
             HnError::ConfigError("Invalid state directory path".to_string())
         })?;
 
-        // Try to find the worktree
-        // This might fail if the worktree was already deleted, which is OK
-        let worktree_path = repo_root.join(worktree_name);
+        // Use git worktree list to find the actual worktree path
+        let worktree_list_output = Command::new("git")
+            .arg("-C")
+            .arg(repo_root)
+            .arg("worktree")
+            .arg("list")
+            .arg("--porcelain")
+            .output();
 
-        if worktree_path.exists() {
-            // List stashes to find our stash
-            let stash_list_output = Command::new("git")
-                .arg("-C")
-                .arg(&worktree_path)
-                .arg("stash")
-                .arg("list")
-                .output();
+        if let Ok(output) = worktree_list_output {
+            let worktree_list = String::from_utf8(output.stdout).unwrap_or_default();
 
-            if let Ok(output) = stash_list_output {
-                let stash_list = String::from_utf8(output.stdout).unwrap_or_default();
-
-                // Find the stash index by message
-                let mut stash_index: Option<usize> = None;
-                for (idx, line) in stash_list.lines().enumerate() {
-                    if line.contains(stash_message) {
-                        stash_index = Some(idx);
-                        break;
-                    }
-                }
-
-                // Drop the stash if found
-                if let Some(idx) = stash_index {
-                    let stash_ref = format!("stash@{{{}}}", idx);
-                    let drop_output = Command::new("git")
-                        .arg("-C")
-                        .arg(&worktree_path)
-                        .arg("stash")
-                        .arg("drop")
-                        .arg(&stash_ref)
-                        .output();
-
-                    match drop_output {
-                        Ok(output) if output.status.success() => {
-                            // Successfully dropped stash
-                        }
-                        Ok(output) => {
-                            let stderr = String::from_utf8_lossy(&output.stderr);
-                            eprintln!("Warning: Failed to drop associated git stash: {}", stderr);
-                            eprintln!("You may want to manually clean up: git stash drop {}", stash_ref);
-                        }
-                        Err(e) => {
-                            eprintln!("Warning: Failed to execute git stash drop: {}", e);
+            // Parse worktree list to find our worktree
+            let mut found_worktree_path: Option<std::path::PathBuf> = None;
+            for line in worktree_list.lines() {
+                if line.starts_with("worktree ") {
+                    let path = std::path::PathBuf::from(line.trim_start_matches("worktree "));
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name == worktree_name {
+                            found_worktree_path = Some(path);
+                            break;
                         }
                     }
-                } else {
-                    // Stash not found in list - may have been already cleaned up
-                    // This is OK, don't error
                 }
             }
-        } else {
-            // Worktree doesn't exist - stash is in the main repo or was already cleaned
-            // This is OK, don't error
+
+            // If we found the worktree, try to clean up its stash
+            if let Some(worktree_path) = found_worktree_path {
+                // List stashes to find our stash
+                let stash_list_output = Command::new("git")
+                    .arg("-C")
+                    .arg(&worktree_path)
+                    .arg("stash")
+                    .arg("list")
+                    .output();
+
+                if let Ok(output) = stash_list_output {
+                    let stash_list = String::from_utf8(output.stdout).unwrap_or_default();
+
+                    // Find the stash index by message
+                    let mut stash_index: Option<usize> = None;
+                    for (idx, line) in stash_list.lines().enumerate() {
+                        if line.contains(stash_message) {
+                            stash_index = Some(idx);
+                            break;
+                        }
+                    }
+
+                    // Drop the stash if found
+                    if let Some(idx) = stash_index {
+                        let stash_ref = format!("stash@{{{}}}", idx);
+                        let drop_output = Command::new("git")
+                            .arg("-C")
+                            .arg(&worktree_path)
+                            .arg("stash")
+                            .arg("drop")
+                            .arg(&stash_ref)
+                            .output();
+
+                        match drop_output {
+                            Ok(output) if output.status.success() => {
+                                // Successfully dropped stash
+                            }
+                            Ok(output) => {
+                                let stderr = String::from_utf8_lossy(&output.stderr);
+                                eprintln!("Warning: Failed to drop associated git stash: {}", stderr);
+                                eprintln!("You may want to manually clean up: git stash drop {}", stash_ref);
+                            }
+                            Err(e) => {
+                                eprintln!("Warning: Failed to execute git stash drop: {}", e);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
