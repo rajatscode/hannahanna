@@ -915,7 +915,7 @@ my-project/              # Main repository
 - ✅ Helpful error messages with actionable suggestions
 - ✅ **Graphite compatibility** - Works seamlessly with Graphite stacks
 
-**Test Coverage:** 258 tests passing, zero warnings
+**Test Coverage:** 273 tests passing (87 lib + 186 integration), zero warnings
 
 **Multi-VCS Support (v0.3 Complete):**
 - ✅ VCS abstraction layer with trait-based design

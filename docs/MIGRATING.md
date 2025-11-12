@@ -9,7 +9,8 @@ This guide helps you upgrade from v0.3 to v0.4.
 Just update and enjoy:
 - ⚡ 50%+ faster worktree listings (caching)
 - 📊 Performance benchmarks
-- 🔧 Shell completions
+- 🔧 Shell completions & automated setup
+- 📋 Template system
 - ✨ Enhanced `hn info` output
 
 ```bash
@@ -18,6 +19,9 @@ cargo install --git https://github.com/yourusername/hannahanna
 
 # Verify
 hn --version  # Should show 0.4.0
+
+# Run setup (recommended)
+hn setup
 
 # Done!
 ```
@@ -85,11 +89,22 @@ cargo bench -- --baseline v0.4.0
 
 **Documentation**: See [BENCHMARKS.md](../BENCHMARKS.md)
 
-### 3. 🔧 Shell Completions
+### 3. 🔧 Shell Completions & Automated Setup
 
-**What**: Auto-completion for bash, zsh, and fish shells.
+**What**: Auto-completion for bash, zsh, and fish shells, plus automated setup.
 
-**Setup**:
+**Quick Setup** (Recommended):
+```bash
+# One command to set up everything
+hn setup
+
+# Or specify shell
+hn setup --shell bash
+```
+
+This installs completions, provides shell integration instructions, creates example templates, and validates your environment.
+
+**Manual Setup** (Alternative):
 ```bash
 # Bash
 hn completions bash > ~/.local/share/bash-completion/completions/hn
@@ -169,6 +184,39 @@ Actions:
   → hn docker logs feature-auth
   → hn remove feature-auth
 ```
+
+### 5. 📋 Template System
+
+**What**: Pre-configured environment setups for different worktree types.
+
+**Usage**:
+```bash
+# Create templates in your repo
+mkdir -p .hn-templates/microservice
+cat > .hn-templates/microservice/.hannahanna.yml <<EOF
+docker:
+  enabled: true
+  ports:
+    base:
+      app: 3000
+      db: 5432
+hooks:
+  post_create: |
+    npm install
+    npm run db:migrate
+EOF
+
+# Use template when creating worktrees
+hn add my-service --template microservice
+```
+
+**Features**:
+- Templates stored in `.hn-templates/<template-name>/`
+- Each template has `.hannahanna.yml` with config overrides
+- Applied to worktree's `.hannahanna.local.yml`
+- Great for standardizing environments (microservices, frontends, etc.)
+
+**Example templates are created by `hn setup`** in `.hn-templates/microservice/` and `.hn-templates/frontend/`.
 
 ---
 

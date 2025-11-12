@@ -92,7 +92,7 @@ hn add my-service --template microservice
 ### ✨ Enhancements
 
 - **Cache Statistics**: View cache status, age, and size
-- **Improved Test Coverage**: 346 total tests across lib and integration tests
+- **Improved Test Coverage**: 273 total tests (87 lib + 186 integration)
 - **Orphaned Children Protection**: Block removal of parent worktrees unless `--force`
 - **Automatic Reparenting**: Children reparented to target during integrate
 - **Docker Stats Filtering**: Stats now filtered by worktree project name
