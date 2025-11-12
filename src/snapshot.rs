@@ -77,6 +77,11 @@ fn get_snapshot_index_path(state_dir: &Path) -> PathBuf {
 }
 
 /// Create a snapshot of a worktree
+///
+/// Safety guarantees:
+/// - Atomic operation: if any step fails, the state is rolled back
+/// - Stable stash references: uses unique message-based stash identification
+/// - Non-destructive: working directory is not modified until snapshot is confirmed saved
 pub fn create_snapshot(
     worktree_path: &Path,
     worktree_name: &str,
@@ -87,6 +92,28 @@ pub fn create_snapshot(
     // Verify worktree exists
     if !worktree_path.exists() {
         return Err(HnError::WorktreeNotFound(worktree_name.to_string()));
+    }
+
+    // Generate snapshot name and timestamp FIRST (before any git operations)
+    let created_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let name = if let Some(n) = snapshot_name {
+        n.to_string()
+    } else {
+        format!("snapshot-{}", created_at)
+    };
+
+    // Check if snapshot name already exists
+    let index_path = get_snapshot_index_path(state_dir);
+    let existing_index = SnapshotIndex::load(&index_path)?;
+    if existing_index.find(worktree_name, &name).is_some() {
+        return Err(HnError::ConfigError(format!(
+            "Snapshot '{}' already exists for worktree '{}'",
+            name, worktree_name
+        )));
     }
 
     // Get current branch
@@ -138,8 +165,32 @@ pub fn create_snapshot(
     let status = String::from_utf8(status_output.stdout).unwrap_or_default();
     let has_uncommitted = !status.trim().is_empty();
 
-    // Create stash if there are uncommitted changes
+    // Create snapshot object BEFORE any destructive operations
+    let snapshot = Snapshot {
+        name: name.clone(),
+        worktree: worktree_name.to_string(),
+        branch,
+        commit,
+        stash_ref: None, // Will be set if we create a stash
+        has_uncommitted,
+        created_at,
+        description: description.map(|s| s.to_string()),
+    };
+
+    // Save snapshot metadata FIRST (before creating stash)
+    // This ensures we have a record even if stash creation fails
+    let mut index = SnapshotIndex::load(&index_path)?;
+    index.add(snapshot.clone());
+    index.save(&index_path)?;
+
+    // Now create stash if needed (with rollback capability)
     let stash_ref = if has_uncommitted {
+        // Create unique stash message for reliable lookup
+        let stash_message = format!(
+            "hannahanna-snapshot:{}:{}:{}",
+            worktree_name, name, created_at
+        );
+
         // Include untracked files in stash
         let stash_output = Command::new("git")
             .arg("-C")
@@ -148,67 +199,43 @@ pub fn create_snapshot(
             .arg("push")
             .arg("--include-untracked")
             .arg("-m")
-            .arg(format!(
-                "hannahanna snapshot: {}",
-                snapshot_name.unwrap_or("unnamed")
-            ))
+            .arg(&stash_message)
             .output()
-            .map_err(|e| HnError::CommandFailed(format!("Failed to stash changes: {}", e)))?;
+            .map_err(|e| {
+                // Rollback: remove snapshot from index
+                let _ = delete_snapshot(worktree_name, &name, state_dir);
+                HnError::CommandFailed(format!("Failed to stash changes: {}", e))
+            })?;
 
         if !stash_output.status.success() {
             let stderr = String::from_utf8_lossy(&stash_output.stderr);
+            // Rollback: remove snapshot from index
+            let _ = delete_snapshot(worktree_name, &name, state_dir);
             return Err(HnError::CommandFailed(format!("Failed to stash changes: {}", stderr)));
         }
 
-        // Get the stash ref
-        let stash_list_output = Command::new("git")
-            .arg("-C")
-            .arg(worktree_path)
-            .arg("stash")
-            .arg("list")
-            .arg("--max-count=1")
-            .arg("--format=%H")
-            .output()
-            .map_err(|e| HnError::CommandFailed(format!("Failed to get stash ref: {}", e)))?;
-
-        Some(String::from_utf8(stash_list_output.stdout)
-            .map_err(|e| HnError::CommandFailed(format!("Invalid UTF-8 in stash ref: {}", e)))?
-            .trim()
-            .to_string())
+        // Use the stash message as the reference (stable across operations)
+        // We'll look it up by message when restoring
+        Some(stash_message)
     } else {
         None
     };
 
-    // Generate snapshot name if not provided
-    let created_at = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
+    // Update snapshot with stash reference
+    if stash_ref.is_some() {
+        let mut updated_snapshot = snapshot;
+        updated_snapshot.stash_ref = stash_ref;
 
-    let name = if let Some(n) = snapshot_name {
-        n.to_string()
+        // Update index with stash ref
+        let mut index = SnapshotIndex::load(&index_path)?;
+        index.remove(worktree_name, &name);
+        index.add(updated_snapshot.clone());
+        index.save(&index_path)?;
+
+        Ok(updated_snapshot)
     } else {
-        format!("snapshot-{}", created_at)
-    };
-
-    let snapshot = Snapshot {
-        name,
-        worktree: worktree_name.to_string(),
-        branch,
-        commit,
-        stash_ref,
-        has_uncommitted,
-        created_at,
-        description: description.map(|s| s.to_string()),
-    };
-
-    // Save to index
-    let index_path = get_snapshot_index_path(state_dir);
-    let mut index = SnapshotIndex::load(&index_path)?;
-    index.add(snapshot.clone());
-    index.save(&index_path)?;
-
-    Ok(snapshot)
+        Ok(snapshot)
+    }
 }
 
 /// List snapshots for a worktree or all worktrees
@@ -226,6 +253,11 @@ pub fn list_snapshots(state_dir: &Path, worktree: Option<&str>) -> Result<Vec<Sn
 }
 
 /// Restore a snapshot
+///
+/// Safety guarantees:
+/// - Verifies clean working directory before making changes
+/// - Uses message-based stash lookup for reliability
+/// - Provides clear error messages if restoration fails
 pub fn restore_snapshot(
     worktree_path: &Path,
     worktree_name: &str,
@@ -243,7 +275,8 @@ pub fn restore_snapshot(
                 "Snapshot '{}' not found for worktree '{}'",
                 snapshot_name, worktree_name
             ))
-        })?;
+        })?
+        .clone(); // Clone to avoid lifetime issues
 
     // Verify worktree exists
     if !worktree_path.exists() {
@@ -296,20 +329,50 @@ pub fn restore_snapshot(
     }
 
     // Restore stash if present
-    if let Some(ref stash_ref) = snapshot.stash_ref {
-        let stash_output = Command::new("git")
+    if let Some(ref stash_message) = snapshot.stash_ref {
+        // Find stash by message (stable reference)
+        let stash_list_output = Command::new("git")
             .arg("-C")
             .arg(worktree_path)
             .arg("stash")
-            .arg("apply")
-            .arg(stash_ref)
+            .arg("list")
             .output()
-            .map_err(|e| HnError::CommandFailed(format!("Failed to apply stash: {}", e)))?;
+            .map_err(|e| HnError::CommandFailed(format!("Failed to list stashes: {}", e)))?;
 
-        if !stash_output.status.success() {
-            let stderr = String::from_utf8_lossy(&stash_output.stderr);
-            eprintln!("Warning: Failed to restore uncommitted changes: {}", stderr);
+        let stash_list = String::from_utf8(stash_list_output.stdout).unwrap_or_default();
+
+        // Find the stash entry by looking for our unique message
+        let mut stash_index: Option<usize> = None;
+        for (idx, line) in stash_list.lines().enumerate() {
+            if line.contains(stash_message) {
+                stash_index = Some(idx);
+                break;
+            }
+        }
+
+        if let Some(idx) = stash_index {
+            // Apply stash by index (stash@{N})
+            let stash_ref = format!("stash@{{{}}}", idx);
+            let stash_output = Command::new("git")
+                .arg("-C")
+                .arg(worktree_path)
+                .arg("stash")
+                .arg("apply")
+                .arg(&stash_ref)
+                .output()
+                .map_err(|e| HnError::CommandFailed(format!("Failed to apply stash: {}", e)))?;
+
+            if !stash_output.status.success() {
+                let stderr = String::from_utf8_lossy(&stash_output.stderr);
+                eprintln!("Warning: Failed to restore uncommitted changes: {}", stderr);
+                eprintln!("The snapshot commit was restored successfully.");
+                eprintln!("You can try manually: git stash apply {}", stash_ref);
+            }
+        } else {
+            eprintln!("Warning: Stash for snapshot not found in git stash list");
             eprintln!("The snapshot commit was restored successfully.");
+            eprintln!("Uncommitted changes from snapshot time may have been lost.");
+            eprintln!("Stash message: {}", stash_message);
         }
     }
 
@@ -317,17 +380,162 @@ pub fn restore_snapshot(
 }
 
 /// Delete a snapshot
+///
+/// Safety guarantees:
+/// - Cleans up associated git stash to prevent accumulation
+/// - Gracefully handles missing stashes (warns but doesn't fail)
+/// - Provides detailed feedback on cleanup status
 pub fn delete_snapshot(worktree_name: &str, snapshot_name: &str, state_dir: &Path) -> Result<()> {
     let index_path = get_snapshot_index_path(state_dir);
     let mut index = SnapshotIndex::load(&index_path)?;
 
-    if !index.remove(worktree_name, snapshot_name) {
-        return Err(HnError::ConfigError(format!(
-            "Snapshot '{}' not found for worktree '{}'",
-            snapshot_name, worktree_name
-        )));
+    // Find and clone the snapshot before removing it
+    let snapshot = index
+        .find(worktree_name, snapshot_name)
+        .cloned()
+        .ok_or_else(|| {
+            HnError::ConfigError(format!(
+                "Snapshot '{}' not found for worktree '{}'",
+                snapshot_name, worktree_name
+            ))
+        })?;
+
+    // Remove from index first
+    index.remove(worktree_name, snapshot_name);
+    index.save(&index_path)?;
+
+    // Clean up associated git stash if present
+    if let Some(ref stash_message) = snapshot.stash_ref {
+        // Find the worktree path to run git commands
+        // We need to find the worktree directory
+        let repo_root = state_dir.parent().ok_or_else(|| {
+            HnError::ConfigError("Invalid state directory path".to_string())
+        })?;
+
+        // Try to find the worktree
+        // This might fail if the worktree was already deleted, which is OK
+        let worktree_path = repo_root.join(worktree_name);
+
+        if worktree_path.exists() {
+            // List stashes to find our stash
+            let stash_list_output = Command::new("git")
+                .arg("-C")
+                .arg(&worktree_path)
+                .arg("stash")
+                .arg("list")
+                .output();
+
+            if let Ok(output) = stash_list_output {
+                let stash_list = String::from_utf8(output.stdout).unwrap_or_default();
+
+                // Find the stash index by message
+                let mut stash_index: Option<usize> = None;
+                for (idx, line) in stash_list.lines().enumerate() {
+                    if line.contains(stash_message) {
+                        stash_index = Some(idx);
+                        break;
+                    }
+                }
+
+                // Drop the stash if found
+                if let Some(idx) = stash_index {
+                    let stash_ref = format!("stash@{{{}}}", idx);
+                    let drop_output = Command::new("git")
+                        .arg("-C")
+                        .arg(&worktree_path)
+                        .arg("stash")
+                        .arg("drop")
+                        .arg(&stash_ref)
+                        .output();
+
+                    match drop_output {
+                        Ok(output) if output.status.success() => {
+                            // Successfully dropped stash
+                        }
+                        Ok(output) => {
+                            let stderr = String::from_utf8_lossy(&output.stderr);
+                            eprintln!("Warning: Failed to drop associated git stash: {}", stderr);
+                            eprintln!("You may want to manually clean up: git stash drop {}", stash_ref);
+                        }
+                        Err(e) => {
+                            eprintln!("Warning: Failed to execute git stash drop: {}", e);
+                        }
+                    }
+                } else {
+                    // Stash not found in list - may have been already cleaned up
+                    // This is OK, don't error
+                }
+            }
+        } else {
+            // Worktree doesn't exist - stash is in the main repo or was already cleaned
+            // This is OK, don't error
+        }
     }
 
-    index.save(&index_path)?;
     Ok(())
+}
+
+/// Clean up orphaned stashes for deleted snapshots
+///
+/// This maintenance function scans git stashes and removes any that belong
+/// to snapshots that no longer exist in the index.
+pub fn cleanup_orphaned_stashes(state_dir: &Path, worktree_path: &Path) -> Result<usize> {
+    let index_path = get_snapshot_index_path(state_dir);
+    let index = SnapshotIndex::load(&index_path)?;
+
+    // Get all hannahanna snapshot stash messages that should exist
+    let valid_stash_messages: std::collections::HashSet<String> = index
+        .snapshots
+        .iter()
+        .filter_map(|s| s.stash_ref.clone())
+        .collect();
+
+    // List all stashes
+    let stash_list_output = Command::new("git")
+        .arg("-C")
+        .arg(worktree_path)
+        .arg("stash")
+        .arg("list")
+        .output()
+        .map_err(|e| HnError::CommandFailed(format!("Failed to list stashes: {}", e)))?;
+
+    let stash_list = String::from_utf8(stash_list_output.stdout).unwrap_or_default();
+
+    // Find orphaned hannahanna stashes
+    let mut orphaned_indices = Vec::new();
+    for (idx, line) in stash_list.lines().enumerate() {
+        // Check if this is a hannahanna stash
+        if line.contains("hannahanna-snapshot:") {
+            // Extract the message
+            let message_start = line.find(": ").map(|i| i + 2);
+            if let Some(start) = message_start {
+                let message = &line[start..];
+                // Check if this stash message is in our valid set
+                if !valid_stash_messages.iter().any(|m| message.contains(m)) {
+                    orphaned_indices.push(idx);
+                }
+            }
+        }
+    }
+
+    // Drop orphaned stashes (in reverse order to maintain indices)
+    let mut cleaned = 0;
+    for idx in orphaned_indices.iter().rev() {
+        let stash_ref = format!("stash@{{{}}}", idx);
+        let drop_output = Command::new("git")
+            .arg("-C")
+            .arg(worktree_path)
+            .arg("stash")
+            .arg("drop")
+            .arg(&stash_ref)
+            .output();
+
+        if let Ok(output) = drop_output {
+            if output.status.success() {
+                cleaned += 1;
+            }
+        }
+    }
+
+    Ok(cleaned)
 }

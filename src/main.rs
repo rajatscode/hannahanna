@@ -9,6 +9,7 @@ mod env;
 mod errors;
 mod fuzzy;
 mod hooks;
+mod monitoring;
 mod snapshot;
 mod state;
 mod suggestions;
@@ -212,6 +213,12 @@ enum Commands {
         /// Show disk usage only
         #[arg(long)]
         disk: bool,
+        /// Show historical metrics
+        #[arg(long)]
+        history: bool,
+        /// Number of days of history to show (default: 7)
+        #[arg(long, value_name = "DAYS")]
+        days: Option<u64>,
     },
     /// Manage worktree tags
     Tag {
@@ -722,7 +729,9 @@ fn main() {
                 cli::snapshot::delete(&worktree, &snapshot)
             }
         },
-        Commands::Stats { name, all, disk } => cli::stats::run(name, all, disk, vcs_type),
+        Commands::Stats { name, all, disk, history, days } => {
+            cli::stats::run(name, all, disk, history, days, vcs_type)
+        }
         Commands::Tag { worktree, tags } => cli::tag::add(&worktree, &tags),
         Commands::Tags { worktree } => cli::tag::list(worktree.as_deref()),
     };
