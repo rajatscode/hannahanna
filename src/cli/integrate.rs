@@ -1,6 +1,9 @@
 // Integrate command: Merge a source worktree/branch into a target worktree/branch
+use crate::config::Config;
 use crate::errors::{HnError, Result};
 use crate::fuzzy;
+use crate::hooks::{HookExecutor, HookType};
+use crate::state::StateManager;
 use crate::vcs::{init_backend_from_current_dir, VcsType};
 use std::env;
 use std::process::Command;
@@ -75,6 +78,23 @@ pub fn run(
         ))));
     }
 
+    // Load config and run pre_integrate hook
+    let repo_root = Config::find_repo_root(&target_worktree.path)?;
+    let config = Config::load(&repo_root)?;
+
+    let has_pre_integrate_hooks = config.hooks.pre_integrate.is_some()
+        || !config.hooks.pre_integrate_conditions.is_empty();
+
+    if has_pre_integrate_hooks {
+        let state_manager = StateManager::new(&repo_root)?;
+        let state_dir = state_manager.get_state_dir(&target_worktree.name);
+
+        eprintln!("Running pre_integrate hook...");
+        let hook_executor = HookExecutor::new(config.hooks.clone(), false);
+        hook_executor.run_hook(HookType::PreIntegrate, &target_worktree, &state_dir)?;
+        eprintln!("✓ Pre-integrate hook completed successfully");
+    }
+
     // Change to target worktree directory
     env::set_current_dir(&target_worktree.path)?;
 
@@ -145,6 +165,20 @@ pub fn run(
         );
     } else {
         eprintln!("✓ Merge successful");
+    }
+
+    // Run post_integrate hook
+    let has_post_integrate_hooks = config.hooks.post_integrate.is_some()
+        || !config.hooks.post_integrate_conditions.is_empty();
+
+    if has_post_integrate_hooks {
+        let state_manager = StateManager::new(&repo_root)?;
+        let state_dir = state_manager.get_state_dir(&target_worktree.name);
+
+        eprintln!("Running post_integrate hook...");
+        let hook_executor = HookExecutor::new(config.hooks.clone(), false);
+        hook_executor.run_hook(HookType::PostIntegrate, &target_worktree, &state_dir)?;
+        eprintln!("✓ Post-integrate hook completed successfully");
     }
 
     Ok(())

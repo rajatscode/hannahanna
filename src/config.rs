@@ -71,16 +71,36 @@ where
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct HooksConfig {
+    // Worktree lifecycle hooks
+    pub pre_create: Option<String>,
     pub post_create: Option<String>,
     pub pre_remove: Option<String>,
+    pub post_remove: Option<String>,
+    pub post_switch: Option<String>,
+
+    // Integration hooks
+    pub pre_integrate: Option<String>,
+    pub post_integrate: Option<String>,
+
     /// Hook execution timeout in seconds (default: 300 = 5 minutes)
     #[serde(default = "default_hook_timeout")]
     pub timeout_seconds: u64,
+
     /// Conditional hooks that run based on branch name patterns
+    #[serde(default)]
+    pub pre_create_conditions: Vec<ConditionalHook>,
     #[serde(default)]
     pub post_create_conditions: Vec<ConditionalHook>,
     #[serde(default)]
     pub pre_remove_conditions: Vec<ConditionalHook>,
+    #[serde(default)]
+    pub post_remove_conditions: Vec<ConditionalHook>,
+    #[serde(default)]
+    pub post_switch_conditions: Vec<ConditionalHook>,
+    #[serde(default)]
+    pub pre_integrate_conditions: Vec<ConditionalHook>,
+    #[serde(default)]
+    pub post_integrate_conditions: Vec<ConditionalHook>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -94,11 +114,21 @@ pub struct ConditionalHook {
 impl Default for HooksConfig {
     fn default() -> Self {
         Self {
+            pre_create: None,
             post_create: None,
             pre_remove: None,
+            post_remove: None,
+            post_switch: None,
+            pre_integrate: None,
+            post_integrate: None,
             timeout_seconds: default_hook_timeout(),
+            pre_create_conditions: Vec::new(),
             post_create_conditions: Vec::new(),
             pre_remove_conditions: Vec::new(),
+            post_remove_conditions: Vec::new(),
+            post_switch_conditions: Vec::new(),
+            pre_integrate_conditions: Vec::new(),
+            post_integrate_conditions: Vec::new(),
         }
     }
 }
@@ -311,19 +341,39 @@ impl Config {
         }
 
         // Merge hooks (override primitives, append conditional arrays)
+        if other.hooks.pre_create.is_some() {
+            self.hooks.pre_create = other.hooks.pre_create;
+        }
         if other.hooks.post_create.is_some() {
             self.hooks.post_create = other.hooks.post_create;
         }
         if other.hooks.pre_remove.is_some() {
             self.hooks.pre_remove = other.hooks.pre_remove;
         }
+        if other.hooks.post_remove.is_some() {
+            self.hooks.post_remove = other.hooks.post_remove;
+        }
+        if other.hooks.post_switch.is_some() {
+            self.hooks.post_switch = other.hooks.post_switch;
+        }
+        if other.hooks.pre_integrate.is_some() {
+            self.hooks.pre_integrate = other.hooks.pre_integrate;
+        }
+        if other.hooks.post_integrate.is_some() {
+            self.hooks.post_integrate = other.hooks.post_integrate;
+        }
         // Override timeout only if explicitly set (different from default)
         if other.hooks.timeout_seconds != default_hook_timeout() {
             self.hooks.timeout_seconds = other.hooks.timeout_seconds;
         }
         // Append conditional hooks (arrays append)
+        self.hooks.pre_create_conditions.extend(other.hooks.pre_create_conditions);
         self.hooks.post_create_conditions.extend(other.hooks.post_create_conditions);
         self.hooks.pre_remove_conditions.extend(other.hooks.pre_remove_conditions);
+        self.hooks.post_remove_conditions.extend(other.hooks.post_remove_conditions);
+        self.hooks.post_switch_conditions.extend(other.hooks.post_switch_conditions);
+        self.hooks.pre_integrate_conditions.extend(other.hooks.pre_integrate_conditions);
+        self.hooks.post_integrate_conditions.extend(other.hooks.post_integrate_conditions);
 
         // Merge docker config (override primitives, append arrays)
         if other.docker.enabled {

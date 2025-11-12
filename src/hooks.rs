@@ -10,15 +10,25 @@ use std::time::Duration;
 
 #[derive(Debug, Clone, Copy)]
 pub enum HookType {
+    PreCreate,
     PostCreate,
     PreRemove,
+    PostRemove,
+    PostSwitch,
+    PreIntegrate,
+    PostIntegrate,
 }
 
 impl HookType {
     pub fn as_str(&self) -> &'static str {
         match self {
+            HookType::PreCreate => "pre_create",
             HookType::PostCreate => "post_create",
             HookType::PreRemove => "pre_remove",
+            HookType::PostRemove => "post_remove",
+            HookType::PostSwitch => "post_switch",
+            HookType::PreIntegrate => "pre_integrate",
+            HookType::PostIntegrate => "post_integrate",
         }
     }
 }
@@ -66,8 +76,13 @@ impl HookExecutor {
 
         // First, run the regular (unconditional) hook if configured
         let script = match hook_type {
+            HookType::PreCreate => &self.config.pre_create,
             HookType::PostCreate => &self.config.post_create,
             HookType::PreRemove => &self.config.pre_remove,
+            HookType::PostRemove => &self.config.post_remove,
+            HookType::PostSwitch => &self.config.post_switch,
+            HookType::PreIntegrate => &self.config.pre_integrate,
+            HookType::PostIntegrate => &self.config.post_integrate,
         };
 
         if let Some(script) = script {
@@ -76,8 +91,13 @@ impl HookExecutor {
 
         // Then, evaluate and run any conditional hooks that match
         let conditional_hooks = match hook_type {
+            HookType::PreCreate => &self.config.pre_create_conditions,
             HookType::PostCreate => &self.config.post_create_conditions,
             HookType::PreRemove => &self.config.pre_remove_conditions,
+            HookType::PostRemove => &self.config.post_remove_conditions,
+            HookType::PostSwitch => &self.config.post_switch_conditions,
+            HookType::PreIntegrate => &self.config.pre_integrate_conditions,
+            HookType::PostIntegrate => &self.config.post_integrate_conditions,
         };
 
         for conditional_hook in conditional_hooks {
