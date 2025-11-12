@@ -1,5 +1,4 @@
 pub mod add;
-pub mod completions;
 pub mod config_cmd;
 pub mod docker;
 pub mod each;

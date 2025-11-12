@@ -42,7 +42,7 @@ hn completions fish > ~/.config/fish/completions/hn.fish
 ### ✨ Enhancements
 
 - **Cache Statistics**: View cache status, age, and size
-- **Improved Test Coverage**: Added 6 new cache tests (258 total tests, up from 252)
+- **Improved Test Coverage**: 342 total tests across lib and integration tests
 
 ### 🏗️ Technical Improvements
 

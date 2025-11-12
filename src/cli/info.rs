@@ -1,7 +1,7 @@
 use crate::config::Config;
 use crate::docker::container::ContainerManager;
 use crate::docker::ports::PortAllocator;
-use crate::errors::Result;
+use crate::errors::{HnError, Result};
 use crate::fuzzy;
 use crate::vcs::{init_backend_from_current_dir, VcsType};
 use chrono::{DateTime, Local};
@@ -305,38 +305,118 @@ struct ContainerStats {
 }
 
 /// Get container stats from docker stats (if docker is available)
-fn get_container_stats(_worktree_name: &str) -> Result<ContainerStats> {
+fn get_container_stats(worktree_name: &str) -> Result<ContainerStats> {
     use std::process::Command;
 
-    // Try to get stats from docker stats command
-    // TODO: Filter by worktree_name to get specific container stats
-    let output = Command::new("docker")
-        .args(&[
+    // Generate project name using same logic as ContainerManager
+    let project_name = worktree_name
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
+        .collect::<String>();
+
+    // Get list of containers for this project
+    let ps_output = Command::new("docker")
+        .args([
+            "ps",
+            "--filter",
+            &format!("label=com.docker.compose.project={}", project_name),
+            "--format",
+            "{{.Names}}",
+        ])
+        .output();
+
+    let container_names: Vec<String> = if let Ok(output) = ps_output {
+        if output.status.success() {
+            String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .map(|s| s.to_string())
+                .collect()
+        } else {
+            Vec::new()
+        }
+    } else {
+        Vec::new()
+    };
+
+    if container_names.is_empty() {
+        return Err(HnError::DockerError(
+            "No running containers found for this worktree".to_string(),
+        ));
+    }
+
+    // Get stats for all containers in this project
+    let stats_output = Command::new("docker")
+        .args([
             "stats",
             "--no-stream",
             "--format",
             "{{.MemUsage}}\t{{.CPUPerc}}",
         ])
+        .args(&container_names)
         .output();
 
-    if let Ok(output) = output {
+    if let Ok(output) = stats_output {
         if output.status.success() {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            // Parse first line (we'll improve this to filter by worktree name)
-            if let Some(line) = stdout.lines().next() {
+
+            // Aggregate stats from all containers
+            let mut total_mem_used: f64 = 0.0;
+            let mut total_mem_limit: f64 = 0.0;
+            let mut total_cpu: f64 = 0.0;
+            let mut count = 0;
+
+            for line in stdout.lines() {
                 let parts: Vec<&str> = line.split('\t').collect();
                 if parts.len() >= 2 {
-                    return Ok(ContainerStats {
-                        memory: parts[0].to_string(),
-                        cpu: parts[1].to_string(),
-                    });
+                    // Parse memory (format: "123.4MiB / 2GiB")
+                    if let Some(mem_parts) = parts[0].split(" / ").collect::<Vec<_>>().get(0..2) {
+                        if let Some(used) = parse_memory_value(mem_parts[0].trim()) {
+                            total_mem_used += used;
+                        }
+                        if let Some(limit) = parse_memory_value(mem_parts[1].trim()) {
+                            total_mem_limit = total_mem_limit.max(limit); // Use max limit
+                        }
+                    }
+
+                    // Parse CPU (format: "2.34%")
+                    if let Some(cpu_str) = parts[1].strip_suffix('%') {
+                        if let Ok(cpu) = cpu_str.parse::<f64>() {
+                            total_cpu += cpu;
+                        }
+                    }
+
+                    count += 1;
                 }
+            }
+
+            if count > 0 {
+                return Ok(ContainerStats {
+                    memory: format!("{:.1} MiB / {:.1} MiB", total_mem_used, total_mem_limit),
+                    cpu: format!("{:.2}%", total_cpu),
+                });
             }
         }
     }
 
     // Fallback: no stats available
-    Err(crate::errors::HnError::DockerError(
+    Err(HnError::DockerError(
         "Unable to get container stats".to_string(),
     ))
+}
+
+/// Parse memory value from docker stats format (e.g., "123.4MiB", "2GiB") to MiB
+fn parse_memory_value(s: &str) -> Option<f64> {
+    let s = s.trim();
+    if let Some(value_str) = s.strip_suffix("GiB") {
+        value_str.parse::<f64>().ok().map(|v| v * 1024.0)
+    } else if let Some(value_str) = s.strip_suffix("MiB") {
+        value_str.parse::<f64>().ok()
+    } else if let Some(value_str) = s.strip_suffix("KiB") {
+        value_str.parse::<f64>().ok().map(|v| v / 1024.0)
+    } else if let Some(value_str) = s.strip_suffix("B") {
+        value_str.parse::<f64>().ok().map(|v| v / (1024.0 * 1024.0))
+    } else {
+        None
+    }
 }

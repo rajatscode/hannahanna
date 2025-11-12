@@ -3,7 +3,7 @@ use crate::docker::compose::ComposeGenerator;
 use crate::docker::container::ContainerManager;
 use crate::docker::ports::PortAllocator;
 use crate::env::validation;
-use crate::errors::Result;
+use crate::errors::{HnError, Result};
 use crate::fuzzy;
 use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
@@ -33,6 +33,37 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
 
     // Get worktree info for hooks
     let worktree = backend.get_workspace_by_name(&matched_name)?;
+
+    // Check if this worktree has children
+    let children: Vec<_> = worktrees
+        .iter()
+        .filter(|wt| wt.parent.as_ref() == Some(&matched_name))
+        .collect();
+
+    if !children.is_empty() && !force {
+        let child_names: Vec<&str> = children.iter().map(|wt| wt.name.as_str()).collect();
+        return Err(HnError::ConfigError(format!(
+            "Cannot remove '{}' - it has {} child worktree(s): {}\n\
+             \n\
+             Options:\n\
+             1. Remove children first: {}\n\
+             2. Use --force to remove parent and orphan children (children will remain but parent link will be broken)",
+            matched_name,
+            children.len(),
+            child_names.join(", "),
+            child_names.iter().map(|c| format!("hn remove {}", c)).collect::<Vec<_>>().join(", ")
+        )));
+    }
+
+    if !children.is_empty() && force {
+        eprintln!(
+            "⚠ Warning: Removing '{}' which has {} child worktree(s): {}",
+            matched_name,
+            children.len(),
+            children.iter().map(|wt| wt.name.as_str()).collect::<Vec<_>>().join(", ")
+        );
+        eprintln!("⚠ Children will become orphaned (parent link will be broken)");
+    }
 
     // Find repository root
     let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
