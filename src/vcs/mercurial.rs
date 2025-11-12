@@ -10,7 +10,6 @@ use std::process::Command;
 
 /// Registry entry for a Mercurial share
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)] // Will be used when --vcs flag is implemented
 struct ShareEntry {
     name: String,
     path: PathBuf,
@@ -20,12 +19,10 @@ struct ShareEntry {
 
 /// Registry of all Mercurial shares (workspaces)
 #[derive(Debug, Serialize, Deserialize)]
-#[allow(dead_code)] // Will be used when --vcs flag is implemented
 struct ShareRegistry {
     shares: Vec<ShareEntry>,
 }
 
-#[allow(dead_code)] // Will be used when --vcs flag is implemented
 impl ShareRegistry {
     fn new() -> Self {
         Self { shares: Vec::new() }
@@ -66,12 +63,10 @@ impl ShareRegistry {
     }
 }
 
-#[allow(dead_code)] // Will be used when --vcs flag is implemented
 pub struct MercurialBackend {
     repo_path: PathBuf,
 }
 
-#[allow(dead_code)] // Will be used when --vcs flag is implemented
 impl MercurialBackend {
     /// Open a Mercurial repository from the current directory
     pub fn open_from_current_dir() -> Result<Self> {

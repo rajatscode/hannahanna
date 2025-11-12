@@ -6,12 +6,10 @@ use crate::vcs::{WorkspaceStatus, Worktree};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-#[allow(dead_code)] // Will be used when --vcs flag is implemented
 pub struct JujutsuBackend {
     repo_path: PathBuf,
 }
 
-#[allow(dead_code)] // Will be used when --vcs flag is implemented
 impl JujutsuBackend {
     /// Open a Jujutsu repository from the current directory
     pub fn open_from_current_dir() -> Result<Self> {
