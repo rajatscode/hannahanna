@@ -232,6 +232,26 @@ enum Commands {
         /// Worktree name (shows all tags if omitted)
         worktree: Option<String>,
     },
+    /// Real-time monitoring dashboard
+    Monitor {
+        /// Live monitoring mode with auto-refresh
+        #[arg(long)]
+        live: bool,
+        /// Refresh interval in seconds (default: 5)
+        #[arg(long)]
+        refresh: Option<u64>,
+    },
+    /// Show activity log
+    Activity {
+        /// Worktree name (shows all if omitted)
+        name: Option<String>,
+        /// Show events since duration (e.g., "1h", "30m", "7d")
+        #[arg(long)]
+        since: Option<String>,
+        /// Limit number of events shown
+        #[arg(long)]
+        limit: Option<usize>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -734,6 +754,12 @@ fn main() {
         }
         Commands::Tag { worktree, tags } => cli::tag::add(&worktree, &tags),
         Commands::Tags { worktree } => cli::tag::list(worktree.as_deref()),
+        Commands::Monitor { live, refresh } => {
+            cli::monitor::run(live, refresh, vcs_type)
+        }
+        Commands::Activity { name, since, limit } => {
+            cli::activity::run(name, since, limit, vcs_type)
+        }
     };
 
     // Handle errors with suggestions

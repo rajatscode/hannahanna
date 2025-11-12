@@ -1,3 +1,4 @@
+pub mod activity;
 pub mod add;
 pub mod config_cmd;
 pub mod docker;
@@ -6,6 +7,7 @@ pub mod info;
 pub mod init_shell;
 pub mod integrate;
 pub mod list;
+pub mod monitor;
 pub mod ports;
 pub mod prune;
 pub mod remove;

@@ -123,7 +123,7 @@ fn copy_file_with_substitution(
     let content = fs::read_to_string(src).unwrap_or_else(|_| {
         // If not UTF-8, just copy bytes
         let bytes = fs::read(src).unwrap();
-        return String::from_utf8_lossy(&bytes).to_string();
+        String::from_utf8_lossy(&bytes).to_string()
     });
 
     // Perform variable substitution
@@ -640,7 +640,7 @@ pub fn collect_template_parameters(
             ParameterType::Choice { choices, default } => {
                 let mut select = Select::with_theme(&theme)
                     .with_prompt(&prompt_text)
-                    .items(&choices);
+                    .items(choices);
 
                 if let Some(def) = default {
                     if let Some(idx) = choices.iter().position(|c| c == def) {
