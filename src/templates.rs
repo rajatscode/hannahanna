@@ -9,9 +9,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Template metadata and configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Template {
-    #[allow(dead_code)] // Used by list_templates(), reserved for v0.4.1 `hn templates list`
     pub name: String,
     pub description: Option<String>,
     pub config_path: PathBuf,

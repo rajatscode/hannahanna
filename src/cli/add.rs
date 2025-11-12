@@ -10,6 +10,7 @@ use crate::hooks::{HookExecutor, HookType};
 use crate::state::StateManager;
 use crate::vcs::{init_backend_from_current_dir, RegistryCache, VcsType};
 
+#[allow(clippy::too_many_arguments)]
 pub fn run(
     name: String,
     branch: Option<String>,

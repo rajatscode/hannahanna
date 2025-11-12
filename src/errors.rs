@@ -44,6 +44,9 @@ pub enum HnError {
     #[error("Command failed: {0}")]
     CommandFailed(String),
 
+    #[error("Template error: {0}")]
+    TemplateError(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

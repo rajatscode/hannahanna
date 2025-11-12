@@ -173,6 +173,11 @@ enum Commands {
         #[command(subcommand)]
         command: DockerCommands,
     },
+    /// Manage worktree templates
+    Templates {
+        #[command(subcommand)]
+        command: TemplatesCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -272,6 +277,21 @@ enum DockerCommands {
     },
     /// Clean up orphaned containers
     Prune,
+}
+
+#[derive(Subcommand)]
+enum TemplatesCommands {
+    /// List all available templates
+    List {
+        /// Output format (json or table)
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show details about a specific template
+    Show {
+        /// Name of the template
+        name: String,
+    },
 }
 
 /// Resolve command aliases before parsing
@@ -478,6 +498,10 @@ fn main() {
             DockerCommands::Logs { name, service } => cli::docker::logs(name, service),
             DockerCommands::Exec { name, service, command } => cli::docker::exec(name, service, command),
             DockerCommands::Prune => cli::docker::prune(),
+        },
+        Commands::Templates { command } => match command {
+            TemplatesCommands::List { json } => cli::templates::list(json),
+            TemplatesCommands::Show { name } => cli::templates::show(&name),
         },
     };
 
