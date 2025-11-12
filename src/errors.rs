@@ -47,6 +47,12 @@ pub enum HnError {
     #[error("Template error: {0}")]
     TemplateError(String),
 
+    #[error("State error: {0}")]
+    StateError(String),
+
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
 

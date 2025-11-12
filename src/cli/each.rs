@@ -2,6 +2,7 @@
 use crate::errors::{HnError, Result};
 use crate::vcs::git::GitBackend;
 use crate::vcs::Worktree;
+use crate::tags;
 use colored::Colorize;
 use regex::Regex;
 use std::process::{Command, Stdio};
@@ -13,6 +14,7 @@ pub fn run(
     parallel: bool,
     stop_on_error: bool,
     filter: Option<String>,
+    tag: Option<String>,
     docker_running: bool,
 ) -> Result<()> {
     if command.is_empty() {
@@ -30,6 +32,14 @@ pub fn run(
             HnError::ConfigError(format!("Invalid filter pattern '{}': {}", pattern, e))
         })?;
         worktrees.retain(|wt| regex.is_match(&wt.name));
+    }
+
+    // Filter by tag if provided
+    if let Some(ref filter_tag) = tag {
+        let repo_root = git.repo_root()?;
+        let state_dir = repo_root.join(".hn-state");
+        let tagged_worktrees = tags::get_worktrees_by_tag(&state_dir, filter_tag)?;
+        worktrees.retain(|wt| tagged_worktrees.contains(&wt.name));
     }
 
     // Filter for Docker running if requested

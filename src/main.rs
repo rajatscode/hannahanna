@@ -9,8 +9,10 @@ mod env;
 mod errors;
 mod fuzzy;
 mod hooks;
+mod snapshot;
 mod state;
 mod suggestions;
+mod tags;
 mod templates;
 mod vcs;
 
@@ -52,12 +54,21 @@ enum Commands {
         /// Apply a template from .hn-templates/
         #[arg(long)]
         template: Option<String>,
+        /// Template parameters in key=value format (can be specified multiple times)
+        #[arg(long)]
+        param: Option<Vec<String>>,
+        /// Apply a configuration profile (dev/staging/prod)
+        #[arg(long)]
+        profile: Option<String>,
     },
     /// List all worktrees
     List {
         /// Show parent/child tree view
         #[arg(long)]
         tree: bool,
+        /// Filter by tag
+        #[arg(long)]
+        tag: Option<String>,
     },
     /// Remove a worktree
     Remove {
@@ -103,6 +114,9 @@ enum Commands {
         /// Filter worktrees by name pattern (regex)
         #[arg(long)]
         filter: Option<String>,
+        /// Filter worktrees by tag
+        #[arg(long)]
+        tag: Option<String>,
         /// Only run on worktrees with Docker containers running
         #[arg(long)]
         docker_running: bool,
@@ -183,6 +197,11 @@ enum Commands {
         #[command(subcommand)]
         command: WorkspaceCommands,
     },
+    /// Manage worktree snapshots (save/restore state with uncommitted changes)
+    Snapshot {
+        #[command(subcommand)]
+        command: SnapshotCommands,
+    },
     /// Show resource usage statistics
     Stats {
         /// Worktree name (shows all if not specified)
@@ -193,6 +212,18 @@ enum Commands {
         /// Show disk usage only
         #[arg(long)]
         disk: bool,
+    },
+    /// Manage worktree tags
+    Tag {
+        /// Worktree name
+        worktree: String,
+        /// Tags to add
+        tags: Vec<String>,
+    },
+    /// List tags
+    Tags {
+        /// Worktree name (shows all tags if omitted)
+        worktree: Option<String>,
     },
 }
 
@@ -322,6 +353,26 @@ enum TemplatesCommands {
         #[arg(long)]
         from_current: bool,
     },
+    /// Export a template to a .hnhn package
+    Export {
+        /// Name of the template to export
+        name: String,
+        /// Output path for the package file
+        output: String,
+    },
+    /// Import a template from a .hnhn package
+    Import {
+        /// Path to the .hnhn package file
+        package: String,
+        /// Optional name for the imported template (uses package name if not specified)
+        #[arg(long)]
+        name: Option<String>,
+    },
+    /// Validate a template configuration
+    Validate {
+        /// Name of the template to validate
+        name: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -363,6 +414,54 @@ enum WorkspaceCommands {
         /// Output file path
         #[arg(long)]
         output: Option<String>,
+    },
+    /// Import a workspace from a file
+    Import {
+        /// Path to the workspace file
+        path: String,
+        /// Automatically create worktrees during import
+        #[arg(long)]
+        create_worktrees: bool,
+    },
+    /// Compare two workspaces
+    Diff {
+        /// First workspace name
+        name1: String,
+        /// Second workspace name
+        name2: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum SnapshotCommands {
+    /// Create a snapshot of a worktree
+    Create {
+        /// Worktree name
+        worktree: String,
+        /// Snapshot name (auto-generated if omitted)
+        name: Option<String>,
+        /// Description of the snapshot
+        #[arg(long)]
+        description: Option<String>,
+    },
+    /// List snapshots
+    List {
+        /// Worktree name (shows all if omitted)
+        worktree: Option<String>,
+    },
+    /// Restore a snapshot
+    Restore {
+        /// Worktree name
+        worktree: String,
+        /// Snapshot name
+        snapshot: String,
+    },
+    /// Delete a snapshot
+    Delete {
+        /// Worktree name
+        worktree: String,
+        /// Snapshot name
+        snapshot: String,
     },
 }
 
@@ -504,8 +603,10 @@ fn main() {
             no_branch,
             sparse,
             template,
-        } => cli::add::run(name, branch, from, no_branch, sparse, template, cli.no_hooks, vcs_type),
-        Commands::List { tree } => cli::list::run(tree, vcs_type),
+            param,
+            profile,
+        } => cli::add::run(name, branch, from, no_branch, sparse, template, param, profile, cli.no_hooks, vcs_type),
+        Commands::List { tree, tag } => cli::list::run(tree, tag, vcs_type),
         Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks, vcs_type),
         Commands::Switch { name } => cli::switch::run(name, vcs_type),
         Commands::Return {
@@ -519,8 +620,9 @@ fn main() {
             parallel,
             stop_on_error,
             filter,
+            tag,
             docker_running,
-        } => cli::each::run(command, parallel, stop_on_error, filter, docker_running),
+        } => cli::each::run(command, parallel, stop_on_error, filter, tag, docker_running),
         Commands::Integrate {
             source,
             into,
@@ -577,6 +679,15 @@ fn main() {
             TemplatesCommands::Create { name, description, docker, from_current } => {
                 cli::templates::create(&name, description.as_deref(), docker, from_current)
             }
+            TemplatesCommands::Export { name, output } => {
+                cli::templates::export(&name, &output)
+            }
+            TemplatesCommands::Import { package, name } => {
+                cli::templates::import(&package, name.as_deref())
+            }
+            TemplatesCommands::Validate { name } => {
+                cli::templates::validate(&name)
+            }
         },
         Commands::Workspace { command } => match command {
             WorkspaceCommands::Save { name, description } => {
@@ -590,8 +701,30 @@ fn main() {
             WorkspaceCommands::Export { name, output } => {
                 cli::workspace::export(&name, output.as_deref())
             }
+            WorkspaceCommands::Import { path, create_worktrees } => {
+                cli::workspace::import(&path, create_worktrees, vcs_type)
+            }
+            WorkspaceCommands::Diff { name1, name2 } => {
+                cli::workspace::diff(&name1, &name2)
+            }
+        },
+        Commands::Snapshot { command } => match command {
+            SnapshotCommands::Create { worktree, name, description } => {
+                cli::snapshot::create(&worktree, name.as_deref(), description.as_deref(), vcs_type)
+            }
+            SnapshotCommands::List { worktree } => {
+                cli::snapshot::list(worktree.as_deref())
+            }
+            SnapshotCommands::Restore { worktree, snapshot } => {
+                cli::snapshot::restore(&worktree, &snapshot, vcs_type)
+            }
+            SnapshotCommands::Delete { worktree, snapshot } => {
+                cli::snapshot::delete(&worktree, &snapshot)
+            }
         },
         Commands::Stats { name, all, disk } => cli::stats::run(name, all, disk, vcs_type),
+        Commands::Tag { worktree, tags } => cli::tag::add(&worktree, &tags),
+        Commands::Tags { worktree } => cli::tag::list(worktree.as_deref()),
     };
 
     // Handle errors with suggestions

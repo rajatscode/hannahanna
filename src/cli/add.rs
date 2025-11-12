@@ -20,6 +20,8 @@ pub fn run(
     no_branch: bool,
     sparse_paths: Option<Vec<String>>,
     template: Option<String>,
+    template_params: Option<Vec<String>>,
+    profile: Option<String>,
     no_hooks: bool,
     vcs_type: Option<VcsType>,
 ) -> Result<()> {
@@ -51,7 +53,14 @@ pub fn run(
     let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
 
     // Load configuration
-    let config = Config::load(&repo_root)?;
+    let mut config = Config::load(&repo_root)?;
+
+    // Apply profile if specified (v0.6)
+    if let Some(ref profile_name) = profile {
+        eprintln!("Applying profile '{}'...", profile_name);
+        config.apply_profile(profile_name)?;
+        eprintln!("✓ Profile '{}' applied", profile_name);
+    }
 
     // Run pre_create hook if configured
     let has_pre_create_hooks = config.hooks.pre_create.is_some()
@@ -187,10 +196,19 @@ pub fn run(
     // Apply template if specified
     if let Some(template_name) = template {
         eprintln!("\nApplying template '{}'...", template_name);
+
+        // First apply hannahanna config from template (v0.5)
         crate::templates::apply_template(&repo_root, &worktree.path, &template_name)?;
 
-        // Copy template files (v0.5)
-        crate::templates::copy_template_files(&template_name, &repo_root, &worktree.path, &name)?;
+        // Then copy template files with parameterization (v0.6)
+        let params = template_params.unwrap_or_default();
+        crate::templates::apply_template_with_parameters(
+            &repo_root,
+            &worktree.path,
+            &template_name,
+            &name,
+            &params,
+        )?;
     }
 
     // Docker integration
@@ -257,7 +275,15 @@ fn interactive_prompts(
 )> {
     let theme = ColorfulTheme::default();
 
-    eprintln!("{}", "Creating new worktree".bold().green());
+    // Header
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!("{}", "  Interactive Worktree Creation".bold().bright_green());
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!();
+
+    // Section 1: Basic Information
+    eprintln!("{}", "📋 Basic Information".bold().cyan());
+    eprintln!("{}", "─".repeat(60).bright_black());
     eprintln!();
 
     // Prompt for name
@@ -315,6 +341,13 @@ fn interactive_prompts(
         None
     };
 
+    eprintln!();
+
+    // Section 2: Template Selection
+    eprintln!("{}", "📦 Template Configuration".bold().cyan());
+    eprintln!("{}", "─".repeat(60).bright_black());
+    eprintln!();
+
     // List available templates
     let template = if template.is_some() {
         template
@@ -339,15 +372,25 @@ fn interactive_prompts(
                     None
                 }
             }
-            _ => None,
+            _ => {
+                eprintln!("{}", "No templates found in .hn-templates/".dimmed());
+                None
+            }
         }
     };
+
+    eprintln!();
+
+    // Section 3: Advanced Options
+    eprintln!("{}", "⚙️  Advanced Options".bold().cyan());
+    eprintln!("{}", "─".repeat(60).bright_black());
+    eprintln!();
 
     // Prompt for sparse checkout
     let sparse_paths = if sparse_paths.is_some() {
         sparse_paths
     } else if Confirm::with_theme(&theme)
-        .with_prompt("Use sparse checkout?")
+        .with_prompt("Use sparse checkout? (for large monorepos)")
         .default(false)
         .interact()?
     {
@@ -370,6 +413,73 @@ fn interactive_prompts(
     } else {
         None
     };
+
+    eprintln!();
+
+    // Section 4: Summary & Confirmation
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!("{}", "  Configuration Summary".bold().bright_yellow());
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!();
+
+    // Display summary
+    eprintln!("  {} {}", "Name:".bold(), name.bright_white());
+    eprintln!("  {} {}", "Branch:".bold(),
+        branch.as_deref().unwrap_or("(existing branch)").bright_white());
+    if let Some(ref from_branch) = from {
+        eprintln!("  {} {}", "From:".bold(), from_branch.bright_white());
+    }
+    if let Some(ref tmpl) = template {
+        eprintln!("  {} {}", "Template:".bold(), tmpl.bright_green());
+    }
+    if let Some(ref paths) = sparse_paths {
+        eprintln!("  {} {} paths", "Sparse:".bold(), paths.len().to_string().bright_white());
+        for path in paths {
+            eprintln!("    • {}", path.dimmed());
+        }
+    }
+
+    // Check Docker configuration from config
+    let repo_root = Config::find_repo_root(&std::env::current_dir()?)?;
+    if let Ok(config) = Config::load(&repo_root) {
+        if config.docker.enabled {
+            eprintln!("  {} {}", "Docker:".bold(), "enabled".bright_green());
+            if !config.docker.ports.base.is_empty() {
+                eprintln!("    Services: {}",
+                    config.docker.ports.base.keys()
+                        .map(|s| s.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                        .dimmed());
+            }
+        } else {
+            eprintln!("  {} {}", "Docker:".bold(), "disabled".dimmed());
+        }
+
+        // Show hooks status
+        let has_hooks = config.hooks.post_create.is_some()
+            || !config.hooks.post_create_conditions.is_empty()
+            || config.hooks.pre_create.is_some()
+            || !config.hooks.pre_create_conditions.is_empty();
+        if has_hooks {
+            eprintln!("  {} {}", "Hooks:".bold(), "enabled".bright_green());
+        }
+    }
+
+    eprintln!();
+    eprintln!("{}", "═".repeat(60).bright_blue());
+    eprintln!();
+
+    // Final confirmation
+    if !Confirm::with_theme(&theme)
+        .with_prompt("Create worktree with this configuration?")
+        .default(true)
+        .interact()?
+    {
+        eprintln!();
+        eprintln!("{}", "Worktree creation cancelled.".yellow());
+        std::process::exit(0);
+    }
 
     eprintln!();
     Ok((name, branch, from, no_branch, sparse_paths, template))
