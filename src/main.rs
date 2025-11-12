@@ -137,6 +137,11 @@ enum Commands {
     InitShell,
     /// Clean up orphaned state directories
     Prune,
+    /// Manage state directories
+    State {
+        #[command(subcommand)]
+        command: StateCommands,
+    },
     /// Manage configuration
     Config {
         #[command(subcommand)]
@@ -151,6 +156,19 @@ enum Commands {
     Docker {
         #[command(subcommand)]
         command: DockerCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum StateCommands {
+    /// List all state directories
+    List,
+    /// Clean orphaned state directories
+    Clean,
+    /// Show state directory sizes
+    Size {
+        /// Name of specific worktree (optional)
+        name: Option<String>,
     },
 }
 
@@ -207,6 +225,16 @@ enum DockerCommands {
         name: String,
         /// Optional service name
         service: Option<String>,
+    },
+    /// Execute a command in a worktree's container
+    Exec {
+        /// Name of the worktree
+        name: String,
+        /// Service name (optional, defaults to first service)
+        #[arg(long)]
+        service: Option<String>,
+        /// Command to execute
+        command: Vec<String>,
     },
     /// Clean up orphaned containers
     Prune,
@@ -268,6 +296,11 @@ fn main() {
         } => cli::sync::run(source_branch, strategy, autostash, no_commit, vcs_type),
         Commands::InitShell => cli::init_shell::run(),
         Commands::Prune => cli::prune::run(),
+        Commands::State { command } => match command {
+            StateCommands::List => cli::state::list(),
+            StateCommands::Clean => cli::state::clean(),
+            StateCommands::Size { name } => cli::state::size(name),
+        },
         Commands::Config { command } => match command {
             ConfigCommands::Init => cli::config_cmd::init(),
             ConfigCommands::Validate => cli::config_cmd::validate(),
@@ -285,6 +318,7 @@ fn main() {
             DockerCommands::Stop { name } => cli::docker::stop(name),
             DockerCommands::Restart { name } => cli::docker::restart(name),
             DockerCommands::Logs { name, service } => cli::docker::logs(name, service),
+            DockerCommands::Exec { name, service, command } => cli::docker::exec(name, service, command),
             DockerCommands::Prune => cli::docker::prune(),
         },
     };

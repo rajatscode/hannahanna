@@ -158,6 +158,81 @@ pub fn logs(name: String, service: Option<String>) -> Result<()> {
     Ok(())
 }
 
+/// Execute a command in a worktree's container
+pub fn exec(name: String, service: Option<String>, command: Vec<String>) -> Result<()> {
+    let repo_root = Config::find_repo_root(&env::current_dir()?)?;
+    let config = Config::load(&repo_root)?;
+    let state_dir = repo_root.join(".hn-state");
+
+    if !config.docker.enabled {
+        return Err(crate::errors::HnError::DockerError(
+            "Docker support is not enabled in .hannahanna.yml".to_string(),
+        ));
+    }
+
+    if command.is_empty() {
+        return Err(crate::errors::HnError::DockerError(
+            "No command specified".to_string(),
+        ));
+    }
+
+    let manager = ContainerManager::new(&config.docker, &state_dir)?;
+    let worktree_path = repo_root.join("worktrees").join(&name);
+
+    if !worktree_path.exists() {
+        return Err(crate::errors::HnError::WorktreeNotFound(name.clone()));
+    }
+
+    // Determine which service to exec into
+    let service_name = if let Some(svc) = service {
+        svc
+    } else {
+        // Use first service from config if not specified
+        if let Some(first_service) = config.docker.ports.base.keys().next() {
+            first_service.clone()
+        } else {
+            return Err(crate::errors::HnError::DockerError(
+                "No services configured and none specified".to_string(),
+            ));
+        }
+    };
+
+    println!("Executing command in '{}' (service: {})...", name, service_name);
+
+    // Try modern "docker compose" first, fallback to legacy "docker-compose"
+    let compose_cmd = if std::process::Command::new("docker")
+        .args(&["compose", "version"])
+        .output()
+        .is_ok()
+    {
+        vec!["docker", "compose"]
+    } else {
+        vec!["docker-compose"]
+    };
+
+    // Build exec command
+    let mut cmd = std::process::Command::new(compose_cmd[0]);
+    if compose_cmd.len() > 1 {
+        cmd.arg(compose_cmd[1]);
+    }
+    cmd.arg("exec")
+        .arg(&service_name)
+        .args(&command)
+        .current_dir(&worktree_path);
+
+    // Execute command
+    let status = cmd.status()?;
+
+    if !status.success() {
+        return Err(crate::errors::HnError::DockerError(format!(
+            "Command failed with exit code {}",
+            status.code().unwrap_or(-1)
+        )));
+    }
+
+    Ok(())
+}
+
 /// Clean up orphaned Docker containers
 pub fn prune() -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
