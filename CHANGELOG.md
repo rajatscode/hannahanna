@@ -13,13 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned Features
 
-#### 🐛 Critical Fixes
-- **Environment variable renaming** - `WT_*` → `HNHN_*` (backward compatible with deprecation)
+#### 🔥 Breaking Changes
+- **Environment variable renaming** - `WT_*` → `HNHN_*` (BREAKING)
   - Uses `HNHN_*` prefix to avoid collision with Hacker News CLI tools
-  - Both old and new variables set in v0.5
-  - Deprecation warnings for old variable usage
-  - Old variables removed in v1.0
-  - Migration guide provided
+  - Clean break: only HNHN_* variables set (no WT_* legacy support)
+  - Simple migration: find/replace `WT_` → `HNHN_` in hook configs
+  - Migration guide with automated migration commands
 
 #### 📋 Template Management
 - **`hn templates list`** - Discover available templates
