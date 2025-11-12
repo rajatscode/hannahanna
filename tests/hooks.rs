@@ -199,3 +199,250 @@ hooks:
 
     assert!(marker.exists(), "Install hook should have run");
 }
+
+// ==================== Conditional Hooks Tests ====================
+
+#[test]
+fn test_conditional_hook_starts_with_match() {
+    let repo = TestRepo::new();
+
+    repo.create_config(
+        r#"
+hooks:
+  post_create_conditions:
+    - condition: "branch.startsWith('feature-')"
+      command: "echo 'Feature setup' > conditional_output.txt"
+"#,
+    );
+
+    repo.hn(&["add", "feature-new-api"]).assert_success();
+
+    let worktree_path = repo.worktree_path("feature-new-api");
+    let output = worktree_path.join("conditional_output.txt");
+
+    assert!(
+        output.exists(),
+        "Conditional hook should have run for feature- branch"
+    );
+
+    let content = fs::read_to_string(&output).expect("Failed to read output");
+    assert!(content.contains("Feature setup"));
+}
+
+#[test]
+fn test_conditional_hook_starts_with_no_match() {
+    let repo = TestRepo::new();
+
+    repo.create_config(
+        r#"
+hooks:
+  post_create_conditions:
+    - condition: "branch.startsWith('feature-')"
+      command: "echo 'Should not run' > conditional_output.txt"
+"#,
+    );
+
+    repo.hn(&["add", "hotfix-critical"]).assert_success();
+
+    let worktree_path = repo.worktree_path("hotfix-critical");
+    let output = worktree_path.join("conditional_output.txt");
+
+    assert!(
+        !output.exists(),
+        "Conditional hook should NOT have run for hotfix- branch"
+    );
+}
+
+#[test]
+fn test_conditional_hook_ends_with() {
+    let repo = TestRepo::new();
+
+    repo.create_config(
+        r#"
+hooks:
+  post_create_conditions:
+    - condition: "branch.endsWith('-prod')"
+      command: "echo 'Production setup' > prod_marker.txt"
+"#,
+    );
+
+    repo.hn(&["add", "release-prod"]).assert_success();
+
+    let worktree_path = repo.worktree_path("release-prod");
+    let marker = worktree_path.join("prod_marker.txt");
+
+    assert!(marker.exists(), "Conditional hook should match -prod suffix");
+}
+
+#[test]
+fn test_conditional_hook_contains() {
+    let repo = TestRepo::new();
+
+    repo.create_config(
+        r#"
+hooks:
+  post_create_conditions:
+    - condition: "branch.contains('bugfix')"
+      command: "echo 'Bugfix detected' > bugfix_marker.txt"
+"#,
+    );
+
+    repo.hn(&["add", "feature-bugfix-auth"]).assert_success();
+
+    let worktree_path = repo.worktree_path("feature-bugfix-auth");
+    let marker = worktree_path.join("bugfix_marker.txt");
+
+    assert!(
+        marker.exists(),
+        "Conditional hook should match 'bugfix' substring"
+    );
+}
+
+#[test]
+fn test_multiple_conditional_hooks() {
+    let repo = TestRepo::new();
+
+    repo.create_config(
+        r#"
+hooks:
+  post_create_conditions:
+    - condition: "branch.startsWith('feature-')"
+      command: "echo 'Feature' > type1.txt"
+    - condition: "branch.contains('api')"
+      command: "echo 'API' > type2.txt"
+"#,
+    );
+
+    // This branch matches both conditions
+    repo.hn(&["add", "feature-new-api"]).assert_success();
+
+    let worktree_path = repo.worktree_path("feature-new-api");
+
+    // Both conditional hooks should have run
+    assert!(
+        worktree_path.join("type1.txt").exists(),
+        "First conditional hook should run"
+    );
+    assert!(
+        worktree_path.join("type2.txt").exists(),
+        "Second conditional hook should run"
+    );
+}
+
+#[test]
+fn test_conditional_and_regular_hooks_both_run() {
+    let repo = TestRepo::new();
+
+    repo.create_config(
+        r#"
+hooks:
+  post_create: |
+    echo 'Regular hook' > regular.txt
+  post_create_conditions:
+    - condition: "branch.startsWith('feature-')"
+      command: "echo 'Conditional hook' > conditional.txt"
+"#,
+    );
+
+    repo.hn(&["add", "feature-test"]).assert_success();
+
+    let worktree_path = repo.worktree_path("feature-test");
+
+    // Both hooks should have run
+    assert!(
+        worktree_path.join("regular.txt").exists(),
+        "Regular hook should run"
+    );
+    assert!(
+        worktree_path.join("conditional.txt").exists(),
+        "Conditional hook should also run"
+    );
+}
+
+#[test]
+fn test_conditional_hook_with_double_quotes() {
+    let repo = TestRepo::new();
+
+    repo.create_config(
+        r#"
+hooks:
+  post_create_conditions:
+    - condition: "branch.startsWith(\"release-\")"
+      command: "echo 'Release' > release_marker.txt"
+"#,
+    );
+
+    repo.hn(&["add", "release-v1-0"]).assert_success();
+
+    let worktree_path = repo.worktree_path("release-v1-0");
+    let marker = worktree_path.join("release_marker.txt");
+
+    assert!(
+        marker.exists(),
+        "Conditional hook should work with double quotes"
+    );
+}
+
+#[test]
+fn test_conditional_hook_pre_remove() {
+    let repo = TestRepo::new();
+
+    repo.create_config(
+        r#"
+hooks:
+  pre_remove_conditions:
+    - condition: "branch.startsWith('temp-')"
+      command: "echo 'Temp cleanup' > ../temp_cleanup.txt"
+"#,
+    );
+
+    repo.hn(&["add", "temp-experiment"]).assert_success();
+    repo.hn(&["remove", "temp-experiment"]).assert_success();
+
+    let marker = repo.path().parent().unwrap().join("temp_cleanup.txt");
+    assert!(
+        marker.exists(),
+        "Conditional pre_remove hook should have run"
+    );
+}
+
+#[test]
+fn test_conditional_hooks_config_hierarchy_merge() {
+    let repo = TestRepo::new();
+
+    // Base config with one conditional hook
+    repo.create_config(
+        r#"
+hooks:
+  post_create_conditions:
+    - condition: "branch.startsWith('feature-')"
+      command: "echo 'Feature' > feature_marker.txt"
+"#,
+    );
+
+    // Local config with additional conditional hook
+    fs::write(
+        repo.path().join(".hannahanna.local.yml"),
+        r#"
+hooks:
+  post_create_conditions:
+    - condition: "branch.contains('api')"
+      command: "echo 'API' > api_marker.txt"
+"#,
+    )
+    .expect("Failed to create local config");
+
+    repo.hn(&["add", "feature-new-api"]).assert_success();
+
+    let worktree_path = repo.worktree_path("feature-new-api");
+
+    // Both conditional hooks from different config levels should run
+    assert!(
+        worktree_path.join("feature_marker.txt").exists(),
+        "Conditional hook from repo config should run"
+    );
+    assert!(
+        worktree_path.join("api_marker.txt").exists(),
+        "Conditional hook from local config should also run"
+    );
+}

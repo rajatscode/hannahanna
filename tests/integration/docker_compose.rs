@@ -10,7 +10,7 @@ fn test_generate_compose_override() {
     // Goal: Generate valid docker-compose.override.yml with correct structure
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     let worktree_dir = temp_dir.path().join("worktrees").join("feature-x");
     std::fs::create_dir_all(&worktree_dir).unwrap();
     std::fs::create_dir_all(&state_dir).unwrap();
@@ -45,7 +45,7 @@ fn test_template_substitution() {
     // Variables: {{worktree_name}}, {{port.app}}, {{port.postgres}}
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     let worktree_dir = temp_dir.path().join("worktrees").join("feature-auth");
     std::fs::create_dir_all(&worktree_dir).unwrap();
     std::fs::create_dir_all(&state_dir).unwrap();
@@ -89,7 +89,7 @@ fn test_shared_volumes() {
     // Verify: external: true, correct name
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     let worktree_dir = temp_dir.path().join("worktrees").join("feature-db");
     std::fs::create_dir_all(&worktree_dir).unwrap();
     std::fs::create_dir_all(&state_dir).unwrap();
@@ -123,7 +123,7 @@ fn test_isolated_volumes() {
     // Verify: worktree-specific name (e.g., feature-cache_app-cache)
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     let worktree_dir = temp_dir.path().join("worktrees").join("feature-cache");
     std::fs::create_dir_all(&worktree_dir).unwrap();
     std::fs::create_dir_all(&state_dir).unwrap();
@@ -153,10 +153,10 @@ fn test_isolated_volumes() {
 #[test]
 fn test_save_override_to_disk() {
     // TDD RED: Test that override is saved to correct location
-    // Location: .wt-state/<name>/docker-compose.override.yml
+    // Location: .hn-state/<name>/docker-compose.override.yml
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     let worktree_dir = temp_dir.path().join("worktrees").join("feature-save");
     std::fs::create_dir_all(&worktree_dir).unwrap();
     std::fs::create_dir_all(&state_dir).unwrap();
@@ -190,7 +190,7 @@ fn test_port_mappings() {
     // Format: "{{port.service}}:internal_port"
 
     let temp_dir = TempDir::new().unwrap();
-    let state_dir = temp_dir.path().join(".wt-state");
+    let state_dir = temp_dir.path().join(".hn-state");
     let worktree_dir = temp_dir.path().join("worktrees").join("feature-ports");
     std::fs::create_dir_all(&worktree_dir).unwrap();
     std::fs::create_dir_all(&state_dir).unwrap();

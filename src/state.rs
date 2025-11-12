@@ -8,9 +8,9 @@ pub struct StateManager {
 }
 
 impl StateManager {
-    /// Create a new StateManager with the .wt-state directory in the repo root
+    /// Create a new StateManager with the .hn-state directory in the repo root
     pub fn new(repo_root: &Path) -> Result<Self> {
-        let state_root = repo_root.join(".wt-state");
+        let state_root = repo_root.join(".hn-state");
 
         // Create state directory if it doesn't exist
         if !state_root.exists() {
@@ -131,15 +131,15 @@ mod tests {
         let temp = TempDir::new().unwrap();
         let _manager = StateManager::new(temp.path()).unwrap();
 
-        // Check that .wt-state directory was created
-        assert!(temp.path().join(".wt-state").exists());
+        // Check that .hn-state directory was created
+        assert!(temp.path().join(".hn-state").exists());
 
         // Check that .gitignore was created
-        assert!(temp.path().join(".wt-state/.gitignore").exists());
+        assert!(temp.path().join(".hn-state/.gitignore").exists());
 
         // Check .gitignore contents
         let gitignore_content =
-            fs::read_to_string(temp.path().join(".wt-state/.gitignore")).unwrap();
+            fs::read_to_string(temp.path().join(".hn-state/.gitignore")).unwrap();
         assert_eq!(gitignore_content.trim(), "*");
     }
 
@@ -198,8 +198,8 @@ mod tests {
         assert!(cleaned.contains(&"feature-z".to_string()));
 
         // Verify they were actually removed
-        assert!(!temp.path().join(".wt-state/feature-y").exists());
-        assert!(!temp.path().join(".wt-state/feature-z").exists());
-        assert!(temp.path().join(".wt-state/feature-x").exists());
+        assert!(!temp.path().join(".hn-state/feature-y").exists());
+        assert!(!temp.path().join(".hn-state/feature-z").exists());
+        assert!(temp.path().join(".hn-state/feature-x").exists());
     }
 }

@@ -113,13 +113,16 @@ pub fn run(
         }
     }
 
-    // Run post_create hook if configured
-    if config.hooks.post_create.is_some() && !no_hooks {
+    // Run post_create hook if configured (regular or conditional)
+    let has_post_create_hooks = config.hooks.post_create.is_some()
+        || !config.hooks.post_create_conditions.is_empty();
+
+    if has_post_create_hooks && !no_hooks {
         eprintln!("Running post_create hook...");
         let hook_executor = HookExecutor::new(config.hooks.clone(), no_hooks);
         hook_executor.run_hook(HookType::PostCreate, &worktree, &state_dir)?;
         eprintln!("✓ Hook completed successfully");
-    } else if config.hooks.post_create.is_some() && no_hooks {
+    } else if has_post_create_hooks && no_hooks {
         eprintln!("⚠ Skipping post_create hook (--no-hooks)");
     }
 
@@ -128,7 +131,7 @@ pub fn run(
         eprintln!("\nSetting up Docker...");
 
         // Allocate ports
-        let state_dir_path = repo_root.join(".wt-state");
+        let state_dir_path = repo_root.join(".hn-state");
         let mut port_allocator = PortAllocator::new(&state_dir_path)?;
 
         // Get services from config or use defaults

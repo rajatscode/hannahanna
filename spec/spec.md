@@ -231,7 +231,7 @@ hn sync [source-branch] [options]
 
 ### 3.1 Configuration File
 
-**Location:** `.wt/config.yaml` in repository root
+**Location:** `.hannahanna.yml` in repository root (see section 8 for config hierarchy)
 
 **Full Structure:**
 
@@ -362,7 +362,7 @@ build:
 # State management
 state:
   enabled: true
-  location: ".wt-state"  # Gitignored in main repo
+  location: ".hn-state"  # Gitignored in main repo
   per_worktree:
     - logs/
     - temp-uploads/
@@ -530,7 +530,7 @@ volumes:
 
 ### 5.1 State Directory
 
-**Location:** `.wt-state/<worktree-name>/` (gitignored)
+**Location:** `.hn-state/<worktree-name>/` (gitignored)
 
 **Contents:**
 - `docker-compose.override.yml`
@@ -630,6 +630,42 @@ hooks:
     echo "App port: $WT_PORTS_APP"
 ```
 
+**Conditional Hooks:** (✅ v0.2)
+
+Run different hooks based on branch name patterns:
+
+```yaml
+hooks:
+  # Regular hook runs for all worktrees
+  post_create: "npm install"
+
+  # Conditional hooks run only when conditions match
+  post_create_conditions:
+    - condition: "branch.startsWith('feature-')"
+      command: "make setup-dev"
+    - condition: "branch.startsWith('hotfix-')"
+      command: "make setup-prod"
+    - condition: "branch.endsWith('-staging')"
+      command: "echo 'Staging environment' > .env"
+    - condition: "branch.contains('api')"
+      command: "docker compose up -d api-deps"
+
+  pre_remove_conditions:
+    - condition: "branch.startsWith('temp-')"
+      command: "echo 'Cleaning temporary resources...'"
+```
+
+**Supported Conditions:**
+- `branch.startsWith('prefix')` - Branch starts with prefix
+- `branch.endsWith('suffix')` - Branch ends with suffix
+- `branch.contains('substring')` - Branch contains substring
+
+**Features:**
+- Both regular and conditional hooks run (regular first, then matching conditionals)
+- Multiple conditional hooks can match and run
+- Conditional hooks merge across config hierarchy (system → user → repo → local)
+- Uses same timeout and environment variables as regular hooks
+
 ### 7.3 Aliases
 
 **Config:**
@@ -651,21 +687,99 @@ hn dk ps           # → hn docker ps
 
 ## 8. Configuration Hierarchy
 
+**Status:** ✅ Implemented in v0.2
+
+hannahanna supports multi-level configuration merging, allowing users to have system-wide defaults, user preferences, project settings, and local overrides.
+
 **Priority (highest to lowest):**
-1. `.wt/config.local.yaml` - Repo-specific, gitignored (overrides)
-2. `.wt/config.yaml` - Repo-specific, committed
-3. `~/.config/wt/config.yaml` - User global
-4. `/etc/wt/config.yaml` - System-wide
+1. `.hannahanna.local.yml` - Repo-specific, gitignored (highest priority, local overrides)
+2. `.hannahanna.yml` - Repo-specific, committed (project defaults)
+3. `~/.config/hannahanna/config.yml` - User global preferences
+4. `/etc/hannahanna/config.yml` - System-wide defaults
 
 **Merge Strategy:**
-- Deep merge (not replace)
-- Arrays append
-- Primitives override
+- **Deep merge** (not replace) - configs are combined intelligently
+- **Arrays append** - shared_resources, sparse paths, docker volumes, etc. are combined from all levels
+- **Primitives override** - boolean and string values from higher priority configs override lower ones
 
-**Environment Variables:**
-- `WT_CONFIG` - Override config location
-- `WT_STATE_DIR` - Override state directory
-- `WT_DOCKER_STRATEGY` - Override Docker strategy
+**Example:**
+
+User config (`~/.config/hannahanna/config.yml`):
+```yaml
+sparse:
+  enabled: true
+  paths:
+    - common/libs/
+
+docker:
+  ports:
+    base:
+      app: 3000
+```
+
+Project config (`.hannahanna.yml`):
+```yaml
+sparse:
+  paths:
+    - services/api/
+
+hooks:
+  post_create: "npm install"
+
+docker:
+  enabled: true
+  ports:
+    base:
+      postgres: 5432
+```
+
+Local override (`.hannahanna.local.yml`):
+```yaml
+hooks:
+  post_create: "yarn install"
+
+docker:
+  ports:
+    base:
+      app: 4000
+```
+
+**Merged Result:**
+```yaml
+sparse:
+  enabled: true          # From user config
+  paths:
+    - common/libs/       # From user config
+    - services/api/      # From project config (appended)
+
+hooks:
+  post_create: "yarn install"  # From local (overrides project)
+
+docker:
+  enabled: true          # From project config
+  ports:
+    base:
+      app: 4000          # From local (overrides user)
+      postgres: 5432     # From project config
+```
+
+**Commands:**
+```bash
+hn config show      # Display merged configuration with sources
+hn config validate  # Validate all config files in hierarchy
+hn config edit      # Edit project config (.hannahanna.yml)
+```
+
+**View Merged Config:**
+```bash
+hn config show
+```
+
+Output shows:
+- Which config files were loaded
+- Priority order (highest first)
+- The final merged result
+- Merge strategy information
 
 ---
 

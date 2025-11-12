@@ -88,7 +88,7 @@ pub fn run(name: Option<String>, vcs_type: Option<VcsType>) -> Result<()> {
         println!();
         println!("Docker:");
 
-        let state_dir = repo_root.join(".wt-state");
+        let state_dir = repo_root.join(".hn-state");
 
         // Port allocations
         match PortAllocator::new(&state_dir) {

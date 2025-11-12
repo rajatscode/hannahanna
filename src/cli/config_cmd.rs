@@ -209,23 +209,50 @@ pub fn validate() -> Result<()> {
 
 /// Show current configuration
 pub fn show() -> Result<()> {
-    let config_path = Path::new(CONFIG_FILE);
+    let current_dir = std::env::current_dir()?;
 
-    if !config_path.exists() {
-        println!("{}", "⚠ No configuration file found".bright_yellow());
+    // Get list of loaded config files
+    let loaded_paths = Config::get_loaded_config_paths(&current_dir);
+
+    if loaded_paths.is_empty() {
+        println!("{}", "⚠ No configuration files found".bright_yellow());
         println!("\n{}:", "Suggestions".bright_yellow());
         println!("  • Create one: {}", "hn config init".bright_cyan());
         println!("  • hannahanna uses default configuration");
-        println!("  • Config file is optional");
+        println!("  • Config files are optional");
+        println!("\n{}:", "Config hierarchy (highest priority first)".bright_cyan());
+        println!("  1. .hannahanna.local.yml  (local, gitignored)");
+        println!("  2. .hannahanna.yml        (repo, committed)");
+        println!("  3. ~/.config/hannahanna/config.yml  (user)");
+        println!("  4. /etc/hannahanna/config.yml       (system)");
         return Ok(());
     }
 
-    // Load and display the config
-    let current_dir = std::env::current_dir()?;
+    // Load and display the merged config
     let config = Config::load(&current_dir)?;
 
-    println!("{}", "Current Configuration".bright_cyan().bold());
-    println!("{}", "=".repeat(50));
+    println!("{}", "Merged Configuration".bright_cyan().bold());
+    println!("{}", "=".repeat(70));
+
+    // Display which configs were loaded
+    println!("\n{}:", "Loaded config files (highest priority first)".bright_green());
+    for (i, path) in loaded_paths.iter().enumerate() {
+        let priority = match i {
+            0 => "HIGHEST",
+            _ if i == loaded_paths.len() - 1 => "LOWEST",
+            _ => "MEDIUM",
+        };
+        println!(
+            "  {}. {} {}",
+            i + 1,
+            path.display().to_string().bright_cyan(),
+            format!("[{}]", priority).bright_yellow()
+        );
+    }
+
+    println!("\n{}", "=".repeat(70));
+    println!("{}", "Merged Result:".bright_cyan().bold());
+    println!("{}", "=".repeat(70));
 
     // Display as formatted YAML
     let yaml = serde_yml::to_string(&config)
@@ -233,13 +260,18 @@ pub fn show() -> Result<()> {
 
     println!("{}", yaml);
 
-    println!("{}", "=".repeat(50));
+    println!("{}", "=".repeat(70));
     println!("\n{}:", "Info".bright_cyan());
-    println!("  • Config file: {}", CONFIG_FILE.bright_cyan());
+    println!("  • {} config files merged", loaded_paths.len());
+    println!("  • Merge strategy: Arrays append, primitives override");
     println!("  • Validate: {}", "hn config validate".bright_cyan());
     println!(
-        "  • Edit: {}",
+        "  • Edit repo config: {}",
         format!("$EDITOR {}", CONFIG_FILE).bright_cyan()
+    );
+    println!(
+        "  • Create local override: {}",
+        format!("$EDITOR .hannahanna.local.yml").bright_cyan()
     );
 
     Ok(())

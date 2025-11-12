@@ -44,12 +44,16 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
     let state_manager = StateManager::new(&repo_root)?;
     let state_dir = state_manager.get_state_dir(&matched_name);
 
-    if config.hooks.pre_remove.is_some() && !no_hooks {
+    // Run pre_remove hook if configured (regular or conditional)
+    let has_pre_remove_hooks = config.hooks.pre_remove.is_some()
+        || !config.hooks.pre_remove_conditions.is_empty();
+
+    if has_pre_remove_hooks && !no_hooks {
         println!("Running pre_remove hook...");
         let hook_executor = HookExecutor::new(config.hooks.clone(), no_hooks);
         hook_executor.run_hook(HookType::PreRemove, &worktree, &state_dir)?;
         println!("✓ Hook completed successfully");
-    } else if config.hooks.pre_remove.is_some() && no_hooks {
+    } else if has_pre_remove_hooks && no_hooks {
         println!("⚠ Skipping pre_remove hook (--no-hooks)");
     }
 
@@ -57,7 +61,7 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
     if config.docker.enabled {
         println!("Cleaning up Docker resources...");
 
-        let state_dir_path = repo_root.join(".wt-state");
+        let state_dir_path = repo_root.join(".hn-state");
 
         // Stop containers
         let container_mgr = ContainerManager::new(&config.docker, &state_dir_path)?;

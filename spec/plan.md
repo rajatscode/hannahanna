@@ -43,18 +43,38 @@
 - ✅ Jujutsu backend fully integrated and production-ready
 - ✅ Comprehensive multi-VCS test suite (23 tests)
 
-### v0.2 Features (In Progress)
+### v0.2 Features (COMPLETED! 🎉)
 - ✅ Sparse checkout for Git and Jujutsu (monorepo support - COMPLETED)
-- ⏸️ Config hierarchy (v0.2+ - one file is enough)
-- ⏸️ Advanced hooks with conditions (v0.2+)
+- ✅ Config hierarchy (multi-level config merging - COMPLETED)
+  - System: `/etc/hannahanna/config.yml`
+  - User: `~/.config/hannahanna/config.yml`
+  - Repo: `.hannahanna.yml` (committed)
+  - Local: `.hannahanna.local.yml` (gitignored, highest priority)
+  - Deep merge strategy: arrays append, primitives override
+  - `hn config show` displays merged result with sources
+  - 13 comprehensive tests covering all merge scenarios
+- ✅ Advanced hooks with conditions (COMPLETED)
+  - Simple string matching: `startsWith()`, `endsWith()`, `contains()`
+  - Conditional hooks for both `post_create` and `pre_remove`
+  - Supports both single and double quotes
+  - Conditional hooks merge across config hierarchy
+  - 9 comprehensive tests for all condition types
+  - Maintains full backwards compatibility with regular hooks
 
-### What's Deferred to v0.3+
-- ⏸️ Sparse checkout for Mercurial (deferred to v0.3)
-- ⏸️ Team coordination features (v0.3+)
+### What's Next: v0.3 Roadmap
+See v0.3 section below for detailed breakdown:
+- Additional hooks (pre_create, post_remove, post_switch, etc.)
+- Config management commands (init, validate, edit)
+- Extended Docker commands (restart, exec, prune)
+- Port management enhancements (reassign)
+- State management commands (list, clean, size)
+- Aliases support
+- Sparse checkout for Mercurial
+- Performance optimizations
 
 ### What We're Never Building
-- ❌ Separate Docker/state/port subcommands - keep it simple
 - ❌ Windows native support - Linux/macOS/WSL2 only
+- ❌ GUI interface - CLI-first philosophy
 
 ---
 
@@ -147,8 +167,21 @@ hannahanna/
 │   └── vision.md               # Long-term comprehensive plan
 └── Cargo.toml
 
-Total: ~5,500 lines (v0.1.0 + Phase 2 + Phase 3 + Phase 4 + v0.2 sparse checkout)
-Test count: 194 tests (all passing - 186 v0.1.0 + 8 sparse checkout)
+Total: ~6,000 lines (v0.1.0 + Phase 2-4 + v0.2 features + cleanup)
+Test count: 236 tests (all passing):
+  - 186 v0.1.0 core tests
+  - 12 sparse checkout tests
+  - 13 config hierarchy tests
+  - 10 unit tests for condition parsing/evaluation (hooks.rs)
+  - 9 integration tests for conditional hooks
+  - 6 enhanced integration tests for config+hooks merging
+
+### Recent Changes (v0.2 Final)
+- **Config Hierarchy** - 4-level config merging (system → user → repo → local)
+- **Conditional Hooks** - Branch pattern matching for hooks
+- **Naming Cleanup** - `.wt-state` → `.hn-state` throughout codebase
+- All 236 tests passing
+- All documentation updated
 ```
 
 ---
@@ -466,7 +499,7 @@ pub enum SymlinkAction {
 
 ```rust
 pub struct StateManager {
-    state_root: PathBuf,  // .wt-state/
+    state_root: PathBuf,  // .hn-state/
 }
 
 impl StateManager {
@@ -481,7 +514,7 @@ impl StateManager {
 
 **State Directory Structure:**
 ```
-.wt-state/
+.hn-state/
 ├── feature-x/
 │   └── metadata.json  # Future: store worktree metadata
 ├── feature-y/
@@ -711,9 +744,9 @@ pub fn run(opts: PruneOpts) -> Result<()> {
 ```bash
 hn prune
 # Found 3 orphaned state directories:
-#   .wt-state/old-feature-1/  (1.2 GB)
-#   .wt-state/old-feature-2/  (800 MB)
-#   .wt-state/test-branch/    (200 MB)
+#   .hn-state/old-feature-1/  (1.2 GB)
+#   .hn-state/old-feature-2/  (800 MB)
+#   .hn-state/test-branch/    (200 MB)
 #
 # Total: 2.2 GB will be freed
 #
@@ -803,7 +836,7 @@ impl Drop for StateLock {
 ```rust
 pub fn create_worktree(name: &str) -> Result<()> {
     // Acquire lock before modifying shared state
-    let _lock = StateLock::acquire(".wt-state/.lock", Duration::from_secs(5))?;
+    let _lock = StateLock::acquire(".hn-state/.lock", Duration::from_secs(5))?;
 
     // Critical section: create worktree, update state
     // Lock automatically released when _lock drops
@@ -880,13 +913,13 @@ fn test_concurrent_create() {
 fn test_lock_timeout() {
     // Thread 1: Hold lock for 10 seconds
     let handle = thread::spawn(|| {
-        let _lock = StateLock::acquire(".wt-state/.lock", Duration::from_secs(10)).unwrap();
+        let _lock = StateLock::acquire(".hn-state/.lock", Duration::from_secs(10)).unwrap();
         thread::sleep(Duration::from_secs(10));
     });
 
     // Thread 2: Try to acquire with 1 second timeout
     thread::sleep(Duration::from_millis(100));  // Let thread 1 acquire first
-    let result = StateLock::acquire(".wt-state/.lock", Duration::from_secs(1));
+    let result = StateLock::acquire(".hn-state/.lock", Duration::from_secs(1));
 
     // Should timeout
     assert!(matches!(result, Err(LockError::Timeout)));
@@ -1154,20 +1187,65 @@ hooks:
 
 ## What's Next: Future Development
 
-### v0.2: Monorepo & Advanced Features (In Progress)
+### v0.2: Monorepo & Advanced Features (COMPLETED! 🎉)
 - ✅ Sparse checkout for large monorepos (Git and Jujutsu - COMPLETED)
   - Git: Full support via `git sparse-checkout` (cone mode)
   - Jujutsu: Full support via `jj sparse set`
-  - 8 comprehensive tests covering all scenarios
+  - 12 comprehensive tests covering all scenarios
   - CLI flag: `--sparse <path>` (repeatable)
   - Config support: `sparse.enabled` and `sparse.paths`
-- ⏸️ Config hierarchy (multi-level config merging)
-- ⏸️ Advanced hooks with conditions
-- ⏸️ Performance optimizations for 100+ worktrees
+- ✅ Config hierarchy (multi-level config merging - COMPLETED)
+  - 4 config levels: system, user, repo, local
+  - Deep merge strategy with intelligent array appending
+  - Enhanced `hn config show` with source tracking
+  - 13 comprehensive tests for merge behavior
+- ✅ Advanced hooks with conditions (COMPLETED)
+  - Conditional execution based on branch patterns
+  - Three condition types: startsWith, endsWith, contains
+  - Full config hierarchy support (conditional hooks append across levels)
+  - 19 comprehensive tests (10 unit + 9 integration)
+  - Production-ready with graceful error handling
+- ✅ Naming cleanup (COMPLETED)
+  - Replaced all `.wt-state` references with `.hn-state`
+  - Updated documentation and tests
+  - Consistent hannahanna/hn naming throughout
 
-### v0.3: Extended VCS Support & Performance
-- ⏸️ Sparse checkout for Mercurial
-- ⏸️ Additional performance optimizations
+### v0.3: Extended Hooks & CLI Commands
+**Status:** 🚧 Planned
+
+#### Additional Hooks
+- [ ] `pre_create` - Run before creating worktree
+- [ ] `post_remove` - Run after removing worktree
+- [ ] `post_switch` - Run after switching to worktree
+- [ ] `pre_integrate` - Run before integration
+- [ ] `post_integrate` - Run after integration
+- [ ] Conditional versions of new hooks
+
+#### Config Commands
+- [ ] `hn config init [--template=<name>]` - Initialize config file
+- [ ] `hn config validate` - Validate config syntax
+- [ ] `hn config edit` - Open config in $EDITOR
+
+#### Docker Commands
+- [ ] `hn docker restart <name>` - Restart containers
+- [ ] `hn docker exec <name> <cmd>` - Execute command in container
+- [ ] `hn docker prune` - Clean orphaned containers/volumes
+
+#### Port Commands
+- [ ] `hn ports reassign <name>` - Reassign ports to worktree
+
+#### State Commands
+- [ ] `hn state list` - List all state directories
+- [ ] `hn state clean` - Clean orphaned state
+- [ ] `hn state size [name]` - Show disk usage
+
+#### Other Features
+- [ ] Aliases support (e.g., `sw` → `switch`, `rm` → `remove`)
+- [ ] Sparse checkout for Mercurial
+- [ ] Additional performance optimizations
+
+### v0.4: Advanced Features & Polish
+**Status:** 📋 Backlog
 
 See `vision.md` for full long-term roadmap.
 

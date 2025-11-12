@@ -8,7 +8,7 @@ use std::env;
 pub fn ps() -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
     let config = Config::load(&repo_root)?;
-    let state_dir = repo_root.join(".wt-state");
+    let state_dir = repo_root.join(".hn-state");
 
     if !config.docker.enabled {
         println!("Docker support is not enabled in .hannahanna.yml");
@@ -47,7 +47,7 @@ pub fn ps() -> Result<()> {
 pub fn start(name: String) -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
     let config = Config::load(&repo_root)?;
-    let state_dir = repo_root.join(".wt-state");
+    let state_dir = repo_root.join(".hn-state");
 
     if !config.docker.enabled {
         return Err(crate::errors::HnError::DockerError(
@@ -73,7 +73,7 @@ pub fn start(name: String) -> Result<()> {
 pub fn stop(name: String) -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
     let config = Config::load(&repo_root)?;
-    let state_dir = repo_root.join(".wt-state");
+    let state_dir = repo_root.join(".hn-state");
 
     if !config.docker.enabled {
         return Err(crate::errors::HnError::DockerError(
@@ -99,7 +99,7 @@ pub fn stop(name: String) -> Result<()> {
 pub fn restart(name: String) -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
     let config = Config::load(&repo_root)?;
-    let state_dir = repo_root.join(".wt-state");
+    let state_dir = repo_root.join(".hn-state");
 
     if !config.docker.enabled {
         return Err(crate::errors::HnError::DockerError(
@@ -125,7 +125,7 @@ pub fn restart(name: String) -> Result<()> {
 pub fn logs(name: String, service: Option<String>) -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
     let config = Config::load(&repo_root)?;
-    let state_dir = repo_root.join(".wt-state");
+    let state_dir = repo_root.join(".hn-state");
 
     if !config.docker.enabled {
         return Err(crate::errors::HnError::DockerError(
@@ -162,7 +162,7 @@ pub fn logs(name: String, service: Option<String>) -> Result<()> {
 pub fn prune() -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
     let config = Config::load(&repo_root)?;
-    let state_dir = repo_root.join(".wt-state");
+    let state_dir = repo_root.join(".hn-state");
 
     if !config.docker.enabled {
         return Err(crate::errors::HnError::DockerError(

@@ -6,7 +6,7 @@ use std::env;
 /// List all port allocations across worktrees
 pub fn list() -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
-    let state_dir = repo_root.join(".wt-state");
+    let state_dir = repo_root.join(".hn-state");
 
     let allocator = PortAllocator::new(&state_dir)?;
     let allocations = allocator.list_all();
@@ -31,7 +31,7 @@ pub fn list() -> Result<()> {
 /// Show port allocations for a specific worktree
 pub fn show(name: String) -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
-    let state_dir = repo_root.join(".wt-state");
+    let state_dir = repo_root.join(".hn-state");
 
     let allocator = PortAllocator::new(&state_dir)?;
     let ports = allocator.get_ports(&name)?;
@@ -50,7 +50,7 @@ pub fn show(name: String) -> Result<()> {
 /// Release port allocations for a worktree
 pub fn release(name: String) -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
-    let state_dir = repo_root.join(".wt-state");
+    let state_dir = repo_root.join(".hn-state");
 
     let mut allocator = PortAllocator::new(&state_dir)?;
     allocator.release(&name)?;

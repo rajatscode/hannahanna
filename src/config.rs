@@ -69,13 +69,38 @@ where
     Ok(resources)
 }
 
-#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct HooksConfig {
     pub post_create: Option<String>,
     pub pre_remove: Option<String>,
     /// Hook execution timeout in seconds (default: 300 = 5 minutes)
     #[serde(default = "default_hook_timeout")]
     pub timeout_seconds: u64,
+    /// Conditional hooks that run based on branch name patterns
+    #[serde(default)]
+    pub post_create_conditions: Vec<ConditionalHook>,
+    #[serde(default)]
+    pub pre_remove_conditions: Vec<ConditionalHook>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ConditionalHook {
+    /// Condition to evaluate (e.g., "branch.startsWith('feature/')")
+    pub condition: String,
+    /// Command to run if condition matches
+    pub command: String,
+}
+
+impl Default for HooksConfig {
+    fn default() -> Self {
+        Self {
+            post_create: None,
+            pre_remove: None,
+            timeout_seconds: default_hook_timeout(),
+            post_create_conditions: Vec::new(),
+            pre_remove_conditions: Vec::new(),
+        }
+    }
 }
 
 fn default_hook_timeout() -> u64 {
@@ -208,20 +233,187 @@ fn default_healthcheck_timeout() -> String {
 
 impl Config {
     /// Load config from .hannahanna.yml in repository root
+    /// This is kept for backwards compatibility, but internally uses load_hierarchy
     pub fn load(repo_root: &Path) -> Result<Self> {
-        let config_path = repo_root.join(".hannahanna.yml");
+        Self::load_hierarchy(repo_root)
+    }
 
-        if !config_path.exists() {
-            // No config file, return defaults
-            return Ok(Config::default());
+    /// Load config from multiple levels and merge them
+    /// Priority (highest to lowest):
+    /// 1. Local: .hannahanna.local.yml (gitignored, highest priority)
+    /// 2. Repo: .hannahanna.yml (committed)
+    /// 3. User: ~/.config/hannahanna/config.yml
+    /// 4. System: /etc/hannahanna/config.yml
+    pub fn load_hierarchy(repo_root: &Path) -> Result<Self> {
+        let mut config = Config::default();
+
+        // 4. System config (lowest priority)
+        if let Some(system_config) = Self::load_from_path(Path::new("/etc/hannahanna/config.yml"))? {
+            config.merge_with(system_config);
         }
 
-        let content = fs::read_to_string(&config_path)?;
-        let config: Config = serde_yml::from_str(&content).map_err(|e| {
-            crate::errors::HnError::ConfigError(format!("Failed to parse config: {}", e))
-        })?;
+        // 3. User config
+        if let Some(user_home) = dirs::home_dir() {
+            let user_config_path = user_home.join(".config/hannahanna/config.yml");
+            if let Some(user_config) = Self::load_from_path(&user_config_path)? {
+                config.merge_with(user_config);
+            }
+        }
+
+        // 2. Repo config (committed)
+        let repo_config_path = repo_root.join(".hannahanna.yml");
+        if let Some(repo_config) = Self::load_from_path(&repo_config_path)? {
+            config.merge_with(repo_config);
+        }
+
+        // 1. Local config (gitignored, highest priority)
+        let local_config_path = repo_root.join(".hannahanna.local.yml");
+        if let Some(local_config) = Self::load_from_path(&local_config_path)? {
+            config.merge_with(local_config);
+        }
 
         Ok(config)
+    }
+
+    /// Load a single config file from path, returning None if it doesn't exist
+    fn load_from_path(path: &Path) -> Result<Option<Self>> {
+        if !path.exists() {
+            return Ok(None);
+        }
+
+        let content = fs::read_to_string(path)?;
+        let config: Config = serde_yml::from_str(&content).map_err(|e| {
+            crate::errors::HnError::ConfigError(format!(
+                "Failed to parse config at {}: {}",
+                path.display(),
+                e
+            ))
+        })?;
+
+        Ok(Some(config))
+    }
+
+    /// Deep merge another config into this one
+    /// Arrays are appended (not replaced)
+    /// Primitives are overridden
+    pub fn merge_with(&mut self, other: Config) {
+        // Merge shared_resources (append arrays)
+        self.shared_resources.extend(other.shared_resources);
+
+        // Merge shared config
+        if let Some(other_shared) = other.shared {
+            if let Some(ref mut self_shared) = self.shared {
+                // Append copy resources
+                self_shared.copy.extend(other_shared.copy);
+            } else {
+                self.shared = Some(other_shared);
+            }
+        }
+
+        // Merge hooks (override primitives, append conditional arrays)
+        if other.hooks.post_create.is_some() {
+            self.hooks.post_create = other.hooks.post_create;
+        }
+        if other.hooks.pre_remove.is_some() {
+            self.hooks.pre_remove = other.hooks.pre_remove;
+        }
+        // Override timeout only if explicitly set (different from default)
+        if other.hooks.timeout_seconds != default_hook_timeout() {
+            self.hooks.timeout_seconds = other.hooks.timeout_seconds;
+        }
+        // Append conditional hooks (arrays append)
+        self.hooks.post_create_conditions.extend(other.hooks.post_create_conditions);
+        self.hooks.pre_remove_conditions.extend(other.hooks.pre_remove_conditions);
+
+        // Merge docker config (override primitives, append arrays)
+        if other.docker.enabled {
+            self.docker.enabled = true;
+        }
+        if other.docker.strategy != default_strategy() {
+            self.docker.strategy = other.docker.strategy;
+        }
+        if other.docker.compose_file != default_compose_file() {
+            self.docker.compose_file = other.docker.compose_file;
+        }
+        if other.docker.auto_start {
+            self.docker.auto_start = true;
+        }
+        if other.docker.auto_stop_others {
+            self.docker.auto_stop_others = true;
+        }
+
+        // Merge docker ports
+        if other.docker.ports.strategy != default_port_strategy() {
+            self.docker.ports.strategy = other.docker.ports.strategy;
+        }
+        for (key, value) in other.docker.ports.base {
+            self.docker.ports.base.insert(key, value);
+        }
+        if other.docker.ports.range.is_some() {
+            self.docker.ports.range = other.docker.ports.range;
+        }
+
+        // Merge docker shared resources (append arrays)
+        self.docker.shared.volumes.extend(other.docker.shared.volumes);
+        self.docker.shared.networks.extend(other.docker.shared.networks);
+
+        // Merge docker isolated resources (append arrays)
+        self.docker.isolated.volumes.extend(other.docker.isolated.volumes);
+
+        // Merge docker env vars (override)
+        for (key, value) in other.docker.env {
+            self.docker.env.insert(key, value);
+        }
+
+        // Merge healthcheck
+        if other.docker.healthcheck.enabled {
+            self.docker.healthcheck.enabled = true;
+        }
+        if other.docker.healthcheck.timeout != default_healthcheck_timeout() {
+            self.docker.healthcheck.timeout = other.docker.healthcheck.timeout;
+        }
+
+        // Merge sparse config
+        if other.sparse.enabled {
+            self.sparse.enabled = true;
+        }
+        self.sparse.paths.extend(other.sparse.paths);
+    }
+
+    /// Get list of config file paths that exist and would be loaded
+    /// Returns paths in order of priority (highest first)
+    pub fn get_loaded_config_paths(repo_root: &Path) -> Vec<PathBuf> {
+        let mut paths = Vec::new();
+
+        // Check in priority order (highest first)
+
+        // 1. Local config (gitignored, highest priority)
+        let local_config_path = repo_root.join(".hannahanna.local.yml");
+        if local_config_path.exists() {
+            paths.push(local_config_path);
+        }
+
+        // 2. Repo config (committed)
+        let repo_config_path = repo_root.join(".hannahanna.yml");
+        if repo_config_path.exists() {
+            paths.push(repo_config_path);
+        }
+
+        // 3. User config
+        if let Some(user_home) = dirs::home_dir() {
+            let user_config_path = user_home.join(".config/hannahanna/config.yml");
+            if user_config_path.exists() {
+                paths.push(user_config_path);
+            }
+        }
+
+        // 4. System config (lowest priority)
+        let system_config_path = Path::new("/etc/hannahanna/config.yml");
+        if system_config_path.exists() {
+            paths.push(system_config_path.to_path_buf());
+        }
+
+        paths
     }
 
     /// Get the repository root by finding the .git directory
