@@ -1,9 +1,9 @@
 [package]
 name = "hannahanna"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 authors = ["hannahanna contributors"]
-description = "Multi-VCS worktree manager with isolated environments, sparse checkout, and config hierarchy"
+description = "Multi-VCS worktree manager with comprehensive hooks, state management, and docker integration"
 license = "MIT OR Apache-2.0"
 
 [[bin]]

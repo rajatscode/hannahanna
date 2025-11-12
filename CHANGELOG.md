@@ -5,6 +5,122 @@ All notable changes to hannahanna will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-11-12
+
+### 🎉 Major Features
+
+Comprehensive hook system expansion, state management commands, and enhanced Docker integration.
+
+#### 🪝 Complete Hook System (7 Hook Types)
+
+**New Hook Types:**
+- **pre_create** - Runs before creating a worktree (validation, preparation)
+- **post_remove** - Runs after removing a worktree (cleanup tasks)
+- **post_switch** - Runs after switching to a worktree (environment setup)
+- **pre_integrate** - Runs before merge/rebase operations (safety checks)
+- **post_integrate** - Runs after integration completes (notifications, deployment)
+
+**Features:**
+- All 7 hooks support conditional execution via branch patterns
+- Conditional patterns: `startsWith()`, `endsWith()`, `contains()`
+- Full config hierarchy merging for all hooks
+- Comprehensive error handling and timeout support
+
+**Example:**
+```yaml
+hooks:
+  # Lifecycle hooks
+  pre_create: "validate-branch-name"
+  post_create: "npm install"
+  pre_remove: "backup-data"
+  post_remove: "cleanup-cache"
+  post_switch: "source .env.local"
+
+  # Integration hooks
+  pre_integrate: "run-tests"
+  post_integrate: "notify-team"
+
+  # Conditional hooks
+  post_create_conditions:
+    - condition: "branch.startsWith('feature-')"
+      command: "make setup-dev"
+    - condition: "branch.contains('api')"
+      command: "docker compose up -d api-deps"
+```
+
+#### 📁 State Management Commands
+
+- **`hn state list`** - List all state directories with sizes and active/orphaned status
+- **`hn state clean`** - Clean up orphaned state directories
+- **`hn state size [name]`** - Show disk usage for state directories
+
+**Features:**
+- Color-coded output (active=green, orphaned=red)
+- Human-readable size formatting (KB, MB, GB)
+- Quick identification of cleanup opportunities
+
+**Example:**
+```bash
+$ hn state list
+State Directories
+======================================================================
+  feature-auth active (2.34 MB)
+  feature-billing active (1.89 MB)
+  old-experiment orphaned (5.67 MB)
+======================================================================
+Total: 3 state directories (2 active, 1 orphaned)
+
+Tip: Clean orphaned state with: hn state clean
+```
+
+#### 🐳 Enhanced Docker Commands
+
+- **`hn docker exec <name> [--service <svc>] <command>`** - Execute commands in containers
+- Automatic detection of docker compose vs docker-compose
+- Defaults to first configured service if not specified
+- Full command-line argument support
+
+**Example:**
+```bash
+# Execute shell in default service
+hn docker exec feature-api sh
+
+# Execute in specific service
+hn docker exec feature-api --service postgres psql -U myuser
+
+# Run tests
+hn docker exec feature-api npm test
+```
+
+#### ⚙️ Updated Config Commands
+
+- Updated `hn config init` template with all 7 hook types
+- Enhanced `hn config validate` to check all hooks + conditionals
+- Shows conditional hook counts in validation output
+- Complete inline documentation
+
+### 🔨 Improvements
+
+- All commands fully integrated across CLI
+- Config hierarchy properly merges all new hooks
+- Backward compatible with existing configs
+- Enhanced error messages for all new commands
+
+### 📊 Testing
+
+- All 236+ existing tests passing
+- No regressions in any feature
+- Ready for production use
+
+### 🔜 What's Next: v0.4
+
+- Performance optimizations for 500+ worktrees
+- Additional VCS improvements
+- Extended monitoring and reporting
+- Workflow templates
+
+---
+
 ## [0.2.0] - 2025-11-12
 
 ### 🎉 Major Features
@@ -246,9 +362,9 @@ The first stable release of hannahanna (hn) - a Git worktree manager with isolat
 ## Future Releases
 
 See [spec/plan.md](spec/plan.md) and [spec/vision.md](spec/vision.md) for planned features in upcoming releases:
-- **v0.3**: Additional hooks, config commands, extended Docker features, aliases
-- **v0.4**: Performance optimizations, advanced features
-- **v1.0**: Production polish and stabilization
+- **v0.4**: Performance optimizations, workflow templates, advanced monitoring
+- **v1.0**: Production polish, stabilization, and comprehensive documentation
 
+[0.3.0]: https://github.com/rajatscode/hannahanna/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/rajatscode/hannahanna/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rajatscode/hannahanna/releases/tag/v0.1.0
