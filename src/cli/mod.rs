@@ -15,3 +15,4 @@ pub mod state;
 pub mod switch;
 pub mod sync;
 pub mod templates;
+pub mod workspace;

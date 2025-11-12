@@ -194,6 +194,16 @@ impl HookExecutor {
         // Build environment variables
         let env = self.build_env(worktree, state_dir);
 
+        // Determine working directory based on hook type
+        // Pre-create runs in parent of worktree since worktree doesn't exist yet
+        // Post-remove runs in parent since worktree was just deleted
+        let working_dir = match hook_type {
+            HookType::PreCreate | HookType::PostRemove => {
+                worktree.path.parent().unwrap_or(&worktree.path)
+            }
+            _ => &worktree.path,
+        };
+
         // Create temporary files for stdout/stderr to avoid pipe buffer deadlock
         // If hooks produce >64KB output, pipes will fill and cause deadlock
         let stdout_file = tempfile::NamedTempFile::new().map_err(|e| {
@@ -207,7 +217,7 @@ impl HookExecutor {
         let mut child = Command::new("sh")
             .arg("-c")
             .arg(script)
-            .current_dir(&worktree.path)
+            .current_dir(working_dir)
             .envs(env)
             .stdout(File::create(stdout_file.path())?)
             .stderr(File::create(stderr_file.path())?)

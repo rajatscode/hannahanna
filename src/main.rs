@@ -178,6 +178,11 @@ enum Commands {
         #[command(subcommand)]
         command: TemplatesCommands,
     },
+    /// Manage workspaces (save/restore worktree sets)
+    Workspace {
+        #[command(subcommand)]
+        command: WorkspaceCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -305,6 +310,48 @@ enum TemplatesCommands {
         /// Create from current worktree config
         #[arg(long)]
         from_current: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum WorkspaceCommands {
+    /// Save current workspace state
+    Save {
+        /// Name for the workspace
+        name: String,
+        /// Description of the workspace
+        #[arg(long)]
+        description: Option<String>,
+    },
+    /// Restore a saved workspace
+    Restore {
+        /// Name of the workspace to restore
+        name: String,
+        /// Force restore, overwriting existing worktrees
+        #[arg(long)]
+        force: bool,
+    },
+    /// List all saved workspaces
+    List {
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Delete a saved workspace
+    Delete {
+        /// Name of the workspace to delete
+        name: String,
+        /// Skip confirmation
+        #[arg(long)]
+        force: bool,
+    },
+    /// Export a workspace to a file
+    Export {
+        /// Name of the workspace to export
+        name: String,
+        /// Output file path
+        #[arg(long)]
+        output: Option<String>,
     },
 }
 
@@ -518,6 +565,19 @@ fn main() {
             TemplatesCommands::Show { name } => cli::templates::show(&name),
             TemplatesCommands::Create { name, description, docker, from_current } => {
                 cli::templates::create(&name, description.as_deref(), docker, from_current)
+            }
+        },
+        Commands::Workspace { command } => match command {
+            WorkspaceCommands::Save { name, description } => {
+                cli::workspace::save(&name, description.as_deref(), vcs_type)
+            }
+            WorkspaceCommands::Restore { name, force } => {
+                cli::workspace::restore(&name, force, vcs_type)
+            }
+            WorkspaceCommands::List { json } => cli::workspace::list(json),
+            WorkspaceCommands::Delete { name, force } => cli::workspace::delete(&name, force),
+            WorkspaceCommands::Export { name, output } => {
+                cli::workspace::export(&name, output.as_deref())
             }
         },
     };
