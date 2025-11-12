@@ -11,12 +11,15 @@ use std::path::{Path, PathBuf};
 /// Template metadata and configuration
 #[derive(Debug, Clone)]
 pub struct Template {
+    #[allow(dead_code)] // Used by list_templates(), reserved for v0.4.1 `hn templates list`
     pub name: String,
     pub description: Option<String>,
     pub config_path: PathBuf,
 }
 
 /// Find available templates in the repository
+/// Reserved for v0.4.1 `hn templates list` command
+#[allow(dead_code)]
 pub fn list_templates(repo_root: &Path) -> Result<Vec<Template>> {
     let templates_dir = repo_root.join(".hn-templates");
 
