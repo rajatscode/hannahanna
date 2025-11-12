@@ -147,6 +147,12 @@ enum Commands {
         /// Shell to generate completions for
         shell: Shell,
     },
+    /// Automate hannahanna installation and shell integration
+    Setup {
+        /// Shell type (bash, zsh, or fish). Auto-detects if not specified
+        #[arg(long)]
+        shell: Option<String>,
+    },
     /// Manage state directories
     State {
         #[command(subcommand)]
@@ -442,6 +448,7 @@ fn main() {
             clap_complete::generate(shell, &mut Cli::command(), "hn", &mut std::io::stdout());
             Ok(())
         }
+        Commands::Setup { shell } => cli::setup::run(shell),
         Commands::State { command } => match command {
             StateCommands::List => cli::state::list(),
             StateCommands::Clean => cli::state::clean(),

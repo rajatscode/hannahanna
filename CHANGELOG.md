@@ -39,6 +39,25 @@ hn completions zsh > ~/.zsh/completions/_hn
 hn completions fish > ~/.config/fish/completions/hn.fish
 ```
 
+#### 🛠️ Automated Setup Command
+
+**One-command installation and configuration:**
+```bash
+# Auto-detect shell and run setup
+hn setup
+
+# Or specify shell
+hn setup --shell bash
+```
+
+**What `hn setup` does:**
+- Installs shell completions to appropriate location
+- Provides shell integration setup instructions
+- Creates example templates (microservice, frontend)
+- Validates environment (git, docker)
+
+This command simplifies the post-installation experience by automating all setup steps.
+
 #### 📋 Template System
 
 **Pre-configured environment setups:**

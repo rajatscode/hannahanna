@@ -28,9 +28,29 @@ cargo build --release
 sudo cp target/release/hn /usr/local/bin/
 ```
 
-### Shell Integration
+### Quick Setup (Recommended)
 
-For the `hn switch` command to work (changes directory), add this to your `~/.bashrc` or `~/.zshrc`:
+After installation, run the automated setup:
+
+```bash
+hn setup
+```
+
+This command will:
+- Install shell completions for your shell (bash/zsh/fish)
+- Provide instructions for shell integration setup
+- Create example templates (`.hn-templates/`)
+- Validate your environment (git, docker)
+
+The setup command auto-detects your shell, or you can specify:
+
+```bash
+hn setup --shell bash   # or zsh, fish
+```
+
+### Manual Shell Integration
+
+Alternatively, for the `hn switch` command to work (changes directory), add this to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
 eval "$(hn init-shell)"
@@ -327,9 +347,39 @@ Clean up orphaned state directories from deleted worktrees.
 hn prune
 ```
 
+### `hn setup [options]` (v0.4)
+
+Automate hannahanna installation and shell integration.
+
+```bash
+# Auto-detect shell and run setup
+hn setup
+
+# Specify shell explicitly
+hn setup --shell bash
+hn setup --shell zsh
+hn setup --shell fish
+```
+
+**What it does:**
+1. **Shell Completions**: Installs completions to the appropriate location for your shell
+2. **Shell Integration**: Provides instructions for adding the cd wrapper to your shell config
+3. **Example Templates**: Creates `.hn-templates/` with microservice and frontend examples
+4. **Environment Validation**: Checks for git and docker installation
+
+**After running setup:**
+1. Reload your shell: `source ~/.bashrc` (or `~/.zshrc`)
+2. Try tab completion: `hn <TAB>`
+3. Explore templates: `ls .hn-templates/`
+
+**Options:**
+- `--shell <bash|zsh|fish>` - Specify shell type (auto-detects if omitted)
+
+This is the recommended way to set up hannahanna after installation.
+
 ### `hn completions <shell>` (v0.4)
 
-Generate shell completions for auto-completion.
+Generate shell completions for auto-completion (manual alternative to `hn setup`).
 
 ```bash
 # Bash
