@@ -1,6 +1,7 @@
 use crate::config::Config;
 use crate::docker::container::ContainerManager;
 use crate::errors::Result;
+use crate::monitoring::{self, ActivityEvent};
 use crate::state::StateManager;
 use std::env;
 
@@ -66,6 +67,16 @@ pub fn start(name: String) -> Result<()> {
     manager.start(&name, &worktree_path)?;
     println!("✓ Containers started for '{}'", name);
 
+    // Log docker start activity
+    let _ = monitoring::log_activity(
+        &state_dir,
+        &name,
+        ActivityEvent::DockerStarted {
+            timestamp: monitoring::now(),
+            services: vec![], // TODO: extract service names from docker config
+        },
+    );
+
     Ok(())
 }
 
@@ -91,6 +102,15 @@ pub fn stop(name: String) -> Result<()> {
     println!("Stopping containers for '{}'...", name);
     manager.stop(&name, &worktree_path)?;
     println!("✓ Containers stopped for '{}'", name);
+
+    // Log docker stop activity
+    let _ = monitoring::log_activity(
+        &state_dir,
+        &name,
+        ActivityEvent::DockerStopped {
+            timestamp: monitoring::now(),
+        },
+    );
 
     Ok(())
 }

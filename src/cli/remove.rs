@@ -6,6 +6,7 @@ use crate::env::validation;
 use crate::errors::{HnError, Result};
 use crate::fuzzy;
 use crate::hooks::{HookExecutor, HookType};
+use crate::monitoring::{self, ActivityEvent};
 use crate::state::StateManager;
 use crate::vcs::{init_backend_from_current_dir, RegistryCache, VcsType};
 
@@ -121,7 +122,16 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
         let _ = cache.invalidate(); // Ignore cache invalidation errors
     }
 
-    // Clean up state directory
+    // Log worktree removal activity BEFORE cleaning up state directory
+    let _ = monitoring::log_activity(
+        &state_dir_path,
+        &matched_name,
+        ActivityEvent::WorktreeRemoved {
+            timestamp: monitoring::now(),
+        },
+    );
+
+    // Clean up state directory (this removes activity log too, which is fine)
     state_manager.remove_state_dir(&matched_name)?;
 
     // Run post_remove hook if configured

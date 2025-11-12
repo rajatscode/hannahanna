@@ -3,6 +3,7 @@ use crate::env::validation;
 use crate::errors::Result;
 use crate::fuzzy;
 use crate::hooks::{HookExecutor, HookType};
+use crate::monitoring::{self, ActivityEvent};
 use crate::state::StateManager;
 use crate::vcs::{init_backend_from_current_dir, short_commit, VcsType};
 
@@ -85,6 +86,17 @@ pub fn run(name: String, vcs_type: Option<VcsType>) -> Result<()> {
         hook_executor.run_hook(HookType::PostSwitch, &worktree, &state_dir)?;
         eprintln!("✓ Hook completed successfully");
     }
+
+    // Log worktree switch activity
+    let state_dir_path = repo_root.join(".hn-state");
+    let _ = monitoring::log_activity(
+        &state_dir_path,
+        &matched_name,
+        ActivityEvent::WorktreeSwitched {
+            timestamp: monitoring::now(),
+            from: None, // Don't track source to avoid complexity
+        },
+    );
 
     Ok(())
 }

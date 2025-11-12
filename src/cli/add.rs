@@ -7,6 +7,7 @@ use crate::env::symlinks::{SymlinkAction, SymlinkManager};
 use crate::env::validation;
 use crate::errors::Result;
 use crate::hooks::{HookExecutor, HookType};
+use crate::monitoring::{self, ActivityEvent};
 use crate::state::StateManager;
 use crate::vcs::{init_backend_from_current_dir, RegistryCache, VcsType};
 use colored::*;
@@ -102,8 +103,19 @@ pub fn run(
         backend.create_workspace(&name, branch.as_deref(), from.as_deref(), no_branch)?;
     eprintln!("✓ Worktree created at {}", worktree.path.display());
 
-    // Invalidate cache after creating worktree
+    // Log worktree creation activity
     let state_dir_path = repo_root.join(".hn-state");
+    let _ = monitoring::log_activity(
+        &state_dir_path,
+        &name,
+        ActivityEvent::WorktreeCreated {
+            timestamp: monitoring::now(),
+            branch: worktree.branch.clone(),
+            template: template.clone(),
+        },
+    );
+
+    // Invalidate cache after creating worktree
     if let Ok(cache) = RegistryCache::new(&state_dir_path, None) {
         let _ = cache.invalidate(); // Ignore cache invalidation errors
     }

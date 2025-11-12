@@ -2,6 +2,7 @@
 
 use crate::config::Config;
 use crate::errors::Result;
+use crate::monitoring::{self, ActivityEvent};
 use crate::snapshot::{self, Snapshot};
 use crate::vcs::{self, VcsType};
 use colored::*;
@@ -36,6 +37,16 @@ pub fn create(
     println!("{} snapshot for '{}'...", "Creating".bold(), worktree.cyan());
 
     let snapshot = snapshot::create_snapshot(&wt.path, &wt.name, name, description, &state_dir)?;
+
+    // Log snapshot creation activity
+    let _ = monitoring::log_activity(
+        &state_dir,
+        worktree,
+        ActivityEvent::SnapshotCreated {
+            timestamp: monitoring::now(),
+            snapshot_name: snapshot.name.clone(),
+        },
+    );
 
     println!();
     println!("{} Snapshot created successfully!", "✓".green().bold());
@@ -173,6 +184,16 @@ pub fn restore(
     println!("{} snapshot '{}'...", "Restoring".bold(), snapshot.cyan());
 
     snapshot::restore_snapshot(&wt.path, &wt.name, snapshot, &state_dir)?;
+
+    // Log snapshot restore activity
+    let _ = monitoring::log_activity(
+        &state_dir,
+        worktree,
+        ActivityEvent::SnapshotRestored {
+            timestamp: monitoring::now(),
+            snapshot_name: snapshot.to_string(),
+        },
+    );
 
     println!();
     println!("{} Snapshot '{}' restored successfully!", "✓".green().bold(), snapshot.cyan());

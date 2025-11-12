@@ -50,6 +50,10 @@ impl TestRepo {
         std::fs::write(repo_path.join("README.md"), "# Test Repo\n")
             .expect("Failed to write README");
 
+        // Create .gitignore with .hn-state
+        std::fs::write(repo_path.join(".gitignore"), ".hn-state/\n")
+            .expect("Failed to write .gitignore");
+
         Command::new("git")
             .args(["add", "."])
             .current_dir(&repo_path)
