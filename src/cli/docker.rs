@@ -176,7 +176,6 @@ pub fn exec(name: String, service: Option<String>, command: Vec<String>) -> Resu
         ));
     }
 
-    let manager = ContainerManager::new(&config.docker, &state_dir)?;
     let worktree_path = repo_root.join("worktrees").join(&name);
 
     if !worktree_path.exists() {
