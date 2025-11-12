@@ -35,8 +35,8 @@ struct Cli {
 enum Commands {
     /// Create a new worktree
     Add {
-        /// Name of the worktree to create
-        name: String,
+        /// Name of the worktree to create (interactive mode if omitted)
+        name: Option<String>,
         /// Branch to checkout (defaults to creating new branch with same name)
         branch: Option<String>,
         /// Base branch to create from (defaults to current branch)

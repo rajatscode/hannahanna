@@ -52,6 +52,9 @@ pub enum HnError {
 
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+
+    #[error("Interactive prompt error: {0}")]
+    DialoguerError(#[from] dialoguer::Error),
 }
 
 pub type Result<T> = std::result::Result<T, HnError>;

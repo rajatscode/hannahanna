@@ -1,6 +1,6 @@
 [package]
 name = "hannahanna"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 authors = ["hannahanna contributors"]
 description = "Multi-VCS worktree manager with comprehensive hooks, state management, and docker integration"
@@ -26,6 +26,7 @@ tempfile = "3.8"
 regex = "1.10"
 chrono = "0.4"
 dirs = "5.0"
+dialoguer = "0.11"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
