@@ -5,6 +5,61 @@ All notable changes to hannahanna will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - v0.5.0 Planning
+
+**Theme:** Template Management & Enhanced Features
+**Status:** 📋 Planning Phase
+**See:** [spec/v0.5.md](spec/v0.5.md) for complete specification
+
+### Planned Features
+
+#### 🐛 Critical Fixes
+- **Environment variable renaming** - `WT_*` → `HNHN_*` (backward compatible with deprecation)
+  - Uses `HNHN_*` prefix to avoid collision with Hacker News CLI tools
+  - Both old and new variables set in v0.5
+  - Deprecation warnings for old variable usage
+  - Old variables removed in v1.0
+  - Migration guide provided
+
+#### 📋 Template Management
+- **`hn templates list`** - Discover available templates
+- **`hn templates show <name>`** - View template details
+- **`hn templates create <name>`** - Interactive template creation wizard
+- **Template file copying** - Include actual files in templates with variable substitution
+
+#### 🧪 Comprehensive Testing
+- **35+ new tests** for hooks and Docker edge cases
+- Hook timeout behavior testing
+- Docker stats filtering verification
+- Port allocation edge case coverage
+- Comprehensive failure mode testing
+
+#### 💾 Workflow State Management
+- **`hn workspace save <name>`** - Save current workspace state
+- **`hn workspace restore <name>`** - Restore workspace with Docker
+- **`hn workspace list`** - List saved workspaces
+- **`hn workspace delete <name>`** - Delete workspace state
+
+#### 📊 Resource Usage Tracking
+- **`hn stats [name]`** - View resource consumption
+- Disk usage trends
+- Docker memory/CPU tracking
+- Network I/O monitoring
+
+### Deferred to v1.0
+- Interactive mode for `hn add` (would require breaking change)
+- Plugin/extension system
+- Remote worktree support
+- Enterprise features (teams, permissions)
+
+### Target Timeline
+- Week 1-2: Template management
+- Week 2-3: Comprehensive testing
+- Week 3-4: Workflow features
+- Week 4: Polish & release
+
+---
+
 ## [0.4.0] - 2025-11-12
 
 ### 🚀 Major Features
