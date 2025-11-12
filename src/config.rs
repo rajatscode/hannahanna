@@ -16,6 +16,8 @@ pub struct Config {
     pub docker: DockerConfig,
     #[serde(default)]
     pub sparse: SparseConfig,
+    #[serde(default)]
+    pub aliases: HashMap<String, String>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -428,6 +430,11 @@ impl Config {
             self.sparse.enabled = true;
         }
         self.sparse.paths.extend(other.sparse.paths);
+
+        // Merge aliases (later configs override earlier ones)
+        for (key, value) in other.aliases {
+            self.aliases.insert(key, value);
+        }
     }
 
     /// Get list of config file paths that exist and would be loaded

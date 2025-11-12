@@ -98,6 +98,20 @@ docker:
     volumes:
       - app-cache
       - logs
+
+# Command aliases
+aliases:
+  # Short aliases for common commands
+  # sw: switch
+  # ls: list
+  # rm: remove
+
+  # Aliases with arguments
+  # lt: list --tree
+  # stat: state list
+
+  # Chained aliases (aliases can reference other aliases)
+  # Note: Circular references are detected and will cause an error
 "#;
 
 /// Initialize a new config file
