@@ -61,13 +61,20 @@
   - 9 comprehensive tests for all condition types
   - Maintains full backwards compatibility with regular hooks
 
-### What's Deferred to v0.3+
-- ⏸️ Sparse checkout for Mercurial (deferred to v0.3)
-- ⏸️ Team coordination features (v0.3+)
+### What's Next: v0.3 Roadmap
+See v0.3 section below for detailed breakdown:
+- Additional hooks (pre_create, post_remove, post_switch, etc.)
+- Config management commands (init, validate, edit)
+- Extended Docker commands (restart, exec, prune)
+- Port management enhancements (reassign)
+- State management commands (list, clean, size)
+- Aliases support
+- Sparse checkout for Mercurial
+- Performance optimizations
 
 ### What We're Never Building
-- ❌ Separate Docker/state/port subcommands - keep it simple
 - ❌ Windows native support - Linux/macOS/WSL2 only
+- ❌ GUI interface - CLI-first philosophy
 
 ---
 
@@ -160,7 +167,7 @@ hannahanna/
 │   └── vision.md               # Long-term comprehensive plan
 └── Cargo.toml
 
-Total: ~5,800 lines (v0.1.0 + Phase 2 + Phase 3 + Phase 4 + v0.2 features)
+Total: ~6,000 lines (v0.1.0 + Phase 2-4 + v0.2 features + cleanup)
 Test count: 236 tests (all passing):
   - 186 v0.1.0 core tests
   - 12 sparse checkout tests
@@ -168,6 +175,13 @@ Test count: 236 tests (all passing):
   - 10 unit tests for condition parsing/evaluation (hooks.rs)
   - 9 integration tests for conditional hooks
   - 6 enhanced integration tests for config+hooks merging
+
+### Recent Changes (v0.2 Final)
+- **Config Hierarchy** - 4-level config merging (system → user → repo → local)
+- **Conditional Hooks** - Branch pattern matching for hooks
+- **Naming Cleanup** - `.wt-state` → `.hn-state` throughout codebase
+- All 236 tests passing
+- All documentation updated
 ```
 
 ---
@@ -1191,10 +1205,47 @@ hooks:
   - Full config hierarchy support (conditional hooks append across levels)
   - 19 comprehensive tests (10 unit + 9 integration)
   - Production-ready with graceful error handling
+- ✅ Naming cleanup (COMPLETED)
+  - Replaced all `.wt-state` references with `.hn-state`
+  - Updated documentation and tests
+  - Consistent hannahanna/hn naming throughout
 
-### v0.3: Extended VCS Support & Performance
-- ⏸️ Sparse checkout for Mercurial
-- ⏸️ Additional performance optimizations
+### v0.3: Extended Hooks & CLI Commands
+**Status:** 🚧 Planned
+
+#### Additional Hooks
+- [ ] `pre_create` - Run before creating worktree
+- [ ] `post_remove` - Run after removing worktree
+- [ ] `post_switch` - Run after switching to worktree
+- [ ] `pre_integrate` - Run before integration
+- [ ] `post_integrate` - Run after integration
+- [ ] Conditional versions of new hooks
+
+#### Config Commands
+- [ ] `hn config init [--template=<name>]` - Initialize config file
+- [ ] `hn config validate` - Validate config syntax
+- [ ] `hn config edit` - Open config in $EDITOR
+
+#### Docker Commands
+- [ ] `hn docker restart <name>` - Restart containers
+- [ ] `hn docker exec <name> <cmd>` - Execute command in container
+- [ ] `hn docker prune` - Clean orphaned containers/volumes
+
+#### Port Commands
+- [ ] `hn ports reassign <name>` - Reassign ports to worktree
+
+#### State Commands
+- [ ] `hn state list` - List all state directories
+- [ ] `hn state clean` - Clean orphaned state
+- [ ] `hn state size [name]` - Show disk usage
+
+#### Other Features
+- [ ] Aliases support (e.g., `sw` → `switch`, `rm` → `remove`)
+- [ ] Sparse checkout for Mercurial
+- [ ] Additional performance optimizations
+
+### v0.4: Advanced Features & Polish
+**Status:** 📋 Backlog
 
 See `vision.md` for full long-term roadmap.
 

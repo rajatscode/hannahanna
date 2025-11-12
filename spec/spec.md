@@ -231,7 +231,7 @@ hn sync [source-branch] [options]
 
 ### 3.1 Configuration File
 
-**Location:** `.wt/config.yaml` in repository root
+**Location:** `.hannahanna.yml` in repository root (see section 8 for config hierarchy)
 
 **Full Structure:**
 
