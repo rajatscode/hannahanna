@@ -43,7 +43,6 @@ impl std::str::FromStr for VcsType {
 }
 
 /// Trait that all VCS backends must implement
-#[allow(unused)] // Will be fully used in v0.3
 pub trait VcsBackend {
     /// Get the VCS type
     fn vcs_type(&self) -> VcsType;
@@ -114,7 +113,6 @@ pub trait VcsBackend {
 /// 2. .git/ → Git
 /// 3. .hg/ → Mercurial
 /// 4. None found → Error
-#[allow(dead_code)] // Will be used in v0.3 when --vcs flag is added
 pub fn detect_vcs_type(path: &Path) -> Option<VcsType> {
     // Check for Jujutsu first (newest, most specific)
     if path.join(".jj").exists() {
@@ -135,7 +133,6 @@ pub fn detect_vcs_type(path: &Path) -> Option<VcsType> {
 }
 
 /// Create a VCS backend instance for the given type
-#[allow(dead_code)] // Will be used in v0.3 when --vcs flag is added
 pub fn create_backend(vcs_type: VcsType) -> Result<Box<dyn VcsBackend>> {
     match vcs_type {
         VcsType::Git => {
