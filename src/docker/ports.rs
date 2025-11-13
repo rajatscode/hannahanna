@@ -157,7 +157,7 @@ impl PortAllocator {
             .open(&registry_path)?;
 
         // Acquire exclusive lock (blocks until lock is available)
-        file.lock_exclusive()
+        FileExt::lock_exclusive(&file)
             .map_err(|e| HnError::DockerError(format!("Failed to lock registry file: {}", e)))?;
 
         // Now that we have the lock, truncate the file
@@ -187,7 +187,7 @@ impl PortAllocator {
         let file = File::open(&registry_path)?;
 
         // Acquire shared lock (allows multiple readers, blocks writers)
-        file.lock_shared().map_err(|e| {
+        FileExt::lock_shared(&file).map_err(|e| {
             HnError::DockerError(format!("Failed to lock registry file for reading: {}", e))
         })?;
 
