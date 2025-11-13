@@ -11,7 +11,7 @@ homepage = "https://github.com/rajatscode/hannahanna"
 documentation = "https://docs.rs/hannahanna"
 keywords = ["git", "worktree", "vcs", "development", "workflow"]
 categories = ["command-line-utilities", "development-tools"]
-rust-version = "1.89"
+rust-version = "1.75"
 exclude = [
     ".github/",
     "tests/",
