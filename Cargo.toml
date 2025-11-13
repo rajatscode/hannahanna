@@ -1,10 +1,10 @@
 [package]
 name = "hannahanna"
 version = "0.6.0"
-edition = "2021"
-authors = ["hannahanna contributors"]
-description = "Multi-VCS worktree manager with comprehensive hooks, state management, and docker integration"
-license = "MIT OR Apache-2.0"
+edition = "2025"
+authors = ["code@rajats.site"]
+description = "worktree wrapper for parallelized local development",
+license = "MIT"
 repository = "https://github.com/rajatscode/hannahanna"
 readme = "README.md"
 homepage = "https://github.com/rajatscode/hannahanna"
