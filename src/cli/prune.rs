@@ -52,7 +52,8 @@ pub fn run() -> Result<()> {
     for worktree in &worktrees {
         match snapshot::cleanup_orphaned_stashes(&state_dir, &worktree.path) {
             Ok(count) if count > 0 => {
-                println!("  Cleaned {} orphaned stash{} from '{}'",
+                println!(
+                    "  Cleaned {} orphaned stash{} from '{}'",
                     count,
                     if count == 1 { "" } else { "es" },
                     worktree.name
@@ -61,15 +62,23 @@ pub fn run() -> Result<()> {
             }
             Ok(_) => {} // No orphaned stashes for this worktree
             Err(e) => {
-                eprintln!("  ⚠ Warning: Failed to clean stashes for '{}': {}", worktree.name, e);
+                eprintln!(
+                    "  ⚠ Warning: Failed to clean stashes for '{}': {}",
+                    worktree.name, e
+                );
             }
         }
     }
 
     if total_orphaned_stashes > 0 {
-        println!("\nTotal: Cleaned {} orphaned snapshot stash{}.",
+        println!(
+            "\nTotal: Cleaned {} orphaned snapshot stash{}.",
             total_orphaned_stashes,
-            if total_orphaned_stashes == 1 { "" } else { "es" }
+            if total_orphaned_stashes == 1 {
+                ""
+            } else {
+                "es"
+            }
         );
     } else {
         println!("No orphaned snapshot stashes found.");

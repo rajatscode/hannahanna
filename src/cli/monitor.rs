@@ -36,8 +36,18 @@ pub fn run(live: bool, _refresh_secs: Option<u64>, vcs_type: Option<VcsType>) ->
 
     // System-wide stats
     println!("{}", "System Overview".bold());
-    println!("  Active Worktrees: {}", worktrees.len().to_string().green());
-    println!("  Docker Enabled: {}", if config.docker.enabled { "Yes".green() } else { "No".red() });
+    println!(
+        "  Active Worktrees: {}",
+        worktrees.len().to_string().green()
+    );
+    println!(
+        "  Docker Enabled: {}",
+        if config.docker.enabled {
+            "Yes".green()
+        } else {
+            "No".red()
+        }
+    );
     println!();
 
     // Worktree details
@@ -58,7 +68,7 @@ pub fn run(live: bool, _refresh_secs: Option<u64>, vcs_type: Option<VcsType>) ->
 
         let path_str = wt.path.to_string_lossy();
         let path_display = if path_str.len() > 30 {
-            format!("...{}", &path_str[path_str.len()-27..])
+            format!("...{}", &path_str[path_str.len() - 27..])
         } else {
             path_str.to_string()
         };

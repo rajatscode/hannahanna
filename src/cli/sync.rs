@@ -114,8 +114,8 @@ pub fn run(
     let repo_root = Config::find_repo_root(&current_worktree.path)?;
     let config = Config::load(&repo_root)?;
 
-    let has_pre_integrate_hooks = config.hooks.pre_integrate.is_some()
-        || !config.hooks.pre_integrate_conditions.is_empty();
+    let has_pre_integrate_hooks =
+        config.hooks.pre_integrate.is_some() || !config.hooks.pre_integrate_conditions.is_empty();
 
     if has_pre_integrate_hooks {
         let state_manager = StateManager::new(&repo_root)?;

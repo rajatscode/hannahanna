@@ -82,8 +82,8 @@ pub fn run(
     let repo_root = Config::find_repo_root(&target_worktree.path)?;
     let config = Config::load(&repo_root)?;
 
-    let has_pre_integrate_hooks = config.hooks.pre_integrate.is_some()
-        || !config.hooks.pre_integrate_conditions.is_empty();
+    let has_pre_integrate_hooks =
+        config.hooks.pre_integrate.is_some() || !config.hooks.pre_integrate_conditions.is_empty();
 
     if has_pre_integrate_hooks {
         let state_manager = StateManager::new(&repo_root)?;
@@ -198,7 +198,10 @@ pub fn run(
                         eprintln!("  ✓ Reparented '{}'", child.name);
                     }
                     _ => {
-                        eprintln!("  ⚠ Failed to reparent '{}' (you may need to update manually)", child.name);
+                        eprintln!(
+                            "  ⚠ Failed to reparent '{}' (you may need to update manually)",
+                            child.name
+                        );
                     }
                 }
             }
@@ -206,8 +209,8 @@ pub fn run(
     }
 
     // Run post_integrate hook
-    let has_post_integrate_hooks = config.hooks.post_integrate.is_some()
-        || !config.hooks.post_integrate_conditions.is_empty();
+    let has_post_integrate_hooks =
+        config.hooks.post_integrate.is_some() || !config.hooks.post_integrate_conditions.is_empty();
 
     if has_post_integrate_hooks {
         let state_manager = StateManager::new(&repo_root)?;

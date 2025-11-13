@@ -13,6 +13,16 @@ use crate::vcs::{init_backend_from_current_dir, RegistryCache, VcsType};
 use colored::*;
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 
+/// Parameters collected from interactive prompts
+struct WorktreeParams {
+    name: String,
+    branch: Option<String>,
+    from: Option<String>,
+    no_branch: bool,
+    sparse_paths: Option<Vec<String>>,
+    template: Option<String>,
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn run(
     name: Option<String>,
@@ -27,18 +37,28 @@ pub fn run(
     vcs_type: Option<VcsType>,
 ) -> Result<()> {
     // Interactive mode if name is not provided
-    let (name, branch, from, no_branch, sparse_paths, template) = if name.is_none() {
-        interactive_prompts(branch, from, no_branch, sparse_paths, template)?
-    } else {
-        (
-            name.unwrap(),
+    let params = if let Some(name) = name {
+        WorktreeParams {
+            name,
             branch,
             from,
             no_branch,
             sparse_paths,
             template,
-        )
+        }
+    } else {
+        interactive_prompts(branch, from, no_branch, sparse_paths, template)?
     };
+
+    // Destructure params for easier use
+    let WorktreeParams {
+        name,
+        branch,
+        from,
+        no_branch,
+        sparse_paths,
+        template,
+    } = params;
 
     // Validate worktree name
     validation::validate_worktree_name(&name)?;
@@ -64,8 +84,8 @@ pub fn run(
     }
 
     // Run pre_create hook if configured
-    let has_pre_create_hooks = config.hooks.pre_create.is_some()
-        || !config.hooks.pre_create_conditions.is_empty();
+    let has_pre_create_hooks =
+        config.hooks.pre_create.is_some() || !config.hooks.pre_create_conditions.is_empty();
 
     if has_pre_create_hooks && !no_hooks {
         eprintln!("Running pre_create hook...");
@@ -77,7 +97,8 @@ pub fn run(
             .as_ref()
             .map(|w| w.branch.clone())
             .unwrap_or_else(|| "unknown".to_string());
-        let effective_branch = branch.clone()
+        let effective_branch = branch
+            .clone()
             .or_else(|| from.clone())
             .unwrap_or_else(|| current_branch.clone());
 
@@ -86,7 +107,7 @@ pub fn run(
             path: repo_root.join(&name), // Estimated path
             branch: effective_branch,
             commit: String::new(), // Not known yet
-            parent: None, // Will be set later
+            parent: None,          // Will be set later
         };
 
         let state_dir = repo_root.join(".hn-state").join(&name);
@@ -193,8 +214,8 @@ pub fn run(
     }
 
     // Run post_create hook if configured (regular or conditional)
-    let has_post_create_hooks = config.hooks.post_create.is_some()
-        || !config.hooks.post_create_conditions.is_empty();
+    let has_post_create_hooks =
+        config.hooks.post_create.is_some() || !config.hooks.post_create_conditions.is_empty();
 
     if has_post_create_hooks && !no_hooks {
         eprintln!("Running post_create hook...");
@@ -277,19 +298,15 @@ fn interactive_prompts(
     no_branch: bool,
     sparse_paths: Option<Vec<String>>,
     template: Option<String>,
-) -> Result<(
-    String,
-    Option<String>,
-    Option<String>,
-    bool,
-    Option<Vec<String>>,
-    Option<String>,
-)> {
+) -> Result<WorktreeParams> {
     let theme = ColorfulTheme::default();
 
     // Header
     eprintln!("{}", "═".repeat(60).bright_blue());
-    eprintln!("{}", "  Interactive Worktree Creation".bold().bright_green());
+    eprintln!(
+        "{}",
+        "  Interactive Worktree Creation".bold().bright_green()
+    );
     eprintln!("{}", "═".repeat(60).bright_blue());
     eprintln!();
 
@@ -329,11 +346,7 @@ fn interactive_prompts(
     };
 
     // Determine no_branch flag
-    let no_branch = if no_branch {
-        true
-    } else {
-        branch.is_none()
-    };
+    let no_branch = if no_branch { true } else { branch.is_none() };
 
     // Prompt for base branch (if not provided via flag)
     let from = if from.is_some() {
@@ -436,8 +449,14 @@ fn interactive_prompts(
 
     // Display summary
     eprintln!("  {} {}", "Name:".bold(), name.bright_white());
-    eprintln!("  {} {}", "Branch:".bold(),
-        branch.as_deref().unwrap_or("(existing branch)").bright_white());
+    eprintln!(
+        "  {} {}",
+        "Branch:".bold(),
+        branch
+            .as_deref()
+            .unwrap_or("(existing branch)")
+            .bright_white()
+    );
     if let Some(ref from_branch) = from {
         eprintln!("  {} {}", "From:".bold(), from_branch.bright_white());
     }
@@ -445,7 +464,11 @@ fn interactive_prompts(
         eprintln!("  {} {}", "Template:".bold(), tmpl.bright_green());
     }
     if let Some(ref paths) = sparse_paths {
-        eprintln!("  {} {} paths", "Sparse:".bold(), paths.len().to_string().bright_white());
+        eprintln!(
+            "  {} {} paths",
+            "Sparse:".bold(),
+            paths.len().to_string().bright_white()
+        );
         for path in paths {
             eprintln!("    • {}", path.dimmed());
         }
@@ -457,12 +480,18 @@ fn interactive_prompts(
         if config.docker.enabled {
             eprintln!("  {} {}", "Docker:".bold(), "enabled".bright_green());
             if !config.docker.ports.base.is_empty() {
-                eprintln!("    Services: {}",
-                    config.docker.ports.base.keys()
+                eprintln!(
+                    "    Services: {}",
+                    config
+                        .docker
+                        .ports
+                        .base
+                        .keys()
                         .map(|s| s.as_str())
                         .collect::<Vec<_>>()
                         .join(", ")
-                        .dimmed());
+                        .dimmed()
+                );
             }
         } else {
             eprintln!("  {} {}", "Docker:".bold(), "disabled".dimmed());
@@ -494,5 +523,12 @@ fn interactive_prompts(
     }
 
     eprintln!();
-    Ok((name, branch, from, no_branch, sparse_paths, template))
+    Ok(WorktreeParams {
+        name,
+        branch,
+        from,
+        no_branch,
+        sparse_paths,
+        template,
+    })
 }

@@ -292,7 +292,8 @@ impl Config {
         let mut config = Config::default();
 
         // 4. System config (lowest priority)
-        if let Some(system_config) = Self::load_from_path(Path::new("/etc/hannahanna/config.yml"))? {
+        if let Some(system_config) = Self::load_from_path(Path::new("/etc/hannahanna/config.yml"))?
+        {
             config.merge_with(system_config);
         }
 
@@ -381,13 +382,27 @@ impl Config {
             self.hooks.timeout_seconds = other.hooks.timeout_seconds;
         }
         // Append conditional hooks (arrays append)
-        self.hooks.pre_create_conditions.extend(other.hooks.pre_create_conditions);
-        self.hooks.post_create_conditions.extend(other.hooks.post_create_conditions);
-        self.hooks.pre_remove_conditions.extend(other.hooks.pre_remove_conditions);
-        self.hooks.post_remove_conditions.extend(other.hooks.post_remove_conditions);
-        self.hooks.post_switch_conditions.extend(other.hooks.post_switch_conditions);
-        self.hooks.pre_integrate_conditions.extend(other.hooks.pre_integrate_conditions);
-        self.hooks.post_integrate_conditions.extend(other.hooks.post_integrate_conditions);
+        self.hooks
+            .pre_create_conditions
+            .extend(other.hooks.pre_create_conditions);
+        self.hooks
+            .post_create_conditions
+            .extend(other.hooks.post_create_conditions);
+        self.hooks
+            .pre_remove_conditions
+            .extend(other.hooks.pre_remove_conditions);
+        self.hooks
+            .post_remove_conditions
+            .extend(other.hooks.post_remove_conditions);
+        self.hooks
+            .post_switch_conditions
+            .extend(other.hooks.post_switch_conditions);
+        self.hooks
+            .pre_integrate_conditions
+            .extend(other.hooks.pre_integrate_conditions);
+        self.hooks
+            .post_integrate_conditions
+            .extend(other.hooks.post_integrate_conditions);
 
         // Merge docker config (override primitives, append arrays)
         if other.docker.enabled {
@@ -418,11 +433,20 @@ impl Config {
         }
 
         // Merge docker shared resources (append arrays)
-        self.docker.shared.volumes.extend(other.docker.shared.volumes);
-        self.docker.shared.networks.extend(other.docker.shared.networks);
+        self.docker
+            .shared
+            .volumes
+            .extend(other.docker.shared.volumes);
+        self.docker
+            .shared
+            .networks
+            .extend(other.docker.shared.networks);
 
         // Merge docker isolated resources (append arrays)
-        self.docker.isolated.volumes.extend(other.docker.isolated.volumes);
+        self.docker
+            .isolated
+            .volumes
+            .extend(other.docker.isolated.volumes);
 
         // Merge docker env vars (override)
         for (key, value) in other.docker.env {

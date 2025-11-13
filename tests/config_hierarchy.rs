@@ -57,10 +57,7 @@ hooks:
 
     assert_eq!(config.shared_resources.len(), 1);
     assert_eq!(config.shared_resources[0].source, "node_modules");
-    assert_eq!(
-        config.hooks.post_create,
-        Some("npm install".to_string())
-    );
+    assert_eq!(config.hooks.post_create, Some("npm install".to_string()));
 }
 
 #[test]
@@ -84,18 +81,12 @@ hooks:
 hooks:
   post_create: "yarn install"
 "#;
-    write_config(
-        &temp_dir.path().join(".hannahanna.local.yml"),
-        local_config,
-    );
+    write_config(&temp_dir.path().join(".hannahanna.local.yml"), local_config);
 
     let config = Config::load(temp_dir.path()).unwrap();
 
     // Local hook should override repo hook
-    assert_eq!(
-        config.hooks.post_create,
-        Some("yarn install".to_string())
-    );
+    assert_eq!(config.hooks.post_create, Some("yarn install".to_string()));
 
     // Shared resources from repo should still be present
     assert_eq!(config.shared_resources.len(), 1);
@@ -129,10 +120,7 @@ sparse:
   paths:
     - libs/utils/
 "#;
-    write_config(
-        &temp_dir.path().join(".hannahanna.local.yml"),
-        local_config,
-    );
+    write_config(&temp_dir.path().join(".hannahanna.local.yml"), local_config);
 
     let config = Config::load(temp_dir.path()).unwrap();
 
@@ -180,10 +168,7 @@ docker:
 hooks:
   timeout_seconds: 600
 "#;
-    write_config(
-        &temp_dir.path().join(".hannahanna.local.yml"),
-        local_config,
-    );
+    write_config(&temp_dir.path().join(".hannahanna.local.yml"), local_config);
 
     let config = Config::load(temp_dir.path()).unwrap();
 
@@ -279,18 +264,12 @@ docker:
     PORT: "4000"
     REDIS_URL: "redis://localhost:6379"
 "#;
-    write_config(
-        &temp_dir.path().join(".hannahanna.local.yml"),
-        local_config,
-    );
+    write_config(&temp_dir.path().join(".hannahanna.local.yml"), local_config);
 
     let config = Config::load(temp_dir.path()).unwrap();
 
     // PORT should be overridden
-    assert_eq!(
-        config.docker.env.get("PORT"),
-        Some(&"4000".to_string())
-    );
+    assert_eq!(config.docker.env.get("PORT"), Some(&"4000".to_string()));
 
     // DATABASE_URL should be preserved from repo config
     assert_eq!(
@@ -328,10 +307,7 @@ docker:
       app: 4000
       redis: 6379
 "#;
-    write_config(
-        &temp_dir.path().join(".hannahanna.local.yml"),
-        local_config,
-    );
+    write_config(&temp_dir.path().join(".hannahanna.local.yml"), local_config);
 
     let config = Config::load(temp_dir.path()).unwrap();
 
@@ -376,26 +352,43 @@ docker:
     volumes:
       - logs
 "#;
-    write_config(
-        &temp_dir.path().join(".hannahanna.local.yml"),
-        local_config,
-    );
+    write_config(&temp_dir.path().join(".hannahanna.local.yml"), local_config);
 
     let config = Config::load(temp_dir.path()).unwrap();
 
     // Volumes should be appended
     assert_eq!(config.docker.shared.volumes.len(), 2);
-    assert!(config.docker.shared.volumes.contains(&"postgres-data".to_string()));
-    assert!(config.docker.shared.volumes.contains(&"redis-data".to_string()));
+    assert!(config
+        .docker
+        .shared
+        .volumes
+        .contains(&"postgres-data".to_string()));
+    assert!(config
+        .docker
+        .shared
+        .volumes
+        .contains(&"redis-data".to_string()));
 
     // Networks should be appended
     assert_eq!(config.docker.shared.networks.len(), 2);
-    assert!(config.docker.shared.networks.contains(&"myapp-net".to_string()));
-    assert!(config.docker.shared.networks.contains(&"debug-net".to_string()));
+    assert!(config
+        .docker
+        .shared
+        .networks
+        .contains(&"myapp-net".to_string()));
+    assert!(config
+        .docker
+        .shared
+        .networks
+        .contains(&"debug-net".to_string()));
 
     // Isolated volumes should be appended
     assert_eq!(config.docker.isolated.volumes.len(), 2);
-    assert!(config.docker.isolated.volumes.contains(&"app-cache".to_string()));
+    assert!(config
+        .docker
+        .isolated
+        .volumes
+        .contains(&"app-cache".to_string()));
     assert!(config.docker.isolated.volumes.contains(&"logs".to_string()));
 }
 
@@ -418,17 +411,20 @@ shared:
   copy:
     - config/local.yml.example -> config/local.yml
 "#;
-    write_config(
-        &temp_dir.path().join(".hannahanna.local.yml"),
-        local_config,
-    );
+    write_config(&temp_dir.path().join(".hannahanna.local.yml"), local_config);
 
     let config = Config::load(temp_dir.path()).unwrap();
 
     // Copy resources should be appended
     assert_eq!(config.shared.as_ref().unwrap().copy.len(), 2);
-    assert_eq!(config.shared.as_ref().unwrap().copy[0].source, ".env.template");
-    assert_eq!(config.shared.as_ref().unwrap().copy[1].source, "config/local.yml.example");
+    assert_eq!(
+        config.shared.as_ref().unwrap().copy[0].source,
+        ".env.template"
+    );
+    assert_eq!(
+        config.shared.as_ref().unwrap().copy[1].source,
+        "config/local.yml.example"
+    );
 }
 
 #[test]
@@ -461,10 +457,7 @@ shared_resources:
   - source: from_local
     target: local_target
 "#;
-    write_config(
-        &temp_dir.path().join(".hannahanna.local.yml"),
-        local_config,
-    );
+    write_config(&temp_dir.path().join(".hannahanna.local.yml"), local_config);
 
     let config = Config::load(temp_dir.path()).unwrap();
 

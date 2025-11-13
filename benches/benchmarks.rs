@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use hannahanna::config::Config;
 use hannahanna::fuzzy;
 use hannahanna::vcs::git::GitBackend;
@@ -15,29 +15,47 @@ fn setup_test_repo(worktree_count: usize) -> (TempDir, PathBuf) {
 
     // Initialize git repo
     Command::new("git")
-        .args(&["init", repo_path.to_str().unwrap()])
+        .args(["init", repo_path.to_str().unwrap()])
         .output()
         .unwrap();
 
     // Configure git
     Command::new("git")
-        .args(&["-C", repo_path.to_str().unwrap(), "config", "user.email", "test@example.com"])
+        .args([
+            "-C",
+            repo_path.to_str().unwrap(),
+            "config",
+            "user.email",
+            "test@example.com",
+        ])
         .output()
         .unwrap();
 
     Command::new("git")
-        .args(&["-C", repo_path.to_str().unwrap(), "config", "user.name", "Test User"])
+        .args([
+            "-C",
+            repo_path.to_str().unwrap(),
+            "config",
+            "user.name",
+            "Test User",
+        ])
         .output()
         .unwrap();
 
     // Create initial commit
     fs::write(repo_path.join("README.md"), "# Test Repo").unwrap();
     Command::new("git")
-        .args(&["-C", repo_path.to_str().unwrap(), "add", "."])
+        .args(["-C", repo_path.to_str().unwrap(), "add", "."])
         .output()
         .unwrap();
     Command::new("git")
-        .args(&["-C", repo_path.to_str().unwrap(), "commit", "-m", "Initial commit"])
+        .args([
+            "-C",
+            repo_path.to_str().unwrap(),
+            "commit",
+            "-m",
+            "Initial commit",
+        ])
         .output()
         .unwrap();
 
@@ -46,7 +64,7 @@ fn setup_test_repo(worktree_count: usize) -> (TempDir, PathBuf) {
         let worktree_name = format!("feature-{}", i);
         let worktree_path = temp_dir.path().join(&worktree_name);
         Command::new("git")
-            .args(&[
+            .args([
                 "-C",
                 repo_path.to_str().unwrap(),
                 "worktree",
@@ -92,28 +110,46 @@ fn bench_create_worktree_no_hooks(c: &mut Criterion) {
 
                 // Initialize git repo
                 Command::new("git")
-                    .args(&["init", repo_path.to_str().unwrap()])
+                    .args(["init", repo_path.to_str().unwrap()])
                     .output()
                     .unwrap();
 
                 // Configure git
                 Command::new("git")
-                    .args(&["-C", repo_path.to_str().unwrap(), "config", "user.email", "test@example.com"])
+                    .args([
+                        "-C",
+                        repo_path.to_str().unwrap(),
+                        "config",
+                        "user.email",
+                        "test@example.com",
+                    ])
                     .output()
                     .unwrap();
                 Command::new("git")
-                    .args(&["-C", repo_path.to_str().unwrap(), "config", "user.name", "Test User"])
+                    .args([
+                        "-C",
+                        repo_path.to_str().unwrap(),
+                        "config",
+                        "user.name",
+                        "Test User",
+                    ])
                     .output()
                     .unwrap();
 
                 // Create initial commit
                 fs::write(repo_path.join("README.md"), "# Test Repo").unwrap();
                 Command::new("git")
-                    .args(&["-C", repo_path.to_str().unwrap(), "add", "."])
+                    .args(["-C", repo_path.to_str().unwrap(), "add", "."])
                     .output()
                     .unwrap();
                 Command::new("git")
-                    .args(&["-C", repo_path.to_str().unwrap(), "commit", "-m", "Initial commit"])
+                    .args([
+                        "-C",
+                        repo_path.to_str().unwrap(),
+                        "commit",
+                        "-m",
+                        "Initial commit",
+                    ])
                     .output()
                     .unwrap();
 
@@ -122,7 +158,7 @@ fn bench_create_worktree_no_hooks(c: &mut Criterion) {
             |(temp_dir, repo_path)| {
                 let worktree_path = temp_dir.path().join("new-feature");
                 Command::new("git")
-                    .args(&[
+                    .args([
                         "-C",
                         repo_path.to_str().unwrap(),
                         "worktree",
@@ -151,10 +187,7 @@ fn bench_fuzzy_search(c: &mut Criterion) {
 
         group.bench_with_input(BenchmarkId::from_parameter(count), count, |b, _| {
             b.iter(|| {
-                let result = fuzzy::find_best_match(
-                    black_box("feat-500"),
-                    black_box(&candidates),
-                );
+                let result = fuzzy::find_best_match(black_box("feat-500"), black_box(&candidates));
                 black_box(result)
             });
         });
@@ -251,14 +284,14 @@ fn bench_registry_cache(c: &mut Criterion) {
             |cache| {
                 // This should be a cache miss
                 let result = cache.get().unwrap();
-                if result.is_none() {
+                if let Some(cached) = result {
+                    black_box(cached)
+                } else {
                     // Cache miss, need to query VCS
                     let backend = GitBackend::open_from_current_dir().unwrap();
                     let worktrees = backend.list_workspaces().unwrap();
                     let _ = cache.set(worktrees.clone());
                     black_box(worktrees)
-                } else {
-                    black_box(result.unwrap())
                 }
             },
             criterion::BatchSize::SmallInput,

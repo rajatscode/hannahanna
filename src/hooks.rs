@@ -497,11 +497,23 @@ echo "HNHN_STATE_DIR=$HNHN_STATE_DIR" >> {}"#,
 
         // Verify NEW HNHN_* environment variables are passed
         let content = std::fs::read_to_string(&output_file).unwrap();
-        assert!(content.contains("HNHN_NAME=test-worktree"), "HNHN_NAME should be set");
-        assert!(content.contains("HNHN_BRANCH=main"), "HNHN_BRANCH should be set");
-        assert!(content.contains("HNHN_COMMIT=abc123"), "HNHN_COMMIT should be set");
+        assert!(
+            content.contains("HNHN_NAME=test-worktree"),
+            "HNHN_NAME should be set"
+        );
+        assert!(
+            content.contains("HNHN_BRANCH=main"),
+            "HNHN_BRANCH should be set"
+        );
+        assert!(
+            content.contains("HNHN_COMMIT=abc123"),
+            "HNHN_COMMIT should be set"
+        );
         assert!(content.contains("HNHN_PATH="), "HNHN_PATH should be set");
-        assert!(content.contains("HNHN_STATE_DIR="), "HNHN_STATE_DIR should be set");
+        assert!(
+            content.contains("HNHN_STATE_DIR="),
+            "HNHN_STATE_DIR should be set"
+        );
     }
 
     #[test]
@@ -534,8 +546,14 @@ echo "WT_BRANCH=${{WT_BRANCH:-NOT_SET}}" >> {}"#,
 
         // Verify OLD WT_* variables are NOT set (breaking change in v0.5)
         let content = std::fs::read_to_string(&output_file).unwrap();
-        assert!(content.contains("WT_NAME=NOT_SET"), "Old WT_NAME should not be set");
-        assert!(content.contains("WT_BRANCH=NOT_SET"), "Old WT_BRANCH should not be set");
+        assert!(
+            content.contains("WT_NAME=NOT_SET"),
+            "Old WT_NAME should not be set"
+        );
+        assert!(
+            content.contains("WT_BRANCH=NOT_SET"),
+            "Old WT_BRANCH should not be set"
+        );
     }
 
     #[test]
@@ -558,10 +576,7 @@ echo "WT_BRANCH=${{WT_BRANCH:-NOT_SET}}" >> {}"#,
 
         for (hook_type, hook_name) in hook_types {
             let output_file = temp.path().join(format!("env_{}.txt", hook_name));
-            let hook_script = format!(
-                r#"echo "HNHN_NAME=$HNHN_NAME" > {}"#,
-                output_file.display()
-            );
+            let hook_script = format!(r#"echo "HNHN_NAME=$HNHN_NAME" > {}"#, output_file.display());
 
             let mut config = HooksConfig::default();
             match hook_type {

@@ -159,10 +159,7 @@ fn test_snapshot_atomicity_with_metadata_first() {
 
     // Verify snapshot metadata was saved
     let snapshots_index = repo.path().join(".hn-state").join("snapshots.json");
-    assert!(
-        snapshots_index.exists(),
-        "Snapshot index should be created"
-    );
+    assert!(snapshots_index.exists(), "Snapshot index should be created");
 
     // Parse snapshot index
     let index_content = fs::read_to_string(&snapshots_index).unwrap();
@@ -207,7 +204,11 @@ fn test_snapshot_duplicate_name_prevention() {
     // Verify only one snapshot exists
     let output = repo.hn(&["snapshot", "list", "test-worktree"]);
     output.assert_success();
-    let snapshot_count = output.stdout.lines().filter(|l| l.contains("duplicate")).count();
+    let snapshot_count = output
+        .stdout
+        .lines()
+        .filter(|l| l.contains("duplicate"))
+        .count();
     assert_eq!(snapshot_count, 1, "Should have exactly one snapshot");
 }
 
@@ -434,7 +435,10 @@ fn test_snapshot_list_shows_correct_metadata() {
     output.assert_success();
 
     // Verify metadata is shown
-    assert!(output.stdout.contains("metadata-test"), "Should show snapshot name");
+    assert!(
+        output.stdout.contains("metadata-test"),
+        "Should show snapshot name"
+    );
     assert!(
         output.stdout.contains("uncommitted") || output.stdout.contains("changes"),
         "Should indicate uncommitted changes"
@@ -467,7 +471,10 @@ fn test_orphaned_stash_cleanup() {
 
     // Verify stash still exists (orphaned)
     let stash_count_after_corruption = count_hannahanna_stashes(repo.path());
-    assert_eq!(stash_count_after_corruption, 1, "Orphaned stash should exist");
+    assert_eq!(
+        stash_count_after_corruption, 1,
+        "Orphaned stash should exist"
+    );
 
     // Note: We can't easily test cleanup_orphaned_stashes() directly through CLI
     // but the function exists and is tested by the snapshot deletion logic

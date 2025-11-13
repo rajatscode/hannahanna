@@ -217,7 +217,10 @@ pub fn exec(name: String, service: Option<String>, command: Vec<String>) -> Resu
         }
     };
 
-    println!("Executing command in '{}' (service: {})...", name, service_name);
+    println!(
+        "Executing command in '{}' (service: {})...",
+        name, service_name
+    );
 
     // Try modern "docker compose" first, fallback to legacy "docker-compose"
     let compose_cmd = if std::process::Command::new("docker")

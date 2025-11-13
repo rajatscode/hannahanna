@@ -125,7 +125,10 @@ pub fn run(shell: Option<String>) -> Result<()> {
     println!();
 
     // 2. Setup shell integration
-    println!("{}", "2. Shell Integration (cd wrapper)".bright_white().bold());
+    println!(
+        "{}",
+        "2. Shell Integration (cd wrapper)".bright_white().bold()
+    );
     setup_shell_integration(setup_shell)?;
     println!();
 
@@ -201,7 +204,9 @@ fn setup_shell_integration(shell: SetupShell) -> Result<()> {
     }
 
     // Generate shell integration code
-    let output = Command::new(env::current_exe()?).args(["init-shell"]).output()?;
+    let output = Command::new(env::current_exe()?)
+        .args(["init-shell"])
+        .output()?;
 
     if !output.status.success() {
         return Err(HnError::ConfigError(
@@ -211,7 +216,11 @@ fn setup_shell_integration(shell: SetupShell) -> Result<()> {
 
     let integration_code = String::from_utf8_lossy(&output.stdout);
 
-    println!("  {} Add the following to {}:", "ℹ".bright_blue(), rc_file.display());
+    println!(
+        "  {} Add the following to {}:",
+        "ℹ".bright_blue(),
+        rc_file.display()
+    );
     println!();
     println!("{}", integration_code.dimmed());
     println!();
@@ -333,7 +342,10 @@ fn validate_environment() -> Result<()> {
 
     // Check current directory
     if let Ok(current_dir) = env::current_dir() {
-        println!("  ✓ working directory: {}", current_dir.display().to_string().bright_cyan());
+        println!(
+            "  ✓ working directory: {}",
+            current_dir.display().to_string().bright_cyan()
+        );
     }
 
     Ok(())

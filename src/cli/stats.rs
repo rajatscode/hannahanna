@@ -66,7 +66,10 @@ pub fn run(
 
     // Filter worktrees if name specified
     let filtered_worktrees: Vec<_> = if let Some(ref filter_name) = name {
-        worktrees.iter().filter(|wt| wt.name == *filter_name).collect()
+        worktrees
+            .iter()
+            .filter(|wt| wt.name == *filter_name)
+            .collect()
     } else {
         worktrees.iter().collect()
     };
@@ -91,7 +94,11 @@ pub fn run(
 
         // Current disk usage
         let current_size = if let Ok(size) = get_dir_size(&wt.path) {
-            println!("  {:<15} {}", "Disk Usage:".bold(), format_size(size).green());
+            println!(
+                "  {:<15} {}",
+                "Disk Usage:".bold(),
+                format_size(size).green()
+            );
             total_size += size;
             Some(size)
         } else {
@@ -102,7 +109,11 @@ pub fn run(
         let wt_state_dir = state_dir.join(&wt.name);
         let state_size = if wt_state_dir.exists() {
             if let Ok(state_size) = get_dir_size(&wt_state_dir) {
-                println!("  {:<15} {}", "State Dir:".bold(), format_size(state_size).dimmed());
+                println!(
+                    "  {:<15} {}",
+                    "State Dir:".bold(),
+                    format_size(state_size).dimmed()
+                );
                 Some(state_size)
             } else {
                 None
@@ -114,7 +125,11 @@ pub fn run(
         if !disk_only {
             // Additional stats
             println!("  {:<15} {}", "Branch:".bold(), wt.branch.dimmed());
-            println!("  {:<15} {}", "Path:".bold(), wt.path.display().to_string().dimmed());
+            println!(
+                "  {:<15} {}",
+                "Path:".bold(),
+                wt.path.display().to_string().dimmed()
+            );
         }
 
         // Record current metrics for historical tracking
@@ -146,7 +161,11 @@ pub fn run(
 
     println!();
     println!("{}", "═".repeat(80));
-    println!("{:<20} {}", "Total Disk Usage:".bold(), format_size(total_size).green().bold());
+    println!(
+        "{:<20} {}",
+        "Total Disk Usage:".bold(),
+        format_size(total_size).green().bold()
+    );
     println!();
 
     Ok(())
@@ -166,7 +185,11 @@ fn print_history(history: &MetricsHistory, days: Option<u64>) {
     }
 
     println!();
-    println!("  {} (last {} days)", "Historical Data".bold().underline(), days);
+    println!(
+        "  {} (last {} days)",
+        "Historical Data".bold().underline(),
+        days
+    );
     println!();
 
     // Show recent snapshots (last 5)
@@ -179,7 +202,8 @@ fn print_history(history: &MetricsHistory, days: Option<u64>) {
     for snap in recent {
         let timestamp = snap.timestamp;
         let date = format_timestamp(timestamp);
-        println!("  {} │ Disk: {} │ State: {}",
+        println!(
+            "  {} │ Disk: {} │ State: {}",
             date.dimmed(),
             format_size(snap.disk_usage).green(),
             format_size(snap.state_dir_size).dimmed()
@@ -194,13 +218,15 @@ fn print_history(history: &MetricsHistory, days: Option<u64>) {
 
         println!();
         if change > 0 {
-            println!("  {} {} ({})",
+            println!(
+                "  {} {} ({})",
                 "Trend:".bold(),
                 format!("↑ {}", format_size(change.unsigned_abs())).red(),
                 "increased".red()
             );
         } else if change < 0 {
-            println!("  {} {} ({})",
+            println!(
+                "  {} {} ({})",
                 "Trend:".bold(),
                 format!("↓ {}", format_size(change.unsigned_abs())).green(),
                 "decreased".green()

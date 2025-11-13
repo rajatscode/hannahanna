@@ -74,8 +74,8 @@ pub fn run(name: String, vcs_type: Option<VcsType>) -> Result<()> {
     let repo_root = Config::find_repo_root(&worktree.path)?;
     let config = Config::load(&repo_root)?;
 
-    let has_post_switch_hooks = config.hooks.post_switch.is_some()
-        || !config.hooks.post_switch_conditions.is_empty();
+    let has_post_switch_hooks =
+        config.hooks.post_switch.is_some() || !config.hooks.post_switch_conditions.is_empty();
 
     if has_post_switch_hooks {
         let state_manager = StateManager::new(&repo_root)?;

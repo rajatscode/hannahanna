@@ -71,7 +71,10 @@ pub fn reassign(name: String) -> Result<()> {
     let current_allocations = allocator.get_ports(&name)?;
 
     if current_allocations.is_empty() {
-        println!("No port allocations found for '{}'. Use 'hn docker start {}' to allocate ports.", name, name);
+        println!(
+            "No port allocations found for '{}'. Use 'hn docker start {}' to allocate ports.",
+            name, name
+        );
         return Ok(());
     }
 

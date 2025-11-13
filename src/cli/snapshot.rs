@@ -34,7 +34,11 @@ pub fn create(
     let state_dir = repo_root.join(".hn-state");
 
     println!();
-    println!("{} snapshot for '{}'...", "Creating".bold(), worktree.cyan());
+    println!(
+        "{} snapshot for '{}'...",
+        "Creating".bold(),
+        worktree.cyan()
+    );
 
     let snapshot = snapshot::create_snapshot(&wt.path, &wt.name, name, description, &state_dir)?;
 
@@ -53,10 +57,18 @@ pub fn create(
     println!();
     println!("{}: {}", "Name".bold(), snapshot.name.cyan());
     println!("{}: {}", "Branch".bold(), snapshot.branch);
-    println!("{}: {}", "Commit".bold(), &snapshot.commit[..8.min(snapshot.commit.len())]);
+    println!(
+        "{}: {}",
+        "Commit".bold(),
+        &snapshot.commit[..8.min(snapshot.commit.len())]
+    );
 
     if snapshot.has_uncommitted {
-        println!("{}: {}", "Uncommitted changes".bold().yellow(), "saved".green());
+        println!(
+            "{}: {}",
+            "Uncommitted changes".bold().yellow(),
+            "saved".green()
+        );
     } else {
         println!("{}: {}", "Uncommitted changes".bold(), "none".dimmed());
     }
@@ -66,11 +78,13 @@ pub fn create(
     }
 
     println!();
-    println!("Restore with: {} {} {} {}",
+    println!(
+        "Restore with: {} {} {} {}",
         "hn snapshot restore".bold(),
         worktree.cyan(),
         snapshot.name.cyan(),
-        "--help".dimmed());
+        "--help".dimmed()
+    );
     println!();
 
     Ok(())
@@ -87,7 +101,10 @@ pub fn list(worktree: Option<&str>) -> Result<()> {
     if snapshots.is_empty() {
         println!();
         if let Some(wt) = worktree {
-            println!("{}", format!("No snapshots found for worktree '{}'", wt).yellow());
+            println!(
+                "{}",
+                format!("No snapshots found for worktree '{}'", wt).yellow()
+            );
         } else {
             println!("{}", "No snapshots found".yellow());
         }
@@ -132,7 +149,11 @@ pub fn list(worktree: Option<&str>) -> Result<()> {
     }
 
     println!("{}", "═".repeat(80));
-    println!("{} snapshot{}", snapshots.len().to_string().green().bold(), if snapshots.len() == 1 { "" } else { "s" });
+    println!(
+        "{} snapshot{}",
+        snapshots.len().to_string().green().bold(),
+        if snapshots.len() == 1 { "" } else { "s" }
+    );
     println!();
 
     Ok(())
@@ -156,11 +177,7 @@ fn print_snapshot(snap: &Snapshot) {
 }
 
 /// Restore a snapshot
-pub fn restore(
-    worktree: &str,
-    snapshot: &str,
-    vcs_type: Option<VcsType>,
-) -> Result<()> {
+pub fn restore(worktree: &str, snapshot: &str, vcs_type: Option<VcsType>) -> Result<()> {
     let cwd = std::env::current_dir()?;
     let repo_root = Config::find_repo_root(&cwd)?;
 
@@ -196,7 +213,11 @@ pub fn restore(
     );
 
     println!();
-    println!("{} Snapshot '{}' restored successfully!", "✓".green().bold(), snapshot.cyan());
+    println!(
+        "{} Snapshot '{}' restored successfully!",
+        "✓".green().bold(),
+        snapshot.cyan()
+    );
     println!();
     println!("{}: {}", "Worktree".bold(), worktree.cyan());
     println!();
@@ -205,10 +226,7 @@ pub fn restore(
 }
 
 /// Delete a snapshot
-pub fn delete(
-    worktree: &str,
-    snapshot: &str,
-) -> Result<()> {
+pub fn delete(worktree: &str, snapshot: &str) -> Result<()> {
     let cwd = std::env::current_dir()?;
     let repo_root = Config::find_repo_root(&cwd)?;
     let state_dir = repo_root.join(".hn-state");
@@ -216,7 +234,11 @@ pub fn delete(
     snapshot::delete_snapshot(worktree, snapshot, &state_dir)?;
 
     println!();
-    println!("{} Snapshot '{}' deleted", "✓".green().bold(), snapshot.cyan());
+    println!(
+        "{} Snapshot '{}' deleted",
+        "✓".green().bold(),
+        snapshot.cyan()
+    );
     println!();
 
     Ok(())

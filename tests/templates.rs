@@ -23,7 +23,11 @@ fn test_templates_list_with_templates() {
     let microservice_dir = templates_dir.join("microservice");
     fs::create_dir_all(&microservice_dir).unwrap();
     fs::write(microservice_dir.join(".hannahanna.yml"), "# Microservice\n").unwrap();
-    fs::write(microservice_dir.join("README.md"), "# Microservice Template\n").unwrap();
+    fs::write(
+        microservice_dir.join("README.md"),
+        "# Microservice Template\n",
+    )
+    .unwrap();
 
     let frontend_dir = templates_dir.join("frontend");
     fs::create_dir_all(&frontend_dir).unwrap();
@@ -43,17 +47,37 @@ fn test_templates_show_existing_template() {
     let templates_dir = repo.path().join(".hn-templates");
     let microservice_dir = templates_dir.join("microservice");
     fs::create_dir_all(&microservice_dir).unwrap();
-    fs::write(microservice_dir.join(".hannahanna.yml"), "docker:\n  enabled: true\n").unwrap();
-    fs::write(microservice_dir.join("README.md"), "# Microservice\nBackend service\n").unwrap();
+    fs::write(
+        microservice_dir.join(".hannahanna.yml"),
+        "docker:\n  enabled: true\n",
+    )
+    .unwrap();
+    fs::write(
+        microservice_dir.join("README.md"),
+        "# Microservice\nBackend service\n",
+    )
+    .unwrap();
 
     let result = repo.hn(&["templates", "show", "microservice"]);
     if !result.success {
         eprintln!("Command failed! stderr: {}", result.stderr);
     }
-    assert!(result.success, "Command should succeed. stderr: {}", result.stderr);
-    assert!(result.stdout.contains("microservice"), "stdout: {}", result.stdout);
+    assert!(
+        result.success,
+        "Command should succeed. stderr: {}",
+        result.stderr
+    );
+    assert!(
+        result.stdout.contains("microservice"),
+        "stdout: {}",
+        result.stdout
+    );
     // Just check that the command works, description parsing might vary
-    assert!(result.stdout.contains("Configuration") || result.stdout.contains("Template"), "stdout: {}", result.stdout);
+    assert!(
+        result.stdout.contains("Configuration") || result.stdout.contains("Template"),
+        "stdout: {}",
+        result.stdout
+    );
 }
 
 #[test]
@@ -107,21 +131,44 @@ fn test_templates_create_basic() {
     let repo = TestRepo::new();
 
     // Create a new template (non-interactive mode for testing)
-    let result = repo.hn(&["templates", "create", "mytemplate", "--description", "My test template"]);
-    assert!(result.success, "Create should succeed. stderr: {}", result.stderr);
+    let result = repo.hn(&[
+        "templates",
+        "create",
+        "mytemplate",
+        "--description",
+        "My test template",
+    ]);
+    assert!(
+        result.success,
+        "Create should succeed. stderr: {}",
+        result.stderr
+    );
 
     // Verify template was created
     let template_dir = repo.path().join(".hn-templates/mytemplate");
     assert!(template_dir.exists(), "Template directory should exist");
-    assert!(template_dir.join(".hannahanna.yml").exists(), "Config file should exist");
-    assert!(template_dir.join("README.md").exists(), "README should exist");
+    assert!(
+        template_dir.join(".hannahanna.yml").exists(),
+        "Config file should exist"
+    );
+    assert!(
+        template_dir.join("README.md").exists(),
+        "README should exist"
+    );
 }
 
 #[test]
 fn test_templates_create_with_docker() {
     let repo = TestRepo::new();
 
-    let result = repo.hn(&["templates", "create", "dockerized", "--description", "Docker template", "--docker"]);
+    let result = repo.hn(&[
+        "templates",
+        "create",
+        "dockerized",
+        "--description",
+        "Docker template",
+        "--docker",
+    ]);
     assert!(result.success);
 
     let config_path = repo.path().join(".hn-templates/dockerized/.hannahanna.yml");
@@ -134,18 +181,29 @@ fn test_templates_create_from_current() {
     let repo = TestRepo::new();
 
     // Create a config in current repo
-    repo.create_config(r#"
+    repo.create_config(
+        r#"
 docker:
   enabled: true
   services:
     - app
-"#);
+"#,
+    );
 
     // Create template from current config
-    let result = repo.hn(&["templates", "create", "from-current", "--from-current", "--description", "From current"]);
+    let result = repo.hn(&[
+        "templates",
+        "create",
+        "from-current",
+        "--from-current",
+        "--description",
+        "From current",
+    ]);
     assert!(result.success);
 
-    let template_config = repo.path().join(".hn-templates/from-current/.hannahanna.yml");
+    let template_config = repo
+        .path()
+        .join(".hn-templates/from-current/.hannahanna.yml");
     let content = fs::read_to_string(&template_config).unwrap();
     assert!(content.contains("docker") || content.contains("app"));
 }

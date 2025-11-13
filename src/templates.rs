@@ -6,10 +6,10 @@
 use crate::config::Config;
 use crate::errors::{HnError, Result};
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
 
 /// Template metadata and configuration
 #[derive(Debug, Clone, serde::Serialize)]
@@ -216,11 +216,7 @@ pub fn get_template(repo_root: &Path, template_name: &str) -> Result<Template> {
 }
 
 /// Apply a template to a worktree by merging its config with the repo config
-pub fn apply_template(
-    repo_root: &Path,
-    worktree_path: &Path,
-    template_name: &str,
-) -> Result<()> {
+pub fn apply_template(repo_root: &Path, worktree_path: &Path, template_name: &str) -> Result<()> {
     let template = get_template(repo_root, template_name)?;
 
     // Load the template config
@@ -283,7 +279,9 @@ impl TemplateManifest {
         Self {
             name,
             version: "1.0.0".to_string(),
-            author: std::env::var("USER").ok().or_else(|| std::env::var("USERNAME").ok()),
+            author: std::env::var("USER")
+                .ok()
+                .or_else(|| std::env::var("USERNAME").ok()),
             description,
             created: chrono::Utc::now().to_rfc3339(),
             hannahanna_version: format!(">={}", env!("CARGO_PKG_VERSION")),
@@ -294,11 +292,7 @@ impl TemplateManifest {
 }
 
 /// Export a template to a .hnhn package (v0.6)
-pub fn export_template(
-    repo_root: &Path,
-    template_name: &str,
-    output_path: &Path,
-) -> Result<()> {
+pub fn export_template(repo_root: &Path, template_name: &str, output_path: &Path) -> Result<()> {
     use flate2::write::GzEncoder;
     use flate2::Compression;
     use tar::Builder;
@@ -478,7 +472,7 @@ pub fn validate_template(repo_root: &Path, template_name: &str) -> Result<Vec<St
 }
 
 /// Validate that template files don't escape the template directory
-fn validate_template_files(files_dir: &Path, template_dir: &Path) -> Result<()> {
+fn validate_template_files(files_dir: &Path, _template_dir: &Path) -> Result<()> {
     for entry in fs::read_dir(files_dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -493,7 +487,7 @@ fn validate_template_files(files_dir: &Path, template_dir: &Path) -> Result<()> 
 
         // Recursively validate subdirectories
         if path.is_dir() {
-            validate_template_files(&path, template_dir)?;
+            validate_template_files(&path, _template_dir)?;
         }
     }
 
@@ -704,7 +698,13 @@ pub fn apply_template_with_parameters(
     }
 
     // Copy with both built-in and custom parameters
-    copy_dir_with_params(&files_dir, worktree_path, worktree_name, worktree_path, &param_values)?;
+    copy_dir_with_params(
+        &files_dir,
+        worktree_path,
+        worktree_name,
+        worktree_path,
+        &param_values,
+    )?;
 
     Ok(())
 }
