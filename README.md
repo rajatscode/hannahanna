@@ -1,6 +1,10 @@
 # hannahanna (hn)
 
-A Git worktree manager that enables true parallel development with isolated environments.
+note 2025-11-12: wip; currently just vibe coded. building some stuff to see if it works
+
+---
+
+A worktree manager that enables true parallel development with isolated environments.
 
 ## What is hannahanna?
 
