@@ -24,7 +24,8 @@ fn test_sparse_checkout_with_cli_flag() {
     fs::write(repo.path().join("libs/utils/helper.rs"), "// Helper").unwrap();
 
     repo.git(&["add", "."]).assert_success();
-    repo.git(&["commit", "-m", "Add directory structure"]).assert_success();
+    repo.git(&["commit", "-m", "Add directory structure"])
+        .assert_success();
 
     // Create worktree with sparse checkout
     let result = repo.hn(&["add", "sparse-feature", "--sparse", "services/api/"]);
@@ -178,7 +179,8 @@ fn test_different_worktrees_different_sparse_paths() {
     fs::write(repo.path().join("libs/utils/helper.rs"), "// Helper").unwrap();
 
     repo.git(&["add", "."]).assert_success();
-    repo.git(&["commit", "-m", "Add all services"]).assert_success();
+    repo.git(&["commit", "-m", "Add all services"])
+        .assert_success();
 
     // Create first worktree with API sparse checkout
     repo.hn(&["add", "api-work", "--sparse", "services/api/"])

@@ -71,8 +71,9 @@ impl RegistryCache {
     pub fn new(state_dir: &Path, ttl: Option<Duration>) -> Result<Self> {
         // Ensure state directory exists
         if !state_dir.exists() {
-            fs::create_dir_all(state_dir)
-                .map_err(|e| HnError::ConfigError(format!("Failed to create state directory: {}", e)))?;
+            fs::create_dir_all(state_dir).map_err(|e| {
+                HnError::ConfigError(format!("Failed to create state directory: {}", e))
+            })?;
         }
 
         let cache_file = state_dir.join(".registry-cache");
@@ -96,12 +97,11 @@ impl RegistryCache {
             .map_err(|e| HnError::ConfigError(format!("Failed to lock cache file: {}", e)))?;
 
         // Read and deserialize
-        let cached: CachedRegistry = serde_json::from_reader(&file)
-            .map_err(|e| {
-                // Release lock before returning error
-                let _ = file.unlock();
-                HnError::ConfigError(format!("Failed to deserialize cache: {}", e))
-            })?;
+        let cached: CachedRegistry = serde_json::from_reader(&file).map_err(|e| {
+            // Release lock before returning error
+            let _ = file.unlock();
+            HnError::ConfigError(format!("Failed to deserialize cache: {}", e))
+        })?;
 
         // Release lock
         file.unlock()
@@ -125,26 +125,27 @@ impl RegistryCache {
             .create(true)
             .truncate(true)
             .open(&self.cache_file)
-            .map_err(|e| HnError::ConfigError(format!("Failed to open cache file for writing: {}", e)))?;
+            .map_err(|e| {
+                HnError::ConfigError(format!("Failed to open cache file for writing: {}", e))
+            })?;
 
         // Acquire exclusive lock for writing
-        file.lock_exclusive()
-            .map_err(|e| HnError::ConfigError(format!("Failed to lock cache file for writing: {}", e)))?;
+        file.lock_exclusive().map_err(|e| {
+            HnError::ConfigError(format!("Failed to lock cache file for writing: {}", e))
+        })?;
 
         // Serialize and write
-        serde_json::to_writer_pretty(&file, &cached)
-            .map_err(|e| {
-                // Release lock before returning error
-                let _ = file.unlock();
-                HnError::ConfigError(format!("Failed to serialize cache: {}", e))
-            })?;
+        serde_json::to_writer_pretty(&file, &cached).map_err(|e| {
+            // Release lock before returning error
+            let _ = file.unlock();
+            HnError::ConfigError(format!("Failed to serialize cache: {}", e))
+        })?;
 
         // Ensure data is written to disk
-        file.sync_all()
-            .map_err(|e| {
-                let _ = file.unlock();
-                HnError::ConfigError(format!("Failed to sync cache file: {}", e))
-            })?;
+        file.sync_all().map_err(|e| {
+            let _ = file.unlock();
+            HnError::ConfigError(format!("Failed to sync cache file: {}", e))
+        })?;
 
         // Release lock
         file.unlock()
@@ -174,11 +175,10 @@ impl RegistryCache {
         file.lock_shared()
             .map_err(|e| HnError::ConfigError(format!("Failed to lock cache file: {}", e)))?;
 
-        let cached: CachedRegistry = serde_json::from_reader(&file)
-            .map_err(|e| {
-                let _ = file.unlock();
-                HnError::ConfigError(format!("Failed to deserialize cache: {}", e))
-            })?;
+        let cached: CachedRegistry = serde_json::from_reader(&file).map_err(|e| {
+            let _ = file.unlock();
+            HnError::ConfigError(format!("Failed to deserialize cache: {}", e))
+        })?;
 
         file.unlock()
             .map_err(|e| HnError::ConfigError(format!("Failed to unlock cache file: {}", e)))?;

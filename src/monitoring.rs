@@ -184,7 +184,8 @@ impl MetricsHistory {
 
         // Keep only max_snapshots
         if self.snapshots.len() > self.max_snapshots {
-            self.snapshots.drain(0..self.snapshots.len() - self.max_snapshots);
+            self.snapshots
+                .drain(0..self.snapshots.len() - self.max_snapshots);
         }
     }
 

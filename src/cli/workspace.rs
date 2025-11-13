@@ -51,7 +51,9 @@ fn get_workspaces_dir(repo_root: &Path) -> Result<PathBuf> {
 /// Validate workspace name
 fn validate_workspace_name(name: &str) -> Result<()> {
     if name.is_empty() {
-        return Err(HnError::ConfigError("Workspace name cannot be empty".into()));
+        return Err(HnError::ConfigError(
+            "Workspace name cannot be empty".into(),
+        ));
     }
     if name.contains('/') || name.contains('\\') || name.starts_with('.') {
         return Err(HnError::ConfigError(format!(
@@ -60,7 +62,9 @@ fn validate_workspace_name(name: &str) -> Result<()> {
         )));
     }
     if name.trim() != name {
-        return Err(HnError::ConfigError("Workspace name cannot have leading/trailing whitespace".into()));
+        return Err(HnError::ConfigError(
+            "Workspace name cannot have leading/trailing whitespace".into(),
+        ));
     }
     Ok(())
 }
@@ -190,9 +194,17 @@ pub fn save(name: &str, description: Option<&str>, vcs_type: Option<VcsType>) ->
     fs::write(&workspace_file, json)?;
 
     println!();
-    println!("{} Workspace '{}' saved successfully!", "✓".green().bold(), name.cyan().bold());
+    println!(
+        "{} Workspace '{}' saved successfully!",
+        "✓".green().bold(),
+        name.cyan().bold()
+    );
     println!();
-    println!("{}: {}", "Worktrees saved".bold(), workspace.worktrees.len());
+    println!(
+        "{}: {}",
+        "Worktrees saved".bold(),
+        workspace.worktrees.len()
+    );
     if let Some(desc) = description {
         println!("{}: {}", "Description".bold(), desc.dimmed());
     }
@@ -200,27 +212,44 @@ pub fn save(name: &str, description: Option<&str>, vcs_type: Option<VcsType>) ->
     // Show Docker info if enabled
     if let Some(ref docker) = docker_state {
         if docker.enabled {
-            println!("{}: {} ({} unique services)",
+            println!(
+                "{}: {} ({} unique services)",
                 "Docker state".bold(),
                 "captured".green(),
-                docker.services.len());
+                docker.services.len()
+            );
         }
     }
 
     // Show worktrees with uncommitted changes
-    let uncommitted: Vec<&WorktreeInfo> = workspace.worktrees.iter()
+    let uncommitted: Vec<&WorktreeInfo> = workspace
+        .worktrees
+        .iter()
         .filter(|wt| wt.git_status.is_some())
         .collect();
     if !uncommitted.is_empty() {
-        println!("{}: {}", "Worktrees with changes".bold().yellow(), uncommitted.len());
+        println!(
+            "{}: {}",
+            "Worktrees with changes".bold().yellow(),
+            uncommitted.len()
+        );
         for wt in uncommitted {
             println!("  - {}", wt.name.yellow());
         }
     }
 
     println!();
-    println!("Restore with: {} {}", "hn workspace restore".bold(), name.cyan());
-    println!("Export with: {} {} {}", "hn workspace export".bold(), name.cyan(), "[path]".dimmed());
+    println!(
+        "Restore with: {} {}",
+        "hn workspace restore".bold(),
+        name.cyan()
+    );
+    println!(
+        "Export with: {} {} {}",
+        "hn workspace export".bold(),
+        name.cyan(),
+        "[path]".dimmed()
+    );
     println!();
 
     Ok(())
@@ -257,7 +286,11 @@ pub fn restore(name: &str, force: bool, vcs_type: Option<VcsType>) -> Result<()>
         .collect();
 
     println!();
-    println!("{} workspace '{}'...", "Restoring".bold(), name.cyan().bold());
+    println!(
+        "{} workspace '{}'...",
+        "Restoring".bold(),
+        name.cyan().bold()
+    );
     println!();
 
     // Restore each worktree
@@ -268,11 +301,19 @@ pub fn restore(name: &str, force: bool, vcs_type: Option<VcsType>) -> Result<()>
     for wt_info in &workspace.worktrees {
         if existing_names.contains_key(&wt_info.name) {
             if !force {
-                println!("  {} Skipping '{}' (already exists)", "⊘".yellow(), wt_info.name.yellow());
+                println!(
+                    "  {} Skipping '{}' (already exists)",
+                    "⊘".yellow(),
+                    wt_info.name.yellow()
+                );
                 skipped += 1;
                 continue;
             }
-            println!("  {} Overwriting '{}'...", "⚠".yellow(), wt_info.name.yellow());
+            println!(
+                "  {} Overwriting '{}'...",
+                "⚠".yellow(),
+                wt_info.name.yellow()
+            );
         } else {
             println!("  {} Creating '{}'...", "•".cyan(), wt_info.name.cyan());
         }
@@ -359,7 +400,10 @@ pub fn list(json: bool) -> Result<()> {
     for workspace in &workspaces {
         // Name and worktree count
         print!("{:<20}", workspace.name.cyan().bold());
-        print!(" │ {} worktrees", workspace.worktrees.len().to_string().green());
+        print!(
+            " │ {} worktrees",
+            workspace.worktrees.len().to_string().green()
+        );
 
         // Date (timestamp)
         if let Ok(timestamp) = workspace.created_at.parse::<u64>() {
@@ -376,7 +420,11 @@ pub fn list(json: bool) -> Result<()> {
     }
 
     println!("{}", "═".repeat(80));
-    println!("{} workspace{}", workspaces.len().to_string().green().bold(), if workspaces.len() == 1 { "" } else { "s" });
+    println!(
+        "{} workspace{}",
+        workspaces.len().to_string().green().bold(),
+        if workspaces.len() == 1 { "" } else { "s" }
+    );
     println!();
 
     Ok(())
@@ -410,7 +458,10 @@ pub fn delete(name: &str, force: bool) -> Result<()> {
     println!("{} Workspace '{}' deleted", "✓".green().bold(), name.cyan());
     println!();
     println!("{}", "Note: Worktrees themselves were not removed".dimmed());
-    println!("Use {} to remove worktrees if needed.", "hn remove <name>".bold());
+    println!(
+        "Use {} to remove worktrees if needed.",
+        "hn remove <name>".bold()
+    );
     println!();
 
     Ok(())
@@ -448,24 +499,34 @@ pub fn export(name: &str, output: Option<&str>) -> Result<()> {
 
     if let Some(ref docker) = workspace.docker_state {
         if docker.enabled {
-            println!("{}: {} ports, {} services",
+            println!(
+                "{}: {} ports, {} services",
                 "Docker state".bold(),
                 docker.ports.len(),
-                docker.services.len());
+                docker.services.len()
+            );
         }
     }
 
-    let uncommitted_count = workspace.worktrees.iter()
+    let uncommitted_count = workspace
+        .worktrees
+        .iter()
         .filter(|wt| wt.git_status.is_some())
         .count();
     if uncommitted_count > 0 {
-        println!("{}: {} worktrees",
+        println!(
+            "{}: {} worktrees",
             "Uncommitted changes".bold().yellow(),
-            uncommitted_count);
+            uncommitted_count
+        );
     }
 
     println!();
-    println!("Import with: {} {}", "hn workspace import".bold(), output_path.cyan());
+    println!(
+        "Import with: {} {}",
+        "hn workspace import".bold(),
+        output_path.cyan()
+    );
     println!();
 
     Ok(())
@@ -494,7 +555,11 @@ pub fn import(path: &str, create_worktrees: bool, vcs_type: Option<VcsType>) -> 
     }
 
     println!();
-    println!("{} workspace '{}'...", "Importing".bold(), workspace.name.cyan().bold());
+    println!(
+        "{} workspace '{}'...",
+        "Importing".bold(),
+        workspace.name.cyan().bold()
+    );
     println!();
 
     // Save workspace metadata
@@ -525,7 +590,11 @@ pub fn import(path: &str, create_worktrees: bool, vcs_type: Option<VcsType>) -> 
 
         for wt_info in &workspace.worktrees {
             if existing_names.contains_key(&wt_info.name) {
-                println!("  {} Skipping '{}' (already exists)", "⊘".yellow(), wt_info.name.yellow());
+                println!(
+                    "  {} Skipping '{}' (already exists)",
+                    "⊘".yellow(),
+                    wt_info.name.yellow()
+                );
                 skipped += 1;
                 continue;
             }
@@ -539,7 +608,10 @@ pub fn import(path: &str, create_worktrees: bool, vcs_type: Option<VcsType>) -> 
 
                     // Show git status if there were uncommitted changes
                     if let Some(ref status) = wt_info.git_status {
-                        println!("    {} Had uncommitted changes (not restored):", "ℹ".dimmed());
+                        println!(
+                            "    {} Had uncommitted changes (not restored):",
+                            "ℹ".dimmed()
+                        );
                         for line in status.lines().take(3) {
                             println!("      {}", line.dimmed());
                         }
@@ -573,11 +645,19 @@ pub fn import(path: &str, create_worktrees: bool, vcs_type: Option<VcsType>) -> 
         println!();
         println!("{}", "Note:".bold());
         println!("  Worktrees were not created. Use --create-worktrees to create them.");
-        println!("  Or restore later with: {} {}", "hn workspace restore".bold(), workspace.name.cyan());
+        println!(
+            "  Or restore later with: {} {}",
+            "hn workspace restore".bold(),
+            workspace.name.cyan()
+        );
     }
 
     println!();
-    println!("{} Workspace '{}' imported successfully!", "✓".green().bold(), workspace.name.cyan().bold());
+    println!(
+        "{} Workspace '{}' imported successfully!",
+        "✓".green().bold(),
+        workspace.name.cyan().bold()
+    );
     println!();
 
     Ok(())
@@ -594,10 +674,16 @@ pub fn diff(name1: &str, name2: &str) -> Result<()> {
     let ws2_file = workspaces_dir.join(format!("{}.json", name2));
 
     if !ws1_file.exists() {
-        return Err(HnError::ConfigError(format!("Workspace '{}' not found", name1)));
+        return Err(HnError::ConfigError(format!(
+            "Workspace '{}' not found",
+            name1
+        )));
     }
     if !ws2_file.exists() {
-        return Err(HnError::ConfigError(format!("Workspace '{}' not found", name2)));
+        return Err(HnError::ConfigError(format!(
+            "Workspace '{}' not found",
+            name2
+        )));
     }
 
     let ws1: Workspace = serde_json::from_str(&fs::read_to_string(&ws1_file)?)?;
@@ -605,7 +691,13 @@ pub fn diff(name1: &str, name2: &str) -> Result<()> {
 
     println!();
     println!("{}", "═".repeat(80).bright_blue());
-    println!("  {} '{}' {} '{}'", "Comparing".bold(), name1.cyan(), "vs".dimmed(), name2.cyan());
+    println!(
+        "  {} '{}' {} '{}'",
+        "Comparing".bold(),
+        name1.cyan(),
+        "vs".dimmed(),
+        name2.cyan()
+    );
     println!("{}", "═".repeat(80).bright_blue());
     println!();
 
@@ -613,15 +705,21 @@ pub fn diff(name1: &str, name2: &str) -> Result<()> {
     println!("{}", "Worktrees".bold().underline());
     println!();
 
-    let wt1_names: HashMap<String, &WorktreeInfo> = ws1.worktrees.iter()
+    let wt1_names: HashMap<String, &WorktreeInfo> = ws1
+        .worktrees
+        .iter()
         .map(|wt| (wt.name.clone(), wt))
         .collect();
-    let wt2_names: HashMap<String, &WorktreeInfo> = ws2.worktrees.iter()
+    let wt2_names: HashMap<String, &WorktreeInfo> = ws2
+        .worktrees
+        .iter()
         .map(|wt| (wt.name.clone(), wt))
         .collect();
 
     // Worktrees only in ws1
-    let only_in_1: Vec<&WorktreeInfo> = ws1.worktrees.iter()
+    let only_in_1: Vec<&WorktreeInfo> = ws1
+        .worktrees
+        .iter()
         .filter(|wt| !wt2_names.contains_key(&wt.name))
         .collect();
     if !only_in_1.is_empty() {
@@ -633,7 +731,9 @@ pub fn diff(name1: &str, name2: &str) -> Result<()> {
     }
 
     // Worktrees only in ws2
-    let only_in_2: Vec<&WorktreeInfo> = ws2.worktrees.iter()
+    let only_in_2: Vec<&WorktreeInfo> = ws2
+        .worktrees
+        .iter()
         .filter(|wt| !wt1_names.contains_key(&wt.name))
         .collect();
     if !only_in_2.is_empty() {
@@ -659,7 +759,11 @@ pub fn diff(name1: &str, name2: &str) -> Result<()> {
         for (wt1, wt2) in changed {
             println!("  ~ {}", wt1.name.yellow());
             if wt1.branch != wt2.branch {
-                println!("    Branch: {} → {}", wt1.branch.dimmed(), wt2.branch.cyan());
+                println!(
+                    "    Branch: {} → {}",
+                    wt1.branch.dimmed(),
+                    wt2.branch.cyan()
+                );
             }
             if wt1.commit != wt2.commit {
                 if let (Some(c1), Some(c2)) = (&wt1.commit, &wt2.commit) {
@@ -680,10 +784,12 @@ pub fn diff(name1: &str, name2: &str) -> Result<()> {
         match (&ws1.docker_state, &ws2.docker_state) {
             (Some(d1), Some(d2)) => {
                 if d1.services != d2.services {
-                    println!("{}: {} → {}",
+                    println!(
+                        "{}: {} → {}",
                         "Services".bold(),
                         d1.services.len(),
-                        d2.services.len());
+                        d2.services.len()
+                    );
 
                     let s1: std::collections::HashSet<_> = d1.services.iter().collect();
                     let s2: std::collections::HashSet<_> = d2.services.iter().collect();
@@ -697,17 +803,29 @@ pub fn diff(name1: &str, name2: &str) -> Result<()> {
                 }
 
                 if d1.ports.len() != d2.ports.len() {
-                    println!("{}: {} → {}",
+                    println!(
+                        "{}: {} → {}",
                         "Port allocations".bold(),
                         d1.ports.len(),
-                        d2.ports.len());
+                        d2.ports.len()
+                    );
                 }
             }
             (Some(_), None) => {
-                println!("{}: {} → {}", "Docker".bold(), "enabled".green(), "disabled".red());
+                println!(
+                    "{}: {} → {}",
+                    "Docker".bold(),
+                    "enabled".green(),
+                    "disabled".red()
+                );
             }
             (None, Some(_)) => {
-                println!("{}: {} → {}", "Docker".bold(), "disabled".dimmed(), "enabled".green());
+                println!(
+                    "{}: {} → {}",
+                    "Docker".bold(),
+                    "disabled".dimmed(),
+                    "enabled".green()
+                );
             }
             _ => {}
         }
@@ -716,11 +834,13 @@ pub fn diff(name1: &str, name2: &str) -> Result<()> {
 
     // Summary
     println!("{}", "═".repeat(80).bright_blue());
-    println!("{}: {} │ {}: {}",
+    println!(
+        "{}: {} │ {}: {}",
         name1.cyan().bold(),
         ws1.worktrees.len(),
         name2.cyan().bold(),
-        ws2.worktrees.len());
+        ws2.worktrees.len()
+    );
     println!("{}", "═".repeat(80).bright_blue());
     println!();
 

@@ -45,7 +45,10 @@ pub fn run(name: Option<String>, vcs_type: Option<VcsType>) -> Result<()> {
     let repo_root = Config::find_repo_root(&env::current_dir()?)?;
 
     // Print header
-    println!("{}", format!("Worktree: {}", worktree.name).bright_cyan().bold());
+    println!(
+        "{}",
+        format!("Worktree: {}", worktree.name).bright_cyan().bold()
+    );
     println!("{}", "=".repeat(60));
 
     // Basic info
@@ -122,7 +125,11 @@ pub fn run(name: Option<String>, vcs_type: Option<VcsType>) -> Result<()> {
     if let Some(ref parent_name) = worktree.parent {
         println!("{}: {}", "Parent".bright_white(), parent_name.bright_cyan());
     } else {
-        println!("{}: {}", "Parent".bright_white(), "None (root worktree)".dimmed());
+        println!(
+            "{}: {}",
+            "Parent".bright_white(),
+            "None (root worktree)".dimmed()
+        );
     }
 
     let children: Vec<_> = all_worktrees
@@ -196,7 +203,11 @@ pub fn run(name: Option<String>, vcs_type: Option<VcsType>) -> Result<()> {
             Ok(manager) => {
                 if let Ok(docker_status) = manager.get_status(&worktree.name, &worktree.path) {
                     if docker_status.running {
-                        println!("  {}: {}", "Containers".bright_white(), "Running".bright_green());
+                        println!(
+                            "  {}: {}",
+                            "Containers".bright_white(),
+                            "Running".bright_green()
+                        );
 
                         // Try to get container stats (memory/CPU)
                         if let Ok(stats) = get_container_stats(&worktree.name) {

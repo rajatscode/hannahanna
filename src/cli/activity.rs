@@ -43,10 +43,7 @@ pub fn run(
 }
 
 /// Show activity for a specific worktree
-fn show_worktree_activity(
-    name: &str,
-    state_manager: &StateManager,
-) -> Result<()> {
+fn show_worktree_activity(name: &str, state_manager: &StateManager) -> Result<()> {
     let state_dir = state_manager.get_state_dir(name);
     let activity_log = state_dir.join("activity.json");
 
@@ -156,9 +153,17 @@ fn show_all_activity(
 /// Display a single activity event
 fn display_event(event: &ActivityEvent) {
     let (timestamp, icon, description) = match event {
-        ActivityEvent::WorktreeCreated { timestamp, branch, template } => {
+        ActivityEvent::WorktreeCreated {
+            timestamp,
+            branch,
+            template,
+        } => {
             let desc = if let Some(tmpl) = template {
-                format!("Created from {} with template '{}'", branch.yellow(), tmpl.cyan())
+                format!(
+                    "Created from {} with template '{}'",
+                    branch.yellow(),
+                    tmpl.cyan()
+                )
             } else {
                 format!("Created from {}", branch.yellow())
             };
@@ -175,14 +180,22 @@ fn display_event(event: &ActivityEvent) {
             };
             (*timestamp, "🔄", desc)
         }
-        ActivityEvent::DockerStarted { timestamp, services } => {
+        ActivityEvent::DockerStarted {
+            timestamp,
+            services,
+        } => {
             let desc = format!("Docker started ({})", services.join(", ").cyan());
             (*timestamp, "🐳", desc)
         }
         ActivityEvent::DockerStopped { timestamp } => {
             (*timestamp, "🐳", "Docker stopped".to_string())
         }
-        ActivityEvent::HookExecuted { timestamp, hook, duration_ms, success } => {
+        ActivityEvent::HookExecuted {
+            timestamp,
+            hook,
+            duration_ms,
+            success,
+        } => {
             let status_icon = if *success { "✓".green() } else { "✗".red() };
             let desc = format!(
                 "Hook {} executed {} ({} ms)",
@@ -192,15 +205,25 @@ fn display_event(event: &ActivityEvent) {
             );
             (*timestamp, "🪝", desc)
         }
-        ActivityEvent::IntegrationPerformed { timestamp, source, target } => {
+        ActivityEvent::IntegrationPerformed {
+            timestamp,
+            source,
+            target,
+        } => {
             let desc = format!("Integrated {} → {}", source.yellow(), target.yellow());
             (*timestamp, "🔗", desc)
         }
-        ActivityEvent::SnapshotCreated { timestamp, snapshot_name } => {
+        ActivityEvent::SnapshotCreated {
+            timestamp,
+            snapshot_name,
+        } => {
             let desc = format!("Snapshot '{}' created", snapshot_name.cyan());
             (*timestamp, "📸", desc)
         }
-        ActivityEvent::SnapshotRestored { timestamp, snapshot_name } => {
+        ActivityEvent::SnapshotRestored {
+            timestamp,
+            snapshot_name,
+        } => {
             let desc = format!("Snapshot '{}' restored", snapshot_name.cyan());
             (*timestamp, "📸", desc)
         }

@@ -590,9 +590,7 @@ impl VcsBackend for GitBackend {
         }
 
         // Check Git version (sparse-checkout requires Git >= 2.25)
-        let version_output = Command::new("git")
-            .args(["--version"])
-            .output()?;
+        let version_output = Command::new("git").args(["--version"]).output()?;
 
         if version_output.status.success() {
             let version_str = String::from_utf8_lossy(&version_output.stdout);

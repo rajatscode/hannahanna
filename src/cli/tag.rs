@@ -63,7 +63,11 @@ pub fn list(worktree: Option<&str>) -> Result<()> {
         if worktree_tags.is_empty() {
             println!("No tags for worktree '{}'", wt.cyan());
         } else {
-            println!("Tags for '{}': {}", wt.cyan(), worktree_tags.join(", ").yellow());
+            println!(
+                "Tags for '{}': {}",
+                wt.cyan(),
+                worktree_tags.join(", ").yellow()
+            );
         }
         println!();
     } else {
@@ -74,7 +78,10 @@ pub fn list(worktree: Option<&str>) -> Result<()> {
         if all_tags.is_empty() {
             println!("{}", "No tags found".yellow());
             println!();
-            println!("Create tags with: {} <worktree> <tag1> <tag2> ...", "hn tag".bold());
+            println!(
+                "Create tags with: {} <worktree> <tag1> <tag2> ...",
+                "hn tag".bold()
+            );
         } else {
             println!("{}", "All Tags".bold());
             println!("{}", "═".repeat(50));

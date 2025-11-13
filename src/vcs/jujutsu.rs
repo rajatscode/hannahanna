@@ -303,9 +303,7 @@ impl VcsBackend for JujutsuBackend {
 
         // Jujutsu uses `jj sparse set` to configure sparse checkout
         let mut cmd = Command::new("jj");
-        cmd.arg("sparse")
-            .arg("set")
-            .current_dir(worktree_path);
+        cmd.arg("sparse").arg("set").current_dir(worktree_path);
 
         // Add all paths
         for path in paths {

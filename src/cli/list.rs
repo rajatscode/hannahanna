@@ -1,6 +1,6 @@
 use crate::errors::Result;
-use crate::vcs::{init_backend_from_current_dir, short_commit, RegistryCache, VcsType, Worktree};
 use crate::tags;
+use crate::vcs::{init_backend_from_current_dir, short_commit, RegistryCache, VcsType, Worktree};
 use std::collections::HashMap;
 
 pub fn run(tree: bool, tag: Option<String>, vcs_type: Option<VcsType>) -> Result<()> {

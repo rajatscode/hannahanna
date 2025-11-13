@@ -303,7 +303,10 @@ pub fn show() -> Result<()> {
         println!("  • Create one: {}", "hn config init".bright_cyan());
         println!("  • hannahanna uses default configuration");
         println!("  • Config files are optional");
-        println!("\n{}:", "Config hierarchy (highest priority first)".bright_cyan());
+        println!(
+            "\n{}:",
+            "Config hierarchy (highest priority first)".bright_cyan()
+        );
         println!("  1. .hannahanna.local.yml  (local, gitignored)");
         println!("  2. .hannahanna.yml        (repo, committed)");
         println!("  3. ~/.config/hannahanna/config.yml  (user)");
@@ -318,7 +321,10 @@ pub fn show() -> Result<()> {
     println!("{}", "=".repeat(70));
 
     // Display which configs were loaded
-    println!("\n{}:", "Loaded config files (highest priority first)".bright_green());
+    println!(
+        "\n{}:",
+        "Loaded config files (highest priority first)".bright_green()
+    );
     for (i, path) in loaded_paths.iter().enumerate() {
         let priority = match i {
             0 => "HIGHEST",

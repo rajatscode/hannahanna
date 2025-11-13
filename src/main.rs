@@ -584,7 +584,10 @@ fn expand_alias_with_cycle_detection(
     // Check for cycle
     if seen.contains(first_word) {
         eprintln!("Error: Alias cycle detected involving '{}'", first_word);
-        eprintln!("Alias chain: {}", seen.iter().cloned().collect::<Vec<_>>().join(" -> "));
+        eprintln!(
+            "Alias chain: {}",
+            seen.iter().cloned().collect::<Vec<_>>().join(" -> ")
+        );
         std::process::exit(1);
     }
 
@@ -632,7 +635,18 @@ fn main() {
             template,
             param,
             profile,
-        } => cli::add::run(name, branch, from, no_branch, sparse, template, param, profile, cli.no_hooks, vcs_type),
+        } => cli::add::run(
+            name,
+            branch,
+            from,
+            no_branch,
+            sparse,
+            template,
+            param,
+            profile,
+            cli.no_hooks,
+            vcs_type,
+        ),
         Commands::List { tree, tag } => cli::list::run(tree, tag, vcs_type),
         Commands::Remove { name, force } => cli::remove::run(name, force, cli.no_hooks, vcs_type),
         Commands::Switch { name } => cli::switch::run(name, vcs_type),
@@ -649,7 +663,14 @@ fn main() {
             filter,
             tag,
             docker_running,
-        } => cli::each::run(command, parallel, stop_on_error, filter, tag, docker_running),
+        } => cli::each::run(
+            command,
+            parallel,
+            stop_on_error,
+            filter,
+            tag,
+            docker_running,
+        ),
         Commands::Integrate {
             source,
             into,
@@ -697,24 +718,27 @@ fn main() {
             DockerCommands::Stop { name } => cli::docker::stop(name),
             DockerCommands::Restart { name } => cli::docker::restart(name),
             DockerCommands::Logs { name, service } => cli::docker::logs(name, service),
-            DockerCommands::Exec { name, service, command } => cli::docker::exec(name, service, command),
+            DockerCommands::Exec {
+                name,
+                service,
+                command,
+            } => cli::docker::exec(name, service, command),
             DockerCommands::Prune => cli::docker::prune(),
         },
         Commands::Templates { command } => match command {
             TemplatesCommands::List { json } => cli::templates::list(json),
             TemplatesCommands::Show { name } => cli::templates::show(&name),
-            TemplatesCommands::Create { name, description, docker, from_current } => {
-                cli::templates::create(&name, description.as_deref(), docker, from_current)
-            }
-            TemplatesCommands::Export { name, output } => {
-                cli::templates::export(&name, &output)
-            }
+            TemplatesCommands::Create {
+                name,
+                description,
+                docker,
+                from_current,
+            } => cli::templates::create(&name, description.as_deref(), docker, from_current),
+            TemplatesCommands::Export { name, output } => cli::templates::export(&name, &output),
             TemplatesCommands::Import { package, name } => {
                 cli::templates::import(&package, name.as_deref())
             }
-            TemplatesCommands::Validate { name } => {
-                cli::templates::validate(&name)
-            }
+            TemplatesCommands::Validate { name } => cli::templates::validate(&name),
         },
         Commands::Workspace { command } => match command {
             WorkspaceCommands::Save { name, description } => {
@@ -728,20 +752,21 @@ fn main() {
             WorkspaceCommands::Export { name, output } => {
                 cli::workspace::export(&name, output.as_deref())
             }
-            WorkspaceCommands::Import { path, create_worktrees } => {
-                cli::workspace::import(&path, create_worktrees, vcs_type)
-            }
-            WorkspaceCommands::Diff { name1, name2 } => {
-                cli::workspace::diff(&name1, &name2)
-            }
+            WorkspaceCommands::Import {
+                path,
+                create_worktrees,
+            } => cli::workspace::import(&path, create_worktrees, vcs_type),
+            WorkspaceCommands::Diff { name1, name2 } => cli::workspace::diff(&name1, &name2),
         },
         Commands::Snapshot { command } => match command {
-            SnapshotCommands::Create { worktree, name, description } => {
+            SnapshotCommands::Create {
+                worktree,
+                name,
+                description,
+            } => {
                 cli::snapshot::create(&worktree, name.as_deref(), description.as_deref(), vcs_type)
             }
-            SnapshotCommands::List { worktree } => {
-                cli::snapshot::list(worktree.as_deref())
-            }
+            SnapshotCommands::List { worktree } => cli::snapshot::list(worktree.as_deref()),
             SnapshotCommands::Restore { worktree, snapshot } => {
                 cli::snapshot::restore(&worktree, &snapshot, vcs_type)
             }
@@ -749,14 +774,16 @@ fn main() {
                 cli::snapshot::delete(&worktree, &snapshot)
             }
         },
-        Commands::Stats { name, all, disk, history, days } => {
-            cli::stats::run(name, all, disk, history, days, vcs_type)
-        }
+        Commands::Stats {
+            name,
+            all,
+            disk,
+            history,
+            days,
+        } => cli::stats::run(name, all, disk, history, days, vcs_type),
         Commands::Tag { worktree, tags } => cli::tag::add(&worktree, &tags),
         Commands::Tags { worktree } => cli::tag::list(worktree.as_deref()),
-        Commands::Monitor { live, refresh } => {
-            cli::monitor::run(live, refresh, vcs_type)
-        }
+        Commands::Monitor { live, refresh } => cli::monitor::run(live, refresh, vcs_type),
         Commands::Activity { name, since, limit } => {
             cli::activity::run(name, since, limit, vcs_type)
         }

@@ -72,7 +72,8 @@ impl SnapshotIndex {
 
     pub fn remove(&mut self, worktree: &str, name: &str) -> bool {
         let original_len = self.snapshots.len();
-        self.snapshots.retain(|s| !(s.worktree == worktree && s.name == name));
+        self.snapshots
+            .retain(|s| !(s.worktree == worktree && s.name == name));
         self.snapshots.len() < original_len
     }
 }
@@ -133,7 +134,9 @@ pub fn create_snapshot(
         .map_err(|e| HnError::CommandFailed(format!("Failed to get branch: {}", e)))?;
 
     if !branch_output.status.success() {
-        return Err(HnError::CommandFailed("Failed to get current branch".to_string()));
+        return Err(HnError::CommandFailed(
+            "Failed to get current branch".to_string(),
+        ));
     }
 
     let branch = String::from_utf8(branch_output.stdout)
@@ -151,7 +154,9 @@ pub fn create_snapshot(
         .map_err(|e| HnError::CommandFailed(format!("Failed to get commit: {}", e)))?;
 
     if !commit_output.status.success() {
-        return Err(HnError::CommandFailed("Failed to get current commit".to_string()));
+        return Err(HnError::CommandFailed(
+            "Failed to get current commit".to_string(),
+        ));
     }
 
     let commit = String::from_utf8(commit_output.stdout)
@@ -217,7 +222,10 @@ pub fn create_snapshot(
             let stderr = String::from_utf8_lossy(&stash_output.stderr);
             // Rollback: remove snapshot from index
             let _ = delete_snapshot(worktree_name, &name, state_dir);
-            return Err(HnError::CommandFailed(format!("Failed to stash changes: {}", stderr)));
+            return Err(HnError::CommandFailed(format!(
+                "Failed to stash changes: {}",
+                stderr
+            )));
         }
 
         // Use the stash message as the reference (stable across operations)
@@ -316,7 +324,10 @@ pub fn restore_snapshot(
 
     if !checkout_output.status.success() {
         let stderr = String::from_utf8_lossy(&checkout_output.stderr);
-        return Err(HnError::CommandFailed(format!("Failed to checkout branch: {}", stderr)));
+        return Err(HnError::CommandFailed(format!(
+            "Failed to checkout branch: {}",
+            stderr
+        )));
     }
 
     // Reset to the commit
@@ -331,7 +342,10 @@ pub fn restore_snapshot(
 
     if !reset_output.status.success() {
         let stderr = String::from_utf8_lossy(&reset_output.stderr);
-        return Err(HnError::CommandFailed(format!("Failed to reset to commit: {}", stderr)));
+        return Err(HnError::CommandFailed(format!(
+            "Failed to reset to commit: {}",
+            stderr
+        )));
     }
 
     // Restore stash if present
@@ -413,9 +427,9 @@ pub fn delete_snapshot(worktree_name: &str, snapshot_name: &str, state_dir: &Pat
     // Clean up associated git stash if present
     if let Some(ref stash_message) = snapshot.stash_ref {
         // Find the worktree path using git worktree list
-        let repo_root = state_dir.parent().ok_or_else(|| {
-            HnError::ConfigError("Invalid state directory path".to_string())
-        })?;
+        let repo_root = state_dir
+            .parent()
+            .ok_or_else(|| HnError::ConfigError("Invalid state directory path".to_string()))?;
 
         // Use git worktree list to find the actual worktree path
         let worktree_list_output = Command::new("git")
@@ -482,8 +496,14 @@ pub fn delete_snapshot(worktree_name: &str, snapshot_name: &str, state_dir: &Pat
                             }
                             Ok(output) => {
                                 let stderr = String::from_utf8_lossy(&output.stderr);
-                                eprintln!("Warning: Failed to drop associated git stash: {}", stderr);
-                                eprintln!("You may want to manually clean up: git stash drop {}", stash_ref);
+                                eprintln!(
+                                    "Warning: Failed to drop associated git stash: {}",
+                                    stderr
+                                );
+                                eprintln!(
+                                    "You may want to manually clean up: git stash drop {}",
+                                    stash_ref
+                                );
                             }
                             Err(e) => {
                                 eprintln!("Warning: Failed to execute git stash drop: {}", e);

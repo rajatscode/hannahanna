@@ -61,7 +61,11 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
             "⚠ Warning: Removing '{}' which has {} child worktree(s): {}",
             matched_name,
             children.len(),
-            children.iter().map(|wt| wt.name.as_str()).collect::<Vec<_>>().join(", ")
+            children
+                .iter()
+                .map(|wt| wt.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
         );
         eprintln!("⚠ Children will become orphaned (parent link will be broken)");
     }
@@ -77,8 +81,8 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
     let state_dir = state_manager.get_state_dir(&matched_name);
 
     // Run pre_remove hook if configured (regular or conditional)
-    let has_pre_remove_hooks = config.hooks.pre_remove.is_some()
-        || !config.hooks.pre_remove_conditions.is_empty();
+    let has_pre_remove_hooks =
+        config.hooks.pre_remove.is_some() || !config.hooks.pre_remove_conditions.is_empty();
 
     if has_pre_remove_hooks && !no_hooks {
         println!("Running pre_remove hook...");
@@ -135,8 +139,8 @@ pub fn run(name: String, force: bool, no_hooks: bool, vcs_type: Option<VcsType>)
     state_manager.remove_state_dir(&matched_name)?;
 
     // Run post_remove hook if configured
-    let has_post_remove_hooks = config.hooks.post_remove.is_some()
-        || !config.hooks.post_remove_conditions.is_empty();
+    let has_post_remove_hooks =
+        config.hooks.post_remove.is_some() || !config.hooks.post_remove_conditions.is_empty();
 
     if has_post_remove_hooks && !no_hooks {
         println!("Running post_remove hook...");

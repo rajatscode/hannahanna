@@ -416,7 +416,8 @@ impl VcsBackend for MercurialBackend {
             return Err(HnError::ConfigError(
                 "Sparse checkout requires the 'sparse' extension. Enable it in your .hgrc with:\n\
                  [extensions]\n\
-                 sparse =".to_string(),
+                 sparse ="
+                    .to_string(),
             ));
         }
 

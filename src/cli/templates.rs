@@ -26,13 +26,22 @@ pub fn list(json: bool) -> Result<()> {
     if templates_list.is_empty() {
         println!("{}", "No templates found".yellow());
         println!();
-        println!("Create templates in: {}", format!("{}/.hn-templates/", repo_root.display()).cyan());
+        println!(
+            "Create templates in: {}",
+            format!("{}/.hn-templates/", repo_root.display()).cyan()
+        );
         println!();
         println!("Example structure:");
         println!("  .hn-templates/");
         println!("    microservice/");
-        println!("      .hannahanna.yml  {} Template configuration", "←".dimmed());
-        println!("      README.md         {} Template description", "←".dimmed());
+        println!(
+            "      .hannahanna.yml  {} Template configuration",
+            "←".dimmed()
+        );
+        println!(
+            "      README.md         {} Template description",
+            "←".dimmed()
+        );
         return Ok(());
     }
 
@@ -61,7 +70,11 @@ pub fn list(json: bool) -> Result<()> {
         ".hn-templates/".cyan()
     );
     println!();
-    println!("Usage: {} <name> {} <template-name>", "hn add".bold(), "--template".dimmed());
+    println!(
+        "Usage: {} <name> {} <template-name>",
+        "hn add".bold(),
+        "--template".dimmed()
+    );
 
     Ok(())
 }
@@ -87,7 +100,17 @@ pub fn show(name: &str) -> Result<()> {
 
     println!();
     println!("{}: {}", "Template".bold(), template.name.cyan().bold());
-    println!("{}: {}", "Location".bold(), template.config_path.parent().unwrap().display().to_string().dimmed());
+    println!(
+        "{}: {}",
+        "Location".bold(),
+        template
+            .config_path
+            .parent()
+            .unwrap()
+            .display()
+            .to_string()
+            .dimmed()
+    );
     println!();
 
     // Show description
@@ -115,7 +138,10 @@ pub fn show(name: &str) -> Result<()> {
         }
 
         if lines.len() > 15 {
-            println!("{}", format!("... ({} more lines)", lines.len() - 15).dimmed());
+            println!(
+                "{}",
+                format!("... ({} more lines)", lines.len() - 15).dimmed()
+            );
         }
     } else {
         println!("{}", "No configuration file found".yellow());
@@ -124,14 +150,24 @@ pub fn show(name: &str) -> Result<()> {
     println!();
     println!("{}", "Usage".bold());
     println!("{}", "─".repeat(60));
-    println!("  {} <worktree-name> {} {}", "hn add".bold(), "--template".dimmed(), name.cyan());
+    println!(
+        "  {} <worktree-name> {} {}",
+        "hn add".bold(),
+        "--template".dimmed(),
+        name.cyan()
+    );
     println!();
 
     Ok(())
 }
 
 /// Create a new template
-pub fn create(name: &str, description: Option<&str>, enable_docker: bool, from_current: bool) -> Result<()> {
+pub fn create(
+    name: &str,
+    description: Option<&str>,
+    enable_docker: bool,
+    from_current: bool,
+) -> Result<()> {
     let cwd = env::current_dir()?;
     let repo_root = Config::find_repo_root(&cwd)?;
 
@@ -185,14 +221,33 @@ pub fn create(name: &str, description: Option<&str>, enable_docker: bool, from_c
     fs::create_dir_all(template_dir.join("files"))?;
 
     println!();
-    println!("{} Template '{}' created successfully!", "✓".green().bold(), name.cyan().bold());
+    println!(
+        "{} Template '{}' created successfully!",
+        "✓".green().bold(),
+        name.cyan().bold()
+    );
     println!();
-    println!("{}: {}", "Location".bold(), template_dir.display().to_string().dimmed());
+    println!(
+        "{}: {}",
+        "Location".bold(),
+        template_dir.display().to_string().dimmed()
+    );
     println!();
     println!("{}", "Next steps:".bold());
-    println!("  1. Edit {}/.hannahanna.yml to customize configuration", template_dir.display());
-    println!("  2. Add files to {}/ to copy to new worktrees", template_dir.join("files").display());
-    println!("  3. Use with: {} <name> {} {}", "hn add".bold(), "--template".dimmed(), name.cyan());
+    println!(
+        "  1. Edit {}/.hannahanna.yml to customize configuration",
+        template_dir.display()
+    );
+    println!(
+        "  2. Add files to {}/ to copy to new worktrees",
+        template_dir.join("files").display()
+    );
+    println!(
+        "  3. Use with: {} <name> {} {}",
+        "hn add".bold(),
+        "--template".dimmed(),
+        name.cyan()
+    );
     println!();
 
     Ok(())
@@ -215,7 +270,8 @@ hooks:
   post_create: |
     echo "Setting up Docker environment..."
     # Add your setup commands here
-"#.to_string()
+"#
+        .to_string()
     } else {
         r#"# Template configuration
 
@@ -223,7 +279,8 @@ hooks:
   post_create: |
     echo "Worktree created from template"
     # Add your setup commands here
-"#.to_string()
+"#
+        .to_string()
     }
 }
 
@@ -293,12 +350,19 @@ pub fn export(name: &str, output_path: &str) -> Result<()> {
 
     println!("{} Template exported successfully!", "✓".green().bold());
     println!();
-    println!("{}: {}", "Package".bold(), output_final.display().to_string().dimmed());
+    println!(
+        "{}: {}",
+        "Package".bold(),
+        output_final.display().to_string().dimmed()
+    );
     println!("{}: {} KB", "Size".bold(), size_kb.to_string().dimmed());
     println!();
     println!("{}", "Next steps:".bold());
     println!("  • Share this package file with others");
-    println!("  • Import with: {} <path-to-package>", "hn templates import".bold());
+    println!(
+        "  • Import with: {} <path-to-package>",
+        "hn templates import".bold()
+    );
     println!();
 
     Ok(())
@@ -327,12 +391,26 @@ pub fn import(package_path: &str, name: Option<&str>) -> Result<()> {
     // Import the template
     let imported_name = templates::import_template(&repo_root, package, name)?;
 
-    println!("{} Template '{}' imported successfully!", "✓".green().bold(), imported_name.cyan().bold());
+    println!(
+        "{} Template '{}' imported successfully!",
+        "✓".green().bold(),
+        imported_name.cyan().bold()
+    );
     println!();
-    println!("{}: {}/.hn-templates/{}/", "Location".bold(), repo_root.display(), imported_name);
+    println!(
+        "{}: {}/.hn-templates/{}/",
+        "Location".bold(),
+        repo_root.display(),
+        imported_name
+    );
     println!();
     println!("{}", "Usage:".bold());
-    println!("  {} <worktree-name> {} {}", "hn add".bold(), "--template".dimmed(), imported_name.cyan());
+    println!(
+        "  {} <worktree-name> {} {}",
+        "hn add".bold(),
+        "--template".dimmed(),
+        imported_name.cyan()
+    );
     println!();
 
     Ok(())

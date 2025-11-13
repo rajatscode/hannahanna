@@ -60,11 +60,20 @@ pub fn list() -> Result<()> {
     println!(
         "\nTotal: {} state directories ({} active, {} orphaned)",
         state_dirs.len(),
-        state_dirs.iter().filter(|n| active_names.contains(n)).count(),
-        state_dirs.iter().filter(|n| !active_names.contains(n)).count()
+        state_dirs
+            .iter()
+            .filter(|n| active_names.contains(n))
+            .count(),
+        state_dirs
+            .iter()
+            .filter(|n| !active_names.contains(n))
+            .count()
     );
 
-    let orphaned_count = state_dirs.iter().filter(|n| !active_names.contains(n)).count();
+    let orphaned_count = state_dirs
+        .iter()
+        .filter(|n| !active_names.contains(n))
+        .count();
     if orphaned_count > 0 {
         println!(
             "\n{}: Clean orphaned state with: {}",
@@ -90,7 +99,10 @@ pub fn clean() -> Result<()> {
     let orphaned = state_manager.list_orphaned(&active_names)?;
 
     if orphaned.is_empty() {
-        println!("{}", "✓ No orphaned state directories found.".bright_green());
+        println!(
+            "{}",
+            "✓ No orphaned state directories found.".bright_green()
+        );
         return Ok(());
     }
 

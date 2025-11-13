@@ -1,8 +1,8 @@
 // Execute a command in each worktree
 use crate::errors::{HnError, Result};
+use crate::tags;
 use crate::vcs::git::GitBackend;
 use crate::vcs::Worktree;
-use crate::tags;
 use colored::Colorize;
 use regex::Regex;
 use std::process::{Command, Stdio};

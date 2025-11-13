@@ -3,7 +3,6 @@ mod common;
 
 use common::TestRepo;
 use std::fs;
-use std::process::Command;
 
 #[test]
 fn test_post_create_hook() {
@@ -272,7 +271,10 @@ hooks:
     let worktree_path = repo.worktree_path("release-prod");
     let marker = worktree_path.join("prod_marker.txt");
 
-    assert!(marker.exists(), "Conditional hook should match -prod suffix");
+    assert!(
+        marker.exists(),
+        "Conditional hook should match -prod suffix"
+    );
 }
 
 #[test]
