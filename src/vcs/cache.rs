@@ -93,18 +93,18 @@ impl RegistryCache {
             .map_err(|e| HnError::ConfigError(format!("Failed to open cache file: {}", e)))?;
 
         // Acquire shared lock for reading
-        file.lock_shared()
+        FileExt::lock_shared(&file)
             .map_err(|e| HnError::ConfigError(format!("Failed to lock cache file: {}", e)))?;
 
         // Read and deserialize
         let cached: CachedRegistry = serde_json::from_reader(&file).map_err(|e| {
             // Release lock before returning error
-            let _ = file.unlock();
+            let _ = FileExt::unlock(&file);
             HnError::ConfigError(format!("Failed to deserialize cache: {}", e))
         })?;
 
         // Release lock
-        file.unlock()
+        FileExt::unlock(&file)
             .map_err(|e| HnError::ConfigError(format!("Failed to unlock cache file: {}", e)))?;
 
         // Check if cache is still valid
@@ -130,25 +130,25 @@ impl RegistryCache {
             })?;
 
         // Acquire exclusive lock for writing
-        file.lock_exclusive().map_err(|e| {
+        FileExt::lock_exclusive(&file).map_err(|e| {
             HnError::ConfigError(format!("Failed to lock cache file for writing: {}", e))
         })?;
 
         // Serialize and write
         serde_json::to_writer_pretty(&file, &cached).map_err(|e| {
             // Release lock before returning error
-            let _ = file.unlock();
+            let _ = FileExt::unlock(&file);
             HnError::ConfigError(format!("Failed to serialize cache: {}", e))
         })?;
 
         // Ensure data is written to disk
         file.sync_all().map_err(|e| {
-            let _ = file.unlock();
+            let _ = FileExt::unlock(&file);
             HnError::ConfigError(format!("Failed to sync cache file: {}", e))
         })?;
 
         // Release lock
-        file.unlock()
+        FileExt::unlock(&file)
             .map_err(|e| HnError::ConfigError(format!("Failed to unlock cache file: {}", e)))?;
 
         Ok(())
@@ -172,15 +172,15 @@ impl RegistryCache {
         let file = File::open(&self.cache_file)
             .map_err(|e| HnError::ConfigError(format!("Failed to open cache file: {}", e)))?;
 
-        file.lock_shared()
+        FileExt::lock_shared(&file)
             .map_err(|e| HnError::ConfigError(format!("Failed to lock cache file: {}", e)))?;
 
         let cached: CachedRegistry = serde_json::from_reader(&file).map_err(|e| {
-            let _ = file.unlock();
+            let _ = FileExt::unlock(&file);
             HnError::ConfigError(format!("Failed to deserialize cache: {}", e))
         })?;
 
-        file.unlock()
+        FileExt::unlock(&file)
             .map_err(|e| HnError::ConfigError(format!("Failed to unlock cache file: {}", e)))?;
 
         let metadata = fs::metadata(&self.cache_file)
